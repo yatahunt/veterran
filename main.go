@@ -11,44 +11,24 @@ import (
 )
 
 type bot struct {
-	info client.AgentInfo
-	obs  *api.Observation
+	scl.Bot
 
-	actions            []*api.Action
-	startLocation      scl.Point
-	enemyStartLocation scl.Point
-	baseLocations      scl.Points
-	units              scl.UnitsByTypes
-	mineralFields      scl.UnitsByTypes
-	vespeneGeysers     scl.UnitsByTypes
-	neutralUnits       scl.UnitsByTypes
-	enemyUnits         scl.UnitsByTypes
-	orders             map[api.AbilityID]int
+	PositionsForSupplies scl.Points
+	PositionsForBarracks scl.Points
 
-	loop     int
-	minerals int
-	vespene  int
-	foodCap  int
-	foodUsed int
-	foodLeft int
-
-	positionsForSupplies scl.Points
-	positionsForBarracks scl.Points
-
-	okTargets   scl.Units
-	goodTargets scl.Units
-	builder1    api.UnitTag
-	builder2    api.UnitTag
-	retreat     map[api.UnitTag]bool
+	Builder1    api.UnitTag
+	Builder2    api.UnitTag
+	Retreat     map[api.UnitTag]bool
 }
 
 func runAgent(info client.AgentInfo) {
-	b := bot{info: info}
+	b := bot{}
+	b.Info = info
 
-	for b.info.IsInGame() {
-		b.step()
+	for b.Info.IsInGame() {
+		b.Step()
 
-		if err := b.info.Step(1); err != nil {
+		if err := b.Info.Step(1); err != nil {
 			log.Println(err)
 		}
 	}
