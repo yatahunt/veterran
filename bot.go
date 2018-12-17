@@ -2,7 +2,6 @@ package main
 
 import (
 	"bitbucket.org/AiSee/sc2lib"
-	"github.com/chippydip/go-sc2ai/api"
 )
 
 func (b *bot) InitBot() {
@@ -14,7 +13,6 @@ func (b *bot) InitBot() {
 	b.InitRamps()
 
 	b.FindBuildingsPositions()
-	b.Retreat = map[api.UnitTag]bool{}
 }
 
 // OnStep is called each game step (every game update by defaul)
@@ -37,8 +35,8 @@ func (b *bot) Step() {
 	if b.ExpLocs.Len() == 0 {
 		b.InitBot()
 	}
-	if b.Loop == 1 {
-		b.ChatSend("VeTerran 0.0.5 (glhf)")
+	if b.Loop == 8 {
+		b.ChatSend("VeTerran 0.0.6 (glhf)")
 	}
 
 	b.Logic()

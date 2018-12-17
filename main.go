@@ -13,23 +13,18 @@ import (
 
 type bot struct {
 	scl.Bot
-
-	PositionsForSupplies scl.Points
-	PositionsForBarracks scl.Points
-
-	Builder1    api.UnitTag
-	Builder2    api.UnitTag
-	Retreat     map[api.UnitTag]bool
 }
 
 func runAgent(info client.AgentInfo) {
 	b := bot{}
 	b.Info = info
+	b.FramesPerOrder = 3 // todo: 4-6 for realtime
 	b.UnitCreatedCallback = b.OnUnitCreated
 
 	for b.Info.IsInGame() {
 		b.Step()
 
+		// todo: 0 for realtime
 		if err := b.Info.Step(1); err != nil {
 			log.Error(err)
 			if strings.Contains(err.Error(), "An existing connection was forcibly closed by the remote host.") {
