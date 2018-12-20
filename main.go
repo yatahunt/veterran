@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bitbucket.org/AiSee/minilog"
-	"bitbucket.org/AiSee/sc2lib"
+	"bitbucket.org/aisee/minilog"
+	"bitbucket.org/aisee/sc2lib"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/client"
 	"github.com/chippydip/go-sc2ai/runner"
@@ -40,7 +40,7 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 	runner.Set("map", maps[rand.Intn(len(maps))]+".SC2Map")
-	// runner.Set("map", "AcidPlantLE.SC2Map") // DarknessSanctuaryLE
+	// runner.Set("map", "StasisLE.SC2Map")
 	runner.Set("ComputerOpponent", "true")
 	runner.Set("ComputerRace", "random")
 	runner.Set("ComputerDifficulty", "VeryHard") // CheatInsane CheatMoney VeryHard

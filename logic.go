@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bitbucket.org/AiSee/sc2lib"
+	"bitbucket.org/aisee/sc2lib"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/protoss"
@@ -15,7 +15,7 @@ import (
 // todo: groups
 
 var workerRush = false
-var positionsForSupplies, positionsForBarracks scl.Points
+var pos2x2, pos3x3, pos5x3 scl.Points
 
 const (
 	Miners scl.GroupID = iota + 1
@@ -105,11 +105,15 @@ func (b *bot) FindBuildingsPositions() {
 		return // This should not happen
 	}
 	vec := homeMinerals.Center().Dir(b.StartLoc)
-	pos := b.StartLoc + vec*3.5
-	positionsForSupplies.Add(pos)
-	positionsForSupplies.Add(pos.Neighbours4(2)...)
+	if vec.Len() == 1 {
+		vec = b.StartLoc.Dir(b.MapCenter)
+	}
+	// todo: filter too close to those
+	pos2x2.Add(b.FindRamp2x2Positions(b.MainRamp)...)
+	pos5x3.Add(b.FindRampBarracksPositions(b.MainRamp))
+	rbpts := b.GetBuildingPoints(pos5x3[0], scl.S5x3)
 
-	pos = b.EnemyStartLoc.Towards(b.StartLoc, 25)
+	/*pos = b.EnemyStartLoc.Towards(b.StartLoc, 25)
 	pos = pos.Closest(b.ExpLocs).Towards(b.StartLoc, 1)
 
 	pfb := []*api.RequestQueryBuildingPlacement{{
@@ -125,24 +129,74 @@ func (b *bot) FindBuildingsPositions() {
 	resp := b.Info.Query(api.RequestQuery{Placements: pfb, IgnoreResourceRequirements: true})
 	for key, result := range resp.Placements {
 		if result.Result == api.ActionResult_Success {
-			positionsForBarracks.Add(scl.Pt2(pfb[key].TargetPos))
+			pos5x3.Add(scl.Pt2(pfb[key].TargetPos))
+		}
+	}*/
+
+	var pf2x2, pf3x3, pf5x3 scl.Points
+	slh := b.HeightAt(b.StartLoc)
+	start := b.StartLoc + 9
+	for y := -3.0; y <= 3; y++ {
+		for x := -9.0; x <= 9; x++ {
+			pos := start + scl.Pt(3, 2).Mul(x) + scl.Pt(-6, 8).Mul(y)
+			if b.HeightAt(pos) == slh && b.IsPosOk(pos, scl.S3x3, 2, scl.IsBuildable) &&
+				rbpts.Intersect(b.GetBuildingPoints(pos, scl.S3x3)).Empty() {
+				if b.IsPosOk(pos+2-1i, scl.S2x2, 2, scl.IsBuildable) &&
+					rbpts.Intersect(b.GetBuildingPoints(pos+2-1i, scl.S2x2)).Empty() {
+					pf5x3.Add(pos)
+				} else {
+					pf3x3.Add(pos)
+				}
+			}
+			pos += 2 - 3i
+			if b.HeightAt(pos) == slh && b.IsPosOk(pos, scl.S3x3, 2, scl.IsBuildable) &&
+				rbpts.Intersect(b.GetBuildingPoints(pos, scl.S3x3)).Empty() {
+				if b.IsPosOk(pos+2-1i, scl.S2x2, 2, scl.IsBuildable) &&
+					rbpts.Intersect(b.GetBuildingPoints(pos+2-1i, scl.S2x2)).Empty() {
+					pf5x3.Add(pos)
+				} else {
+					pf3x3.Add(pos)
+				}
+			}
+			pos += 1 - 3i
+			if b.HeightAt(pos) == slh && b.IsPosOk(pos, scl.S2x2, 2, scl.IsBuildable) &&
+				rbpts.Intersect(b.GetBuildingPoints(pos, scl.S2x2)).Empty() {
+				pf2x2.Add(pos)
+			}
+			pos += 2
+			if b.HeightAt(pos) == slh && b.IsPosOk(pos, scl.S2x2, 2, scl.IsBuildable) &&
+				rbpts.Intersect(b.GetBuildingPoints(pos, scl.S2x2)).Empty() {
+				pf2x2.Add(pos)
+			}
 		}
 	}
+	pf2x2.OrderByDistanceTo(b.StartLoc, false)
+	pf3x3.OrderByDistanceTo(b.StartLoc, false)
+	pf5x3.OrderByDistanceTo(b.StartLoc, false)
+
+	pos2x2.Add(pf2x2...)
+	pos3x3.Add(pf3x3...)
+	pos5x3.Add(pf5x3...)
+
+	b.Debug2x2Buildings(pos2x2...)
+	b.Debug3x3Buildings(pos3x3...)
+	b.Debug5x3Buildings(pf5x3...)
+	b.DebugSend()
 }
 
 func (b *bot) Build() {
 	// Buildings
 	suppliesCount := b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).Len()
 	if b.CanBuy(ability.Build_SupplyDepot) && b.Orders[ability.Build_SupplyDepot] == 0 &&
-		suppliesCount < positionsForSupplies.Len() && b.FoodLeft < 6 {
-		pos := positionsForSupplies[suppliesCount]
+		suppliesCount < pos2x2.Len() && b.FoodLeft < 6 {
+		pos := pos2x2[suppliesCount]
 		if scv := b.GetSCV(pos); scv != nil {
 			scv.CommandPos(ability.Build_SupplyDepot, pos)
 		}
 	}
 	raxPending := b.Units[terran.Barracks].Len()
-	if b.CanBuy(ability.Build_Barracks) && raxPending < 3 && positionsForBarracks.Len() > raxPending {
-		pos := positionsForBarracks[raxPending]
+	if b.CanBuy(ability.Build_Barracks) && raxPending < 3 && pos5x3.Len() > raxPending {
+		pos := pos5x3[raxPending]
 		scv := b.Groups.Get(ProxyBuilders).Units.Filter(func(unit *scl.Unit) bool {
 			return unit.TargetAbility() != ability.Build_Barracks
 		}).ClosestTo(pos)
@@ -201,7 +255,7 @@ func (b *bot) ProxyBuildres() {
 	if b.Loop == 224 { // 10 sec
 		scv := b.GetSCV(b.EnemyStartLoc)
 		if scv != nil {
-			pos := positionsForBarracks[0]
+			pos := pos5x3[0]
 			scv.CommandPos(ability.Move, pos)
 			b.Groups.Add(ProxyBuilders, scv)
 		}
@@ -209,7 +263,7 @@ func (b *bot) ProxyBuildres() {
 	if b.Loop == 672 { // 30 sec
 		scv := b.GetSCV(b.EnemyStartLoc)
 		if scv != nil {
-			pos := positionsForBarracks[1]
+			pos := pos5x3[1]
 			scv.CommandPos(ability.Move, pos)
 			b.Groups.Add(ProxyBuilders, scv)
 		}
@@ -265,11 +319,12 @@ func (b *bot) Attack(targets scl.Units, us ...*scl.Unit) {
 	for _, u := range us {
 		closeTargets := targets.InRangeOf(u, 0)
 		if closeTargets.Exists() {
-			target := closeTargets.Min(func(unit *scl.Unit) float64 {
+			// target could be visible (not snapshot) when its map point is hidden
+			// scl.PosVisible
+			target := closeTargets.Filter(scl.Visible).Min(func(unit *scl.Unit) float64 {
 				return unit.Hits
 			})
-			// target could be visible (not snapshot) when its map point is hidden
-			if b.IsVisible(target.Point()) {
+			if target != nil {
 				u.CommandTag(ability.Attack_Attack, target.Tag)
 				return
 			}
@@ -321,6 +376,10 @@ func (b *bot) WorkerRushDefence() {
 }
 
 func (b *bot) Miners() {
+	if b.Loop%6 != 0 {
+		// try to fix destribution bug. Might be caused by AssignedHarvesters lagging
+		return
+	}
 	// Std miners handler
 	b.HandleMiners(
 		b.Groups.Get(Miners).Units,

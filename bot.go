@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bitbucket.org/AiSee/sc2lib"
+	"bitbucket.org/aisee/sc2lib"
 )
 
 func (b *bot) InitBot() {
@@ -13,6 +13,12 @@ func (b *bot) InitBot() {
 	b.InitRamps()
 
 	b.FindBuildingsPositions()
+
+	/*for _, ramp := range b.Ramps {
+		b.Debug2x2Buildings(b.FindRamp2x2Positions(ramp)...)
+		b.Debug3x3Buildings(b.FindRampBarracksPositions(ramp))
+	}
+	b.DebugSend()*/
 }
 
 // OnStep is called each game step (every game update by defaul)
