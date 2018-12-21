@@ -7,21 +7,24 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 	"github.com/chippydip/go-sc2ai/enums/zerg"
+	"time"
+	"bitbucket.org/aisee/minilog"
+	"math"
 )
 
 // todo: enemies types -> global
 // todo: better building
+// todo: restart buildings construction
 // todo: fix morph abilities cost
 // todo: groups
 
 var workerRush = false
-var pos2x2, pos3x3, pos5x3 scl.Points
+var buildPos = map[scl.BuildingSize]scl.Points{}
 
 const (
 	Miners scl.GroupID = iota + 1
 	Builders
 	WorkerRushDefenders
-	ProxyBuilders
 	Scout
 	Reapers
 	Retreat
@@ -108,10 +111,10 @@ func (b *bot) FindBuildingsPositions() {
 	if vec.Len() == 1 {
 		vec = b.StartLoc.Dir(b.MapCenter)
 	}
-	// todo: filter too close to those
-	pos2x2.Add(b.FindRamp2x2Positions(b.MainRamp)...)
-	pos5x3.Add(b.FindRampBarracksPositions(b.MainRamp))
-	rbpts := b.GetBuildingPoints(pos5x3[0], scl.S5x3)
+
+	buildPos[scl.S2x2].Add(b.FindRamp2x2Positions(b.MainRamp)...)
+	buildPos[scl.S5x3].Add(b.FindRampBarracksPositions(b.MainRamp))
+	rbpts := b.GetBuildingPoints(buildPos[scl.S5x3][0], scl.S5x3)
 
 	/*pos = b.EnemyStartLoc.Towards(b.StartLoc, 25)
 	pos = pos.Closest(b.ExpLocs).Towards(b.StartLoc, 1)
@@ -174,47 +177,83 @@ func (b *bot) FindBuildingsPositions() {
 	pf3x3.OrderByDistanceTo(b.StartLoc, false)
 	pf5x3.OrderByDistanceTo(b.StartLoc, false)
 
-	pos2x2.Add(pf2x2...)
-	pos3x3.Add(pf3x3...)
-	pos5x3.Add(pf5x3...)
+	buildPos[scl.S2x2].Add(pf2x2...)
+	buildPos[scl.S3x3].Add(pf3x3...)
+	buildPos[scl.S5x3].Add(pf5x3...)
 
-	b.Debug2x2Buildings(pos2x2...)
-	b.Debug3x3Buildings(pos3x3...)
-	b.Debug5x3Buildings(pf5x3...)
+	b.Debug2x2Buildings(buildPos[scl.S2x2]...)
+	b.Debug3x3Buildings(buildPos[scl.S3x3]...)
+	b.Debug5x3Buildings(buildPos[scl.S5x3]...)
 	b.DebugSend()
 }
 
-func (b *bot) Build() {
-	// Buildings
-	suppliesCount := b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).Len()
-	if b.CanBuy(ability.Build_SupplyDepot) && b.Orders[ability.Build_SupplyDepot] == 0 &&
-		suppliesCount < pos2x2.Len() && b.FoodLeft < 6 {
-		pos := pos2x2[suppliesCount]
-		if scv := b.GetSCV(pos); scv != nil {
-			scv.CommandPos(ability.Build_SupplyDepot, pos)
+func (b *bot) BuildIfCan(aid api.AbilityID, size scl.BuildingSize, limit, active int) bool {
+	// todo: buildings -> bot obj?
+	buildings := b.Units.Units().Filter(scl.Structure)
+	if b.CanBuy(aid) && b.Units[scl.AbilityUnit[aid]].Len() < limit && b.Orders[aid] < active {
+		for _, pos := range buildPos[size] {
+			if buildings.CloserThan(math.Sqrt2, pos).Exists() {
+				continue
+			}
+
+			bps := b.GetBuildingPoints(pos, size)
+			if !b.CheckPoints(bps, scl.IsNoCreep) {
+				continue
+			}
+
+			scv := b.GetSCV(pos)
+			if scv != nil {
+				scv.CommandPos(aid, pos)
+				log.Debugf("Building %v", b.Units[scl.AbilityUnit[aid]])
+				return true
+			}
+			log.Debug("Failed to find SCV")
+			return false
+		}
+		log.Debugf("Can't find position for %v", b.Units[scl.AbilityUnit[aid]])
+		if size == scl.S3x3 {
+			log.Debug("Trying bigger size for 3x3")
+			return b.BuildIfCan(aid, scl.S5x3, limit, active)
 		}
 	}
-	raxPending := b.Units[terran.Barracks].Len()
-	if b.CanBuy(ability.Build_Barracks) && raxPending < 3 && pos5x3.Len() > raxPending {
-		pos := pos5x3[raxPending]
-		scv := b.Groups.Get(ProxyBuilders).Units.Filter(func(unit *scl.Unit) bool {
-			return unit.TargetAbility() != ability.Build_Barracks
-		}).ClosestTo(pos)
-		if scv != nil {
-			scv.CommandPos(ability.Build_Barracks, pos)
-		}
+	return false
+}
+
+func (b *bot) Build() {
+	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+
+	// Buildings
+	if b.FoodLeft < 6 && b.BuildIfCan(ability.Build_SupplyDepot, scl.S2x2, 20, 1) {
 		return
 	}
+	if b.BuildIfCan(ability.Build_Barracks, scl.S5x3, 3 * ccs.Len(), 3) {
+		return
+	}
+	raxPending := b.Units[terran.Barracks].Len()
 	if b.CanBuy(ability.Build_Refinery) && (raxPending == 1 && b.Units[terran.Refinery].Len() == 0 ||
-		raxPending == 3 && b.Units[terran.Refinery].Len() == 1) {
+		raxPending == 3 && b.Units[terran.Refinery].Len() >= 1) && b.Orders[ability.Build_Refinery] < 2 {
+		cc := ccs.First(scl.Ready)
 		// Find first geyser that is close to my base, but it doesn't have Refinery on top of it
-		geyser := b.VespeneGeysers.Units().CloserThan(10, b.StartLoc).First(func(unit *scl.Unit) bool {
+		geyser := b.VespeneGeysers.Units().CloserThan(10, cc.Point()).First(func(unit *scl.Unit) bool {
 			return b.Units[terran.Refinery].CloserThan(1, unit.Point()).Len() == 0
 		})
 		if geyser != nil {
 			scv := b.GetSCV(geyser.Point())
 			if scv != nil {
 				scv.CommandTag(ability.Build_Refinery, geyser.Tag)
+				return
+			}
+		}
+	}
+	// todo: BuildIfCan
+	if b.CanBuy(ability.Build_CommandCenter) && b.Orders[ability.Build_CommandCenter] == 0 {
+		for _, pos := range b.ExpLocs {
+			if b.Units.Units().Filter(scl.Structure).CloserThan(3, pos).Exists() {
+				continue // todo: better check
+			}
+			if scv := b.GetSCV(pos); scv != nil {
+				scv.CommandPos(ability.Build_CommandCenter, pos)
+				return
 			}
 		}
 	}
@@ -224,6 +263,7 @@ func (b *bot) Build() {
 	// b.CanBuy(ability.Morph_OrbitalCommand) requires 550 minerals?
 	if cc != nil && b.Orders[ability.Train_Reaper] >= 2 && b.Minerals >= 150 {
 		cc.Command(ability.Morph_OrbitalCommand)
+		return
 	}
 	if supply := b.Units[terran.SupplyDepot].First(); supply != nil {
 		supply.Command(ability.Morph_SupplyDepot_Lower)
@@ -232,41 +272,26 @@ func (b *bot) Build() {
 	// Cast
 	cc = b.Units[terran.OrbitalCommand].First(func(unit *scl.Unit) bool { return unit.Energy >= 50 })
 	if cc != nil {
-		homeMineral := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, b.StartLoc).First()
+		homeMineral := b.MineralFields.Units().
+			CloserThan(scl.ResourceSpreadDistance, cc.Point()).
+			Max(func(unit *scl.Unit) float64 {
+			return float64(unit.MineralContents)
+		})
 		if homeMineral != nil {
 			cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 		}
 	}
 
 	// Units
-	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	cc = ccs.First(scl.Ready, scl.Idle)
-	if cc != nil && b.Units[terran.SCV].Len() < 21 && b.CanBuy(ability.Train_SCV) {
+	if cc != nil && b.Units[terran.SCV].Len() < scl.MaxInt(21 * ccs.Len(), 70) && b.CanBuy(ability.Train_SCV) {
 		cc.Command(ability.Train_SCV)
 		return
 	}
 	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Idle)
 	if rax != nil && b.CanBuy(ability.Train_Reaper) {
 		rax.Command(ability.Train_Reaper)
-	}
-}
-
-func (b *bot) ProxyBuildres() {
-	if b.Loop == 224 { // 10 sec
-		scv := b.GetSCV(b.EnemyStartLoc)
-		if scv != nil {
-			pos := pos5x3[0]
-			scv.CommandPos(ability.Move, pos)
-			b.Groups.Add(ProxyBuilders, scv)
-		}
-	}
-	if b.Loop == 672 { // 30 sec
-		scv := b.GetSCV(b.EnemyStartLoc)
-		if scv != nil {
-			pos := pos5x3[1]
-			scv.CommandPos(ability.Move, pos)
-			b.Groups.Add(ProxyBuilders, scv)
-		}
+		return
 	}
 }
 
@@ -315,32 +340,6 @@ func (b *bot) Scout() {
 	}
 }
 
-func (b *bot) Attack(targets scl.Units, us ...*scl.Unit) {
-	for _, u := range us {
-		closeTargets := targets.InRangeOf(u, 0)
-		if closeTargets.Exists() {
-			// target could be visible (not snapshot) when its map point is hidden
-			// scl.PosVisible
-			target := closeTargets.Filter(scl.Visible).Min(func(unit *scl.Unit) float64 {
-				return unit.Hits
-			})
-			if target != nil {
-				u.CommandTag(ability.Attack_Attack, target.Tag)
-				return
-			}
-		}
-
-		target := targets.ClosestTo(u.Point())
-		far := u.SightRange() / 2
-
-		// Attack as position, unit will choose best target around
-		pos := b.UnitTargetPos(u)
-		if u.IsIdle() || pos == 0 || target.Point().IsFurtherThan(far, pos) {
-			u.CommandPos(ability.Attack_Attack, target.Point())
-		}
-	}
-}
-
 func (b *bot) WorkerRushDefence() {
 	enemies := b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).CloserThan(10, b.StartLoc)
 	alert := enemies.CloserThan(6, b.StartLoc).Exists()
@@ -371,7 +370,7 @@ func (b *bot) WorkerRushDefence() {
 			b.Groups.Add(Miners, unit)
 			continue
 		}
-		b.Attack(enemies, unit)
+		unit.Attack(enemies)
 	}
 }
 
@@ -397,65 +396,19 @@ func (b *bot) Miners() {
 	}
 }
 
-// todo: okTargets, goodTargets, priorityTargets, treats
-func (b *bot) PriorityAttack(goodTargets, okTargets scl.Units, us ...*scl.Unit) {
-	for _, u := range us {
-		if scl.UnitsOrders[u.Tag].Loop+u.Bot.FramesPerOrder > u.Bot.Loop {
-			continue // Not more than FramesPerOrder
-		}
-		closeGoodTargets := goodTargets.InRangeOf(u, 0.5)
-		closeOkTargets := okTargets.InRangeOf(u, 0)
-
-		// Attack close targets
-		targets := closeGoodTargets
-		if targets.Empty() && u.WeaponCooldown < float32(b.FramesPerOrder) {
-			targets = closeOkTargets
-		}
-		if targets.Exists() {
-			target := targets.Min(func(unit *scl.Unit) float64 {
-				return unit.Hits
-			})
-			if target != nil {
-				u.CommandTag(ability.Attack_Attack, target.Tag)
-				continue
-			}
-		}
-
-		// Move closer to targets
-		target := goodTargets.ClosestTo(u.Point())
-		if target == nil {
-			if !b.IsExplored(b.EnemyStartLoc) {
-				u.CommandPos(ability.Move, b.EnemyStartLoc)
-				continue
-			}
-			target = okTargets.ClosestTo(u.Point())
-		}
-		if target != nil && (!u.InRange(target, 0) || !b.IsVisible(target.Point())) {
-			if u.WeaponCooldown > 0 {
-				// Spamming this thing is the key. Or orders will be ignored (or postponed)
-				u.SpamCmds = true
-			}
-			u.CommandPos(ability.Move, target.Point())
-		}
-	}
-}
-
 func (b *bot) Reapers() {
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
 	for _, unit := range b.AllEnemyUnits.Units() {
 		if !unit.IsFlying && unit.IsNot(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			okTargets.Add(unit)
-			if (!unit.IsStructure() && b.IsVisible(unit.Point())) || unit.IsDefensive() {
+			if !unit.IsStructure() || unit.IsDefensive() {
 				goodTargets.Add(unit)
 			}
 		}
 	}
 
 	reapers := b.Groups.Get(Reapers).Units
-	/*if reapers.Exists() {
-		time.Sleep(time.Millisecond * 20)
-	}*/
 	for _, reaper := range reapers {
 		if reaper.Hits < 21 {
 			b.Groups.Add(Retreat, reaper)
@@ -464,12 +417,13 @@ func (b *bot) Reapers() {
 
 		// Keep range
 		// Weapon is recharging
-		if reaper.WeaponCooldown >= float32(b.FramesPerOrder) {
+		if !scl.AttackDelay.IsCool(reaper.UnitType, reaper.WeaponCooldown, reaper.Bot.FramesPerOrder) {
 			// There is an enemy
 			if closestEnemy := goodTargets.ClosestTo(reaper.Point()); closestEnemy != nil {
 				// And it is closer than shooting distance - 0.5
 				if reaper.InRange(closestEnemy, -0.5) {
 					// Retreat a little
+					reaper.SpamCmds = true
 					reaper.CommandPos(ability.Move, b.StartLoc)
 					continue
 				}
@@ -478,7 +432,8 @@ func (b *bot) Reapers() {
 
 		// Attack
 		if goodTargets.Exists() || okTargets.Exists() {
-			b.PriorityAttack(goodTargets, okTargets, reaper)
+			time.Sleep(time.Millisecond * 20)
+			reaper.Attack(goodTargets, okTargets)
 		} else {
 			reaper.CommandPos(ability.Attack, b.EnemyStartLoc)
 		}
@@ -497,11 +452,8 @@ func (b *bot) Retreat() {
 }
 
 func (b *bot) Logic() {
-	// time.Sleep(time.Millisecond * 5)
-
 	b.BuildingsCheck()
 	b.Builders()
-	b.ProxyBuildres()
 	b.Build()
 	b.Scout()
 	b.WorkerRushDefence()

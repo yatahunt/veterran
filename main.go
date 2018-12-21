@@ -18,7 +18,7 @@ type bot struct {
 func runAgent(info client.AgentInfo) {
 	b := bot{}
 	b.Info = info
-	b.FramesPerOrder = 3 // todo: 4-6 for realtime
+	b.FramesPerOrder = 3 // todo: 6 for realtime
 	b.UnitCreatedCallback = b.OnUnitCreated
 
 	for b.Info.IsInGame() {
