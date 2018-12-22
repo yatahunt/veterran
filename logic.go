@@ -1,15 +1,15 @@
 package main
 
 import (
+	"bitbucket.org/aisee/minilog"
 	"bitbucket.org/aisee/sc2lib"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 	"github.com/chippydip/go-sc2ai/enums/zerg"
-	"time"
-	"bitbucket.org/aisee/minilog"
 	"math"
+	"time"
 )
 
 // todo: enemies types -> global
@@ -33,12 +33,12 @@ const (
 	MaxGroup
 )
 
-func (b *bot) GetSCV(pos scl.Point) *scl.Unit {
-	csv := b.Groups.Get(Miners).Units.Filter(scl.Gathering).ClosestTo(pos)
-	if csv != nil {
-		b.Groups.Add(Builders, csv)
+func (b *bot) GetSCV(pos scl.Point, assignGroup scl.GroupID) *scl.Unit {
+	scv := b.Groups.Get(Miners).Units.Filter(scl.Gathering).ClosestTo(pos)
+	if scv != nil {
+		b.Groups.Add(assignGroup, scv)
 	}
-	return csv
+	return scv
 }
 
 func (b *bot) AlreadyTraining(abilityID api.AbilityID) int {
@@ -72,6 +72,14 @@ func (b *bot) BuildingsCheck() {
 	for _, building := range buildings {
 		if building.BuildProgress == 1 {
 			switch building.UnitType {
+			case terran.Barracks:
+				fallthrough
+			case terran.Factory:
+				sup := b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).ClosestTo(building.Point())
+				if sup != nil {
+					building.CommandPos(ability.Rally_Building, sup.Point())
+				}
+				b.Groups.Add(Buildings, building)
 			default:
 				b.Groups.Add(Buildings, building) // And remove from current group
 			}
@@ -95,8 +103,10 @@ func (b *bot) Builders() {
 		}
 	}
 
-	// Move idle builders into miners
-	idleBuilder := b.Groups.Get(Builders).Units.First(scl.Idle)
+	// Move idle or misused builders into miners
+	idleBuilder := b.Groups.Get(Builders).Units.First(func(unit *scl.Unit) bool {
+		return unit.IsIdle() || unit.IsGathering() || unit.IsReturning()
+	})
 	if idleBuilder != nil {
 		b.Groups.Add(Miners, idleBuilder)
 	}
@@ -112,9 +122,9 @@ func (b *bot) FindBuildingsPositions() {
 		vec = b.StartLoc.Dir(b.MapCenter)
 	}
 
-	buildPos[scl.S2x2].Add(b.FindRamp2x2Positions(b.MainRamp)...)
-	buildPos[scl.S5x3].Add(b.FindRampBarracksPositions(b.MainRamp))
-	rbpts := b.GetBuildingPoints(buildPos[scl.S5x3][0], scl.S5x3)
+	rp2x2 := b.FindRamp2x2Positions(b.MainRamp)
+	rp5x3 := scl.Points{b.FindRampBarracksPosition(b.MainRamp)}
+	rbpts := b.GetBuildingPoints(rp5x3[0], scl.S5x3)
 
 	/*pos = b.EnemyStartLoc.Towards(b.StartLoc, 25)
 	pos = pos.Closest(b.ExpLocs).Towards(b.StartLoc, 1)
@@ -177,9 +187,9 @@ func (b *bot) FindBuildingsPositions() {
 	pf3x3.OrderByDistanceTo(b.StartLoc, false)
 	pf5x3.OrderByDistanceTo(b.StartLoc, false)
 
-	buildPos[scl.S2x2].Add(pf2x2...)
-	buildPos[scl.S3x3].Add(pf3x3...)
-	buildPos[scl.S5x3].Add(pf5x3...)
+	buildPos[scl.S2x2] = append(rp2x2, pf2x2...)
+	buildPos[scl.S3x3] = pf3x3
+	buildPos[scl.S5x3] = append(rp5x3, pf5x3...)
 
 	b.Debug2x2Buildings(buildPos[scl.S2x2]...)
 	b.Debug3x3Buildings(buildPos[scl.S3x3]...)
@@ -190,7 +200,7 @@ func (b *bot) FindBuildingsPositions() {
 func (b *bot) BuildIfCan(aid api.AbilityID, size scl.BuildingSize, limit, active int) bool {
 	// todo: buildings -> bot obj?
 	buildings := b.Units.Units().Filter(scl.Structure)
-	if b.CanBuy(aid) && b.Units[scl.AbilityUnit[aid]].Len() < limit && b.Orders[aid] < active {
+	if b.CanBuy(aid) && b.Pending(aid) < limit && b.Orders[aid] < active {
 		for _, pos := range buildPos[size] {
 			if buildings.CloserThan(math.Sqrt2, pos).Exists() {
 				continue
@@ -201,18 +211,18 @@ func (b *bot) BuildIfCan(aid api.AbilityID, size scl.BuildingSize, limit, active
 				continue
 			}
 
-			scv := b.GetSCV(pos)
+			scv := b.GetSCV(pos, Builders)
 			if scv != nil {
 				scv.CommandPos(aid, pos)
-				log.Debugf("Building %v", b.Units[scl.AbilityUnit[aid]])
+				log.Debugf("%d: Building %v", b.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
 				return true
 			}
-			log.Debug("Failed to find SCV")
+			log.Debugf("%d: Failed to find SCV", b.Loop)
 			return false
 		}
-		log.Debugf("Can't find position for %v", b.Units[scl.AbilityUnit[aid]])
+		log.Debugf("%d: Can't find position for %v", b.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
 		if size == scl.S3x3 {
-			log.Debug("Trying bigger size for 3x3")
+			log.Debugf("%d: Trying bigger size for 3x3", b.Loop)
 			return b.BuildIfCan(aid, scl.S5x3, limit, active)
 		}
 	}
@@ -221,29 +231,38 @@ func (b *bot) BuildIfCan(aid api.AbilityID, size scl.BuildingSize, limit, active
 
 func (b *bot) Build() {
 	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+	supCount := b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).Filter(scl.Ready).Len()
 
 	// Buildings
-	if b.FoodLeft < 6 && b.BuildIfCan(ability.Build_SupplyDepot, scl.S2x2, 20, 1) {
+	if b.FoodLeft < 6 && b.BuildIfCan(ability.Build_SupplyDepot, scl.S2x2, 30, 1 + supCount / 10) {
 		return
 	}
-	if b.BuildIfCan(ability.Build_Barracks, scl.S5x3, 3 * ccs.Len(), 3) {
+	// First barrack
+	if supCount > 0 && b.BuildIfCan(ability.Build_Barracks, scl.S5x3, 1, 1) {
 		return
 	}
-	raxPending := b.Units[terran.Barracks].Len()
-	if b.CanBuy(ability.Build_Refinery) && (raxPending == 1 && b.Units[terran.Refinery].Len() == 0 ||
-		raxPending == 3 && b.Units[terran.Refinery].Len() >= 1) && b.Orders[ability.Build_Refinery] < 2 {
-		cc := ccs.First(scl.Ready)
-		// Find first geyser that is close to my base, but it doesn't have Refinery on top of it
-		geyser := b.VespeneGeysers.Units().CloserThan(10, cc.Point()).First(func(unit *scl.Unit) bool {
-			return b.Units[terran.Refinery].CloserThan(1, unit.Point()).Len() == 0
-		})
-		if geyser != nil {
-			scv := b.GetSCV(geyser.Point())
-			if scv != nil {
-				scv.CommandTag(ability.Build_Refinery, geyser.Tag)
-				return
+	// Refineries
+	raxPending := b.Pending(ability.Build_Barracks)
+	if b.CanBuy(ability.Build_Refinery) && (raxPending > 0 && b.Pending(ability.Build_Refinery) == 0 ||
+		raxPending >= 3 && b.Pending(ability.Build_Refinery) >= 1) && b.Orders[ability.Build_Refinery] < 2 {
+		if cc := ccs.First(scl.Ready); cc != nil {
+			// Find first geyser that is close to my base, but it doesn't have Refinery on top of it
+			geyser := b.VespeneGeysers.Units().CloserThan(10, cc.Point()).First(func(unit *scl.Unit) bool {
+				return b.Units[terran.Refinery].CloserThan(1, unit.Point()).Len() == 0
+			})
+			if geyser != nil {
+				scv := b.GetSCV(geyser.Point(), Builders)
+				if scv != nil {
+					scv.CommandTag(ability.Build_Refinery, geyser.Tag)
+					log.Debugf("%d: Building Refinery", b.Loop)
+					return
+				}
 			}
 		}
+	}
+	// Other barracks
+	if supCount > 0 && b.BuildIfCan(ability.Build_Barracks, scl.S5x3, 3*ccs.Len(), 3) {
+		return
 	}
 	// todo: BuildIfCan
 	if b.CanBuy(ability.Build_CommandCenter) && b.Orders[ability.Build_CommandCenter] == 0 {
@@ -251,7 +270,7 @@ func (b *bot) Build() {
 			if b.Units.Units().Filter(scl.Structure).CloserThan(3, pos).Exists() {
 				continue // todo: better check
 			}
-			if scv := b.GetSCV(pos); scv != nil {
+			if scv := b.GetSCV(pos, Builders); scv != nil {
 				scv.CommandPos(ability.Build_CommandCenter, pos)
 				return
 			}
@@ -275,8 +294,8 @@ func (b *bot) Build() {
 		homeMineral := b.MineralFields.Units().
 			CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 			Max(func(unit *scl.Unit) float64 {
-			return float64(unit.MineralContents)
-		})
+				return float64(unit.MineralContents)
+			})
 		if homeMineral != nil {
 			cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 		}
@@ -284,7 +303,7 @@ func (b *bot) Build() {
 
 	// Units
 	cc = ccs.First(scl.Ready, scl.Idle)
-	if cc != nil && b.Units[terran.SCV].Len() < scl.MaxInt(21 * ccs.Len(), 70) && b.CanBuy(ability.Train_SCV) {
+	if cc != nil && b.Units[terran.SCV].Len() < scl.MaxInt(21*ccs.Len(), 70) && b.CanBuy(ability.Train_SCV) {
 		cc.Command(ability.Train_SCV)
 		return
 	}
@@ -388,10 +407,14 @@ func (b *bot) Miners() {
 	// If there is ready unsaturated refinery and an scv gathering, send it there
 	refinery := b.Units[terran.Refinery].
 		First(func(unit *scl.Unit) bool { return unit.IsReady() && unit.AssignedHarvesters < 3 })
-	if refinery != nil {
-		scv := b.GetSCV(refinery.Point())
+	if refinery != nil && b.Minerals > b.Vespene {
+		// Get scv gathering minerals
+		mfs := b.MineralFields.Units()
+		scv := b.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
+			return unit.IsGathering() && mfs.ByTag(unit.TargetTag()) != nil
+		}).ClosestTo(refinery.Point())
 		if scv != nil {
-			scv.CommandTag(ability.Harvest_Gather_SCV, refinery.Tag)
+			scv.CommandTag(ability.Smart, refinery.Tag)
 		}
 	}
 }
@@ -407,6 +430,9 @@ func (b *bot) Reapers() {
 			}
 		}
 	}
+	/*if goodTargets.Exists() {
+		time.Sleep(time.Millisecond * 20)
+	}*/
 
 	reapers := b.Groups.Get(Reapers).Units
 	for _, reaper := range reapers {
@@ -432,7 +458,6 @@ func (b *bot) Reapers() {
 
 		// Attack
 		if goodTargets.Exists() || okTargets.Exists() {
-			time.Sleep(time.Millisecond * 20)
 			reaper.Attack(goodTargets, okTargets)
 		} else {
 			reaper.CommandPos(ability.Attack, b.EnemyStartLoc)
@@ -452,6 +477,7 @@ func (b *bot) Retreat() {
 }
 
 func (b *bot) Logic() {
+	time.Sleep(time.Millisecond * 5)
 	b.BuildingsCheck()
 	b.Builders()
 	b.Build()
