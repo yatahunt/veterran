@@ -35,7 +35,7 @@ func runAgent(info client.AgentInfo) {
 }
 
 func main() {
-	log.SetConsoleLevel(log.L_debug) // L_info L_debug
+	log.SetConsoleLevel(log.L_info) // L_info L_debug
 	maps := []string{"BlueshiftLE", "CeruleanFallLE", "ParaSiteLE",
 		"AutomatonLE", "KairosJunctionLE", "PortAleksanderLE", "StasisLE", "DarknessSanctuaryLE"}
 
@@ -44,7 +44,7 @@ func main() {
 	// runner.Set("map", "StasisLE.SC2Map")
 	runner.Set("ComputerOpponent", "true")
 	runner.Set("ComputerRace", "random")
-	runner.Set("ComputerDifficulty", "CheatMoney") // CheatInsane CheatMoney VeryHard
+	runner.Set("ComputerDifficulty", "VeryHard") // CheatInsane CheatMoney VeryHard
 	// runner.Set("realtime", "true")
 
 	// Create the agent and then start the game

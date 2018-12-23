@@ -5,18 +5,15 @@ import (
 	"bitbucket.org/aisee/sc2lib"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
+	"github.com/chippydip/go-sc2ai/enums/effect"
 	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 	"github.com/chippydip/go-sc2ai/enums/zerg"
 	"math"
-	"time"
+	"math/rand"
 )
 
-// todo: enemies types -> global
-// todo: better building
-// todo: restart buildings construction
 // todo: fix morph abilities cost
-// todo: groups
 
 var workerRush = false
 var buildPos = map[scl.BuildingSize]scl.Points{}
@@ -34,7 +31,9 @@ const (
 )
 
 func (b *bot) GetSCV(pos scl.Point, assignGroup scl.GroupID) *scl.Unit {
-	scv := b.Groups.Get(Miners).Units.Filter(scl.Gathering).ClosestTo(pos)
+	scv := b.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
+		return unit.IsGathering() && unit.Hits > 20
+	}).ClosestTo(pos)
 	if scv != nil {
 		b.Groups.Add(assignGroup, scv)
 	}
@@ -68,6 +67,7 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 }
 
 func (b *bot) BuildingsCheck() {
+	builders := b.Groups.Get(Builders).Units
 	buildings := b.Groups.Get(UnderConstruction).Units
 	for _, building := range buildings {
 		if building.BuildProgress == 1 {
@@ -89,6 +89,13 @@ func (b *bot) BuildingsCheck() {
 		if building.HPS*2.5 > building.Hits {
 			building.Command(ability.Cancel)
 		}
+		// Find SCV to continue work if disrupted
+		if building.FindAssignedBuilder(builders) == nil {
+			scv := b.GetSCV(building.Point(), Builders)
+			if scv != nil {
+				scv.CommandTag(ability.Smart, building.Tag)
+			}
+		}
 	}
 }
 
@@ -96,10 +103,13 @@ func (b *bot) Builders() {
 	builders := b.Groups.Get(Builders).Units
 	for _, u := range builders {
 		enemy := b.EnemyUnits.Units().First(func(unit *scl.Unit) bool {
-			return unit.InRange(u, 0.5)
+			return unit.GroundDPS() > 5 && unit.InRange(u, 0.5)
 		})
-		if enemy != nil {
-			b.Groups.Add(Miners, u)
+		if enemy != nil || u.Hits < 21 {
+			b.RequestAvailableAbilities(true, u)
+			log.Info(u.Abilities)
+			u.Command(ability.Halt_TerranBuild)
+			u.CommandQueue(ability.Stop_Stop)
 		}
 	}
 
@@ -191,10 +201,10 @@ func (b *bot) FindBuildingsPositions() {
 	buildPos[scl.S3x3] = pf3x3
 	buildPos[scl.S5x3] = append(rp5x3, pf5x3...)
 
-	b.Debug2x2Buildings(buildPos[scl.S2x2]...)
+	/*b.Debug2x2Buildings(buildPos[scl.S2x2]...)
 	b.Debug3x3Buildings(buildPos[scl.S3x3]...)
 	b.Debug5x3Buildings(buildPos[scl.S5x3]...)
-	b.DebugSend()
+	b.DebugSend()*/
 }
 
 func (b *bot) BuildIfCan(aid api.AbilityID, size scl.BuildingSize, limit, active int) bool {
@@ -291,13 +301,27 @@ func (b *bot) Build() {
 	// Cast
 	cc = b.Units[terran.OrbitalCommand].First(func(unit *scl.Unit) bool { return unit.Energy >= 50 })
 	if cc != nil {
-		homeMineral := b.MineralFields.Units().
-			CloserThan(scl.ResourceSpreadDistance, cc.Point()).
-			Max(func(unit *scl.Unit) float64 {
-				return float64(unit.MineralContents)
-			})
-		if homeMineral != nil {
-			cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
+		// Scan
+		if b.EffectPoints(effect.ScannerSweep).Empty() {
+			if reaper := b.Units[terran.Reaper].ClosestTo(b.EnemyStartLoc); reaper != nil {
+				if enemy := b.AllEnemyUnits.Units().CanAttack(reaper, 1).ClosestTo(reaper.Point()); enemy != nil {
+					if !b.IsVisible(enemy.Point()) {
+						pos := enemy.Point().Towards(b.EnemyStartLoc, 10)
+						cc.CommandPos(ability.Effect_Scan, pos)
+					}
+				}
+			}
+		}
+		// Mule
+		if cc.Energy >= 75 {
+			homeMineral := b.MineralFields.Units().
+				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
+				Max(func(unit *scl.Unit) float64 {
+					return float64(unit.MineralContents)
+				})
+			if homeMineral != nil {
+				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
+			}
 		}
 	}
 
@@ -360,8 +384,12 @@ func (b *bot) Scout() {
 }
 
 func (b *bot) WorkerRushDefence() {
-	enemies := b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).CloserThan(10, b.StartLoc)
-	alert := enemies.CloserThan(6, b.StartLoc).Exists()
+	enemiesRange := 10.0
+	if buildings := b.Units.Units().Filter(scl.Structure); buildings.Exists() {
+		enemiesRange = math.Max(enemiesRange, buildings.FurthestTo(b.StartLoc).Point().Dist(b.StartLoc) + 6)
+	}
+	enemies := b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).CloserThan(enemiesRange, b.StartLoc)
+	alert := enemies.CloserThan(enemiesRange - 4, b.StartLoc).Exists()
 
 	army := b.Groups.Get(WorkerRushDefenders).Units
 	if army.Exists() && enemies.Empty() {
@@ -430,9 +458,9 @@ func (b *bot) Reapers() {
 			}
 		}
 	}
-	/*if goodTargets.Exists() {
-		time.Sleep(time.Millisecond * 20)
-	}*/
+	/* if goodTargets.Exists() {
+		time.Sleep(time.Millisecond * 10)
+	} */
 
 	reapers := b.Groups.Get(Reapers).Units
 	for _, reaper := range reapers {
@@ -449,8 +477,7 @@ func (b *bot) Reapers() {
 				// And it is closer than shooting distance - 0.5
 				if reaper.InRange(closestEnemy, -0.5) {
 					// Retreat a little
-					reaper.SpamCmds = true
-					reaper.CommandPos(ability.Move, b.StartLoc)
+					reaper.Fallback(goodTargets)
 					continue
 				}
 			}
@@ -460,7 +487,15 @@ func (b *bot) Reapers() {
 		if goodTargets.Exists() || okTargets.Exists() {
 			reaper.Attack(goodTargets, okTargets)
 		} else {
-			reaper.CommandPos(ability.Attack, b.EnemyStartLoc)
+			if !b.IsExplored(b.EnemyStartLoc) {
+				reaper.CommandPos(ability.Attack, b.EnemyStartLoc)
+			} else {
+				// Search for other bases
+				if reaper.IsIdle() {
+					pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
+					reaper.CommandPos(ability.Move, pos)
+				}
+			}
 		}
 	}
 }
@@ -477,7 +512,7 @@ func (b *bot) Retreat() {
 }
 
 func (b *bot) Logic() {
-	time.Sleep(time.Millisecond * 5)
+	// time.Sleep(time.Millisecond * 5)
 	b.BuildingsCheck()
 	b.Builders()
 	b.Build()
