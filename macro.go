@@ -10,6 +10,100 @@ import (
 	"math"
 )
 
+// todo: unit/building aliases: type -> []type list (multiple links on the same list)
+// todo: auto tech prequisites?
+// todo: анализировать неуспешные попытки строительства
+
+type Booler func(b *bot) bool
+type Inter func(b *bot) int
+type Voider func(b *bot)
+type BuildNode struct {
+	Name    string
+	Ability api.AbilityID
+	Premise Booler
+	Limit   Inter
+	Active  Inter
+	Method  Voider
+	Unlocks BuildNodes // [] ?
+}
+type BuildNodes []BuildNode
+
+func BuildOne(b *bot) int { return 1 }
+
+var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
+	ability.Build_CommandCenter: scl.S5x5,
+	ability.Build_SupplyDepot:   scl.S2x2,
+	ability.Build_Barracks:      scl.S5x3,
+	ability.Build_Refinery:      scl.S3x3,
+}
+
+var RootBuildOrder = BuildNodes{
+	{
+		Name:    "First CC",
+		Ability: ability.Build_CommandCenter,
+		Limit:   BuildOne,
+		Active:  BuildOne,
+	},
+	{
+		Name:    "Supplies",
+		Ability: ability.Build_SupplyDepot,
+		Premise: func(b *bot) bool { return b.FoodLeft < 6+b.FoodUsed/20 && b.FoodCap < 200 },
+		Limit:   func(b *bot) int { return 30 },
+		Active:  func(b *bot) int { return 1 + b.FoodUsed/50 },
+	},
+	{
+		Name:    "First barrack",
+		Ability: ability.Build_Barracks,
+		Premise: func(b *bot) bool {
+			return b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).First(scl.Ready) != nil
+		},
+		Limit:  BuildOne,
+		Active: BuildOne,
+		Method: func(b *bot) { b.BuildFirstBarrack() },
+	},
+	{
+		Name:    "Refineries",
+		Ability: ability.Build_Refinery,
+		Premise: func(b *bot) bool {
+			raxPending := b.Pending(ability.Build_Barracks)
+			refPending := b.Pending(ability.Build_Refinery)
+			// b.CanBuy(ability.Build_Refinery) && b.Orders[ability.Build_Refinery] < 2 &&
+			// todo: limit by gas amount?
+			return raxPending > 0 && refPending == 0 || raxPending >= 3 && refPending >= 1
+		},
+		Limit:  func(b *bot) int { return 20 },
+		Active: func(b *bot) int { return 2 },
+		Method: func(b *bot) {
+			ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+			if cc := ccs.First(scl.Ready); cc != nil {
+				b.BuildRefinery(cc)
+			}
+		},
+		Unlocks: RaxBuildOrder,
+	},
+	{
+		Name:    "Expansion CCs",
+		Ability: ability.Build_CommandCenter,
+		Limit:   func(b *bot) int { return buildPos[scl.S5x5].Len() },
+		Active:  BuildOne,
+	},
+}
+
+var RaxBuildOrder = BuildNodes{
+	{
+		Name:    "Barracks",
+		Ability: ability.Build_Barracks,
+		Premise: func(b *bot) bool {
+			return b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).First(scl.Ready) != nil
+		},
+		Limit: func(b *bot) int {
+			ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+			return 3 * ccs.Len()
+		},
+		Active: func(b *bot) int { return 3 },
+	},
+}
+
 func (b *bot) OrderBuild(scv *scl.Unit, pos scl.Point, aid api.AbilityID) {
 	scv.CommandPos(aid, pos)
 	b.DeductResources(aid)
@@ -22,39 +116,43 @@ func (b *bot) OrderTrain(factory *scl.Unit, aid api.AbilityID) {
 	log.Debugf("%d: Training %v", b.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
 }
 
-func (b *bot) BuildIfCan(aid api.AbilityID, size scl.BuildingSize, limit, active int) bool {
-	buildings := b.Units.Units().Filter(scl.Structure)
-	if b.CanBuild(aid, limit, active) {
-		enemies := b.AllEnemyUnits.Units()
-		for _, pos := range buildPos[size] {
-			if buildings.CloserThan(math.Sqrt2, pos).Exists() {
-				continue
-			}
-
-			bps := b.GetBuildingPoints(pos, size)
-			if !b.CheckPoints(bps, scl.IsNoCreep) {
-				continue
-			}
-
-			if enemies.CloserThan(safeBuildRange, pos).Exists() {
-				continue
-			}
-
-			scv := b.GetSCV(pos, Builders, 45)
-			if scv != nil {
-				b.OrderBuild(scv, pos, aid)
-				return true
-			}
-			log.Debugf("%d: Failed to find SCV", b.Loop)
-			return false
-		}
-		log.Debugf("%d: Can't find position for %v", b.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
-		if size == scl.S3x3 {
-			log.Debugf("%d: Trying bigger size for 3x3", b.Loop)
-			return b.BuildIfCan(aid, scl.S5x3, limit, active)
-		}
+func (b *bot) Build(aid api.AbilityID) bool {
+	size, ok := BuildingsSizes[aid]
+	if !ok {
+		log.Alertf("Can't find size for %v", scl.Types[scl.AbilityUnit[aid]].Name)
+		return false
 	}
+
+	buildings := b.Units.Units().Filter(scl.Structure)
+	enemies := b.AllEnemyUnits.Units()
+	for _, pos := range buildPos[size] {
+		if buildings.CloserThan(math.Sqrt2, pos).Exists() {
+			continue
+		}
+
+		bps := b.GetBuildingPoints(pos, size)
+		if !b.CheckPoints(bps, scl.IsNoCreep) {
+			continue
+		}
+
+		if enemies.CloserThan(safeBuildRange, pos).Exists() {
+			continue
+		}
+
+		scv := b.GetSCV(pos, Builders, 45)
+		if scv != nil {
+			b.OrderBuild(scv, pos, aid)
+			return true
+		}
+		log.Debugf("%d: Failed to find SCV", b.Loop)
+		return false
+	}
+	log.Debugf("%d: Can't find position for %v", b.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
 	return false
+	/*if size == scl.S3x3 {
+		log.Debugf("%d: Trying bigger size for 3x3", b.Loop)
+		return b.BuildIfCan(aid, scl.S5x3, limit, active)
+	}*/
 }
 
 func (b *bot) BuildingsCheck() {
@@ -112,8 +210,21 @@ func (b *bot) BuildRefinery(cc *scl.Unit) {
 	}
 }
 
-func (b *bot) OrderBuildings(ccs scl.Units) {
-	supCount := b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).Filter(scl.Ready).Len()
+func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
+	for _, node := range buildOrder {
+		if (node.Premise == nil || node.Premise(b)) && b.CanBuild(node.Ability, node.Limit(b), node.Active(b)) {
+			if node.Method != nil {
+				node.Method(b)
+			} else {
+				b.Build(node.Ability)
+			}
+		}
+		if node.Unlocks != nil && b.Units[scl.AbilityUnit[node.Ability]].Exists() {
+			b.ProcessBuildOrder(node.Unlocks)
+		}
+	}
+
+	/*supCount := b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).Filter(scl.Ready).Len()
 
 	// Supplies
 	if b.FoodLeft < 6+b.FoodUsed/20 && b.FoodCap < 200 {
@@ -140,7 +251,7 @@ func (b *bot) OrderBuildings(ccs scl.Units) {
 	}
 
 	// Spam CCs =)
-	b.BuildIfCan(ability.Build_CommandCenter, scl.S5x5, buildPos[scl.S5x5].Len(), 1)
+	b.BuildIfCan(ability.Build_CommandCenter, scl.S5x5, buildPos[scl.S5x5].Len(), 1)*/
 }
 
 func (b *bot) Morph() {
@@ -181,8 +292,8 @@ func (b *bot) Cast() {
 			homeMineral := b.MineralFields.Units().
 				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 				Max(func(unit *scl.Unit) float64 {
-					return float64(unit.MineralContents)
-				})
+				return float64(unit.MineralContents)
+			})
 			if homeMineral != nil {
 				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 			}
@@ -205,7 +316,7 @@ func (b *bot) OrderUnits(ccs scl.Units) {
 func (b *bot) Macro() {
 	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	b.BuildingsCheck()
-	b.OrderBuildings(ccs)
+	b.ProcessBuildOrder(RootBuildOrder)
 	b.Morph()
 	b.Cast()
 	b.OrderUnits(ccs)
