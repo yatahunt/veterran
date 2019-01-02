@@ -35,13 +35,13 @@ func runAgent(info client.AgentInfo) {
 }
 
 func main() {
-	log.SetConsoleLevel(log.L_info) // L_info L_debug
+	log.SetConsoleLevel(log.L_debug) // L_info L_debug
 	maps := []string{"BlueshiftLE", "CeruleanFallLE", "ParaSiteLE",
 		"AutomatonLE", "KairosJunctionLE", "PortAleksanderLE", "StasisLE", "DarknessSanctuaryLE"}
 
 	rand.Seed(time.Now().UnixNano())
 	runner.Set("map", maps[rand.Intn(len(maps))]+".SC2Map")
-	// runner.Set("map", "StasisLE.SC2Map")
+	// runner.Set("map", "AutomatonLE.SC2Map")
 	runner.Set("ComputerOpponent", "true")
 	runner.Set("ComputerRace", "random")           // terran zerg protoss random
 	runner.Set("ComputerDifficulty", "CheatMoney") // CheatInsane CheatMoney VeryHard

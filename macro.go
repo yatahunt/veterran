@@ -10,8 +10,6 @@ import (
 	"math"
 )
 
-// todo: unit/building aliases: type -> []type list (multiple links on the same list)
-// todo: auto tech prequisites?
 // todo: анализировать неуспешные попытки строительства
 
 type Booler func(b *bot) bool
@@ -36,6 +34,7 @@ var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
 	ability.Build_Barracks:      scl.S5x3,
 	ability.Build_Refinery:      scl.S3x3,
 }
+var UnitAliases = scl.Aliases{}
 
 var RootBuildOrder = BuildNodes{
 	{
@@ -47,7 +46,7 @@ var RootBuildOrder = BuildNodes{
 	{
 		Name:    "Supplies",
 		Ability: ability.Build_SupplyDepot,
-		Premise: func(b *bot) bool { return b.FoodLeft < 6+b.FoodUsed/20 && b.FoodCap < 200 },
+		Premise: func(b *bot) bool { return b.FoodLeft < 4+b.FoodUsed/20 && b.FoodCap < 200 },
 		Limit:   func(b *bot) int { return 30 },
 		Active:  func(b *bot) int { return 1 + b.FoodUsed/50 },
 	},
@@ -67,7 +66,6 @@ var RootBuildOrder = BuildNodes{
 		Premise: func(b *bot) bool {
 			raxPending := b.Pending(ability.Build_Barracks)
 			refPending := b.Pending(ability.Build_Refinery)
-			// b.CanBuy(ability.Build_Refinery) && b.Orders[ability.Build_Refinery] < 2 &&
 			// todo: limit by gas amount?
 			return raxPending > 0 && refPending == 0 || raxPending >= 3 && refPending >= 1
 		},
@@ -93,15 +91,23 @@ var RaxBuildOrder = BuildNodes{
 	{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
-		Premise: func(b *bot) bool {
-			return b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).First(scl.Ready) != nil
-		},
 		Limit: func(b *bot) int {
-			ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+			ccs := b.Units.OfType(UnitAliases.For(terran.CommandCenter)...)
 			return 3 * ccs.Len()
 		},
 		Active: func(b *bot) int { return 3 },
 	},
+}
+
+func (b *bot) InitAliases() {
+	UnitAliases.Add(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress,
+		terran.CommandCenterFlying, terran.OrbitalCommandFlying)
+	UnitAliases.Add(terran.Barracks, terran.BarracksReactor, terran.BarracksTechLab, terran.BarracksFlying)
+	UnitAliases.Add(terran.SupplyDepot, terran.SupplyDepotLowered)
+	/*log.Info(UnitAliases.For(terran.CommandCenter))
+	log.Info(UnitAliases.For(terran.Barracks))
+	log.Info(UnitAliases.For(terran.BarracksReactor))
+	log.Info(UnitAliases.For(terran.SCV))*/
 }
 
 func (b *bot) OrderBuild(scv *scl.Unit, pos scl.Point, aid api.AbilityID) {
@@ -121,6 +127,11 @@ func (b *bot) Build(aid api.AbilityID) bool {
 	if !ok {
 		log.Alertf("Can't find size for %v", scl.Types[scl.AbilityUnit[aid]].Name)
 		return false
+	}
+
+	techReq := scl.Types[scl.AbilityUnit[aid]].TechRequirement
+	if techReq != 0 && b.Units.OfType(UnitAliases.For(techReq)...).Empty() {
+		return false // Not available because of tech reqs, like: supply is needed for barracks
 	}
 
 	buildings := b.Units.Units().Filter(scl.Structure)
@@ -223,40 +234,10 @@ func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 			b.ProcessBuildOrder(node.Unlocks)
 		}
 	}
-
-	/*supCount := b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).Filter(scl.Ready).Len()
-
-	// Supplies
-	if b.FoodLeft < 6+b.FoodUsed/20 && b.FoodCap < 200 {
-		b.BuildIfCan(ability.Build_SupplyDepot, scl.S2x2, 30, 1+b.FoodUsed/50)
-	}
-
-	// First barrack
-	if supCount > 0 && b.CanBuild(ability.Build_Barracks, 1, 1) {
-		b.BuildFirstBarrack()
-	}
-
-	// Refineries
-	raxPending := b.Pending(ability.Build_Barracks)
-	if b.CanBuy(ability.Build_Refinery) && (raxPending > 0 && b.Pending(ability.Build_Refinery) == 0 ||
-		raxPending >= 3 && b.Pending(ability.Build_Refinery) >= 1) && b.Orders[ability.Build_Refinery] < 2 {
-		if cc := ccs.First(scl.Ready); cc != nil {
-			b.BuildRefinery(cc)
-		}
-	}
-
-	// More barracks
-	if supCount > 0 {
-		b.BuildIfCan(ability.Build_Barracks, scl.S5x3, 3*ccs.Len(), 3)
-	}
-
-	// Spam CCs =)
-	b.BuildIfCan(ability.Build_CommandCenter, scl.S5x5, buildPos[scl.S5x5].Len(), 1)*/
 }
 
 func (b *bot) Morph() {
 	cc := b.Units[terran.CommandCenter].First(scl.Ready, scl.Idle)
-	// b.CanBuy(ability.Morph_OrbitalCommand) requires 550 minerals?
 	if cc != nil && b.Orders[ability.Train_Reaper] >= 2 && b.CanBuy(ability.Morph_OrbitalCommand) {
 		b.OrderTrain(cc, ability.Morph_OrbitalCommand)
 	}

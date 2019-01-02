@@ -6,6 +6,7 @@ import (
 
 func (b *bot) InitBot() {
 	scl.InitUnits(b.Info.Data().Units)
+	b.InitAliases()
 	b.InitLocations()
 	b.FindExpansions()
 	b.InitMining()
@@ -21,7 +22,7 @@ func (b *bot) InitBot() {
 	b.DebugSend()*/
 }
 
-// OnStep is called each game step (every game update by defaul)
+// OnStep is called each game step (every game update by default)
 func (b *bot) Step() {
 	defer scl.RecoverPanic()
 
@@ -42,7 +43,7 @@ func (b *bot) Step() {
 		b.InitBot()
 	}
 	if b.Loop == 8 {
-		b.ChatSend("VeTerran v0.3.0 (glhf)")
+		b.ChatSend("VeTerran v0.3.1 (glhf)")
 	}
 
 	b.Logic()
