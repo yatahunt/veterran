@@ -10,7 +10,6 @@ import (
 // todo: wall closed flag -> no worker defence
 // todo: fix morph abilities cost
 
-var workerRush = false
 var assault = false
 var buildPos = map[scl.BuildingSize]scl.Points{}
 var firstBarrackBuildPos = scl.Points{}

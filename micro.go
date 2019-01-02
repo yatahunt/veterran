@@ -11,15 +11,19 @@ import (
 )
 
 func (b *bot) WorkerRushDefence() {
-	enemiesRange := 10.0
+	enemiesRange := 12.0
+	workersRange := 12.0
 	if buildings := b.Units.Units().Filter(scl.Structure); buildings.Exists() {
-		enemiesRange = math.Max(enemiesRange, buildings.FurthestTo(b.StartLoc).Point().Dist(b.StartLoc)+6)
+		workersRange = math.Max(workersRange, buildings.FurthestTo(b.StartLoc).Point().Dist(b.StartLoc)+6)
 	}
-	enemies := b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).CloserThan(enemiesRange, b.StartLoc)
-	if b.Units.Units().First(scl.DpsGt5) == nil {
-		enemies = b.EnemyUnits.Units().Filter(scl.NotFlying).CloserThan(enemiesRange, b.StartLoc)
-	}
+
+	workers := b.Units.OfType(terran.SCV)
+	enemies := b.EnemyUnits.Units().Filter(scl.NotFlying).CloserThan(enemiesRange, b.StartLoc)
 	alert := enemies.CloserThan(enemiesRange-4, b.StartLoc).Exists()
+	if enemies.Empty() || enemies.Sum(scl.CmpGroundScore) > workers.Sum(scl.CmpGroundScore) {
+		enemies = b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).CloserThan(workersRange, b.StartLoc)
+		alert = enemies.CloserThan(workersRange-4, b.StartLoc).Exists()
+	}
 
 	army := b.Groups.Get(WorkerRushDefenders).Units
 	if army.Exists() && enemies.Empty() {
@@ -27,11 +31,7 @@ func (b *bot) WorkerRushDefence() {
 		return
 	}
 
-	if enemies.Len() >= 10 {
-		workerRush = true
-	}
-
-	balance := 1.0 * army.Sum(scl.CmpGroundDPS) / enemies.Sum(scl.CmpGroundDPS)
+	balance := army.Sum(scl.CmpGroundScore) / enemies.Sum(scl.CmpGroundScore)
 	if alert && balance < 1 {
 		worker := b.GetSCV(b.StartLoc, WorkerRushDefenders, 20)
 		if worker != nil {

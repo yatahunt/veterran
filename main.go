@@ -35,7 +35,7 @@ func runAgent(info client.AgentInfo) {
 }
 
 func main() {
-	log.SetConsoleLevel(log.L_debug) // L_info L_debug
+	log.SetConsoleLevel(log.L_info) // L_info L_debug
 	maps := []string{"BlueshiftLE", "CeruleanFallLE", "ParaSiteLE",
 		"AutomatonLE", "KairosJunctionLE", "PortAleksanderLE", "StasisLE", "DarknessSanctuaryLE"}
 
