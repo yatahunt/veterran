@@ -45,7 +45,7 @@ var RootBuildOrder = BuildNodes{
 	{
 		Name:    "Supplies",
 		Ability: ability.Build_SupplyDepot,
-		Premise: func(b *bot) bool { return b.FoodLeft < 4+b.FoodUsed/20 && b.FoodCap < 200 },
+		Premise: func(b *bot) bool { return b.FoodLeft < 6+b.FoodUsed/20 && b.FoodCap < 200 },
 		Limit:   func(b *bot) int { return 30 },
 		Active:  func(b *bot) int { return 1 + b.FoodUsed/50 },
 	},

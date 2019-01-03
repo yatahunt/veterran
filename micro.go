@@ -17,7 +17,7 @@ func (b *bot) WorkerRushDefence() {
 		workersRange = math.Max(workersRange, buildings.FurthestTo(b.StartLoc).Point().Dist(b.StartLoc)+6)
 	}
 
-	workers := b.Units.OfType(terran.SCV)
+	workers := b.Units.OfType(terran.SCV).CloserThan(scl.ResourceSpreadDistance, b.StartLoc)
 	enemies := b.EnemyUnits.Units().Filter(scl.NotFlying).CloserThan(enemiesRange, b.StartLoc)
 	alert := enemies.CloserThan(enemiesRange-4, b.StartLoc).Exists()
 	if enemies.Empty() || enemies.Sum(scl.CmpGroundScore) > workers.Sum(scl.CmpGroundScore) {
