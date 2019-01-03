@@ -6,7 +6,6 @@ import (
 
 func (b *bot) InitBot() {
 	scl.InitUnits(b.Info.Data().Units)
-	b.InitAliases()
 	b.InitLocations()
 	b.FindExpansions()
 	b.InitMining()
@@ -43,7 +42,7 @@ func (b *bot) Step() {
 		b.InitBot()
 	}
 	if b.Loop == 8 {
-		b.ChatSend("VeTerran v0.3.2 (glhf)")
+		b.ChatSend("VeTerran v0.3.3 (glhf)")
 	}
 
 	b.Logic()

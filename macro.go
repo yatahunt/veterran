@@ -34,7 +34,6 @@ var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
 	ability.Build_Barracks:      scl.S5x3,
 	ability.Build_Refinery:      scl.S3x3,
 }
-var UnitAliases = scl.Aliases{}
 
 var RootBuildOrder = BuildNodes{
 	{
@@ -92,22 +91,11 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
 		Limit: func(b *bot) int {
-			ccs := b.Units.OfType(UnitAliases.For(terran.CommandCenter)...)
+			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
 			return 3 * ccs.Len()
 		},
 		Active: func(b *bot) int { return 3 },
 	},
-}
-
-func (b *bot) InitAliases() {
-	UnitAliases.Add(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress,
-		terran.CommandCenterFlying, terran.OrbitalCommandFlying)
-	UnitAliases.Add(terran.Barracks, terran.BarracksReactor, terran.BarracksTechLab, terran.BarracksFlying)
-	UnitAliases.Add(terran.SupplyDepot, terran.SupplyDepotLowered)
-	/*log.Info(UnitAliases.For(terran.CommandCenter))
-	log.Info(UnitAliases.For(terran.Barracks))
-	log.Info(UnitAliases.For(terran.BarracksReactor))
-	log.Info(UnitAliases.For(terran.SCV))*/
 }
 
 func (b *bot) OrderBuild(scv *scl.Unit, pos scl.Point, aid api.AbilityID) {
@@ -130,7 +118,7 @@ func (b *bot) Build(aid api.AbilityID) bool {
 	}
 
 	techReq := scl.Types[scl.AbilityUnit[aid]].TechRequirement
-	if techReq != 0 && b.Units.OfType(UnitAliases.For(techReq)...).Empty() {
+	if techReq != 0 && b.Units.OfType(scl.UnitAliases.For(techReq)...).Empty() {
 		return false // Not available because of tech reqs, like: supply is needed for barracks
 	}
 
