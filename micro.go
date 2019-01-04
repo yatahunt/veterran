@@ -121,8 +121,8 @@ func (b *bot) Reapers() {
 		})
 		reapersDPS := reapers.CloserThan(15, enemy.Point()).Sum(func(unit *scl.Unit) float64 { return unit.GroundDPS() })
 		if enemiesDPS >= 60 {
-			if (!assault && (reapersDPS < enemiesDPS*2 || reapers.Len() <= 50)) ||
-				(assault && (reapersDPS < enemiesDPS || reapers.Len() <= 25)) {
+			if (!assault && (reapersDPS < enemiesDPS*2 || reapers.Len() <= 30)) ||
+				(assault && (reapersDPS < enemiesDPS || reapers.Len() <= 20)) {
 				assault = false
 				hazards.Add(enemy)
 				continue // Evasion will be used
@@ -141,10 +141,10 @@ func (b *bot) Reapers() {
 
 	// Main army
 	for _, reaper := range reapers {
-		if reaper.Hits < 21 {
+		/*if reaper.Hits < 21 {
 			b.Groups.Add(Retreat, reaper)
 			continue
-		}
+		}*/
 
 		// Keep range
 		// Weapon is recharging
@@ -164,7 +164,13 @@ func (b *bot) Reapers() {
 		}
 
 		// Evade dangerous zones
-		ep := reaper.GroundEvade(hazards, 2, reaper.Point())
+		ep := reaper.Point()
+		attackers := allEnemies.CanAttack(reaper, 0)
+		if !assault && attackers.Exists() && attackers.Sum(scl.CmpGroundDamage) >= reaper.Hits {
+			ep = reaper.GroundEvade(append(hazards, attackers...), 2, reaper.Point())
+		} else {
+			ep = reaper.GroundEvade(hazards, 2, reaper.Point())
+		}
 		if ep != reaper.Point() {
 			reaper.CommandPos(ability.Move, ep)
 			continue
@@ -187,7 +193,7 @@ func (b *bot) Reapers() {
 	}
 
 	// Damaged reapers
-	reapers = b.Groups.Get(Retreat).Units
+	/*reapers = b.Groups.Get(Retreat).Units
 	for _, reaper := range reapers {
 		if reaper.Health > 30 {
 			b.Groups.Add(Reapers, reaper)
@@ -205,7 +211,7 @@ func (b *bot) Reapers() {
 			continue
 		}
 		b.ReaperFallback(reaper, allEnemies, b.StartLoc)
-	}
+	}*/
 }
 
 func (b *bot) Micro() {
