@@ -4,11 +4,9 @@ import (
 	"bitbucket.org/aisee/sc2lib"
 )
 
-// todo: строить первый барак с пересадкой и сразу после постройки саплая тем же рабочим
-// todo: всё ещё есть проблемы (дёрп) с назначением на продолжение строительства если рабочего убили
+// todo: всё ещё есть проблемы (дёрп) с назначением на продолжение строительства если рабочего убили?
 // todo: use dead units events
 // todo: wall closed flag -> no worker defence
-// todo: fix morph abilities cost
 
 var assault = false
 var buildPos = map[scl.BuildingSize]scl.Points{}
@@ -22,6 +20,7 @@ const (
 	ScvHealer
 	WorkerRushDefenders
 	Scout
+	ScoutBase
 	Reapers
 	Retreat
 	UnderConstruction

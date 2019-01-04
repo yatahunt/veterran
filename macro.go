@@ -271,14 +271,14 @@ func (b *bot) Cast() {
 }
 
 func (b *bot) OrderUnits(ccs scl.Units) {
-	cc := ccs.First(scl.Ready, scl.Idle)
-	if cc != nil && b.Units[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70) && b.CanBuy(ability.Train_SCV) {
-		b.OrderTrain(cc, ability.Train_SCV)
-	}
-
 	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Idle)
 	if rax != nil && b.CanBuy(ability.Train_Reaper) {
 		b.OrderTrain(rax, ability.Train_Reaper)
+	}
+
+	cc := ccs.First(scl.Ready, scl.Idle)
+	if cc != nil && b.Units[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70) && b.CanBuy(ability.Train_SCV) {
+		b.OrderTrain(cc, ability.Train_SCV)
 	}
 }
 

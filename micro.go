@@ -108,21 +108,22 @@ func (b *bot) Reapers() {
 	goodTargets := scl.Units{}
 	hazards := scl.Units{}
 	allEnemies := b.AllEnemyUnits.Units()
+	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	reapers := b.Groups.Get(Reapers).Units
 	for _, enemy := range allEnemies {
 		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue
 		}
 		// Check if enemies that close to this one and have big range can kill reaper in a second
-		enemiesDPS := allEnemies.Filter(func(unit *scl.Unit) bool {
-			return unit.IsReady() && unit.GroundRange() >= 4 && unit.IsCloserThan(unit.GroundRange(), enemy)
+		enemiesDPS := allEnemiesReady.Filter(func(unit *scl.Unit) bool {
+			return unit.GroundRange() >= 4 && unit.IsCloserThan(unit.GroundRange(), enemy)
 		}).Sum(func(unit *scl.Unit) float64 {
 			return unit.GroundDPS()
 		})
 		reapersDPS := reapers.CloserThan(15, enemy.Point()).Sum(func(unit *scl.Unit) float64 { return unit.GroundDPS() })
 		if enemiesDPS >= 60 {
-			if (!assault && (reapersDPS < enemiesDPS*2 || reapers.Len() <= 30)) ||
-				(assault && (reapersDPS < enemiesDPS || reapers.Len() <= 20)) {
+			if (!assault && (reapersDPS < enemiesDPS*2 && reapers.Len() <= 30)) ||
+				(assault && (reapersDPS < enemiesDPS && reapers.Len() <= 20)) {
 				assault = false
 				hazards.Add(enemy)
 				continue // Evasion will be used
@@ -141,10 +142,10 @@ func (b *bot) Reapers() {
 
 	// Main army
 	for _, reaper := range reapers {
-		/*if reaper.Hits < 21 {
+		if reaper.Hits < 21 {
 			b.Groups.Add(Retreat, reaper)
 			continue
-		}*/
+		}
 
 		// Keep range
 		// Weapon is recharging
@@ -165,7 +166,7 @@ func (b *bot) Reapers() {
 
 		// Evade dangerous zones
 		ep := reaper.Point()
-		attackers := allEnemies.CanAttack(reaper, 0)
+		attackers := allEnemiesReady.CanAttack(reaper, 2)
 		if !assault && attackers.Exists() && attackers.Sum(scl.CmpGroundDamage) >= reaper.Hits {
 			ep = reaper.GroundEvade(append(hazards, attackers...), 2, reaper.Point())
 		} else {
@@ -193,7 +194,7 @@ func (b *bot) Reapers() {
 	}
 
 	// Damaged reapers
-	/*reapers = b.Groups.Get(Retreat).Units
+	reapers = b.Groups.Get(Retreat).Units
 	for _, reaper := range reapers {
 		if reaper.Health > 30 {
 			b.Groups.Add(Reapers, reaper)
@@ -202,7 +203,7 @@ func (b *bot) Reapers() {
 		// Use attack if enemy is close but can't attack reaper
 		if scl.AttackDelay.IsCool(reaper.UnitType, reaper.WeaponCooldown, reaper.Bot.FramesPerOrder) &&
 			(goodTargets.InRangeOf(reaper, 0).Exists() || okTargets.InRangeOf(reaper, 0).Exists()) &&
-			allEnemies.CanAttack(reaper, 1).Empty() {
+			allEnemiesReady.CanAttack(reaper, 1).Empty() {
 			reaper.Attack(goodTargets, okTargets)
 			continue
 		}
@@ -210,8 +211,8 @@ func (b *bot) Reapers() {
 		if b.ThrowMine(reaper, goodTargets) {
 			continue
 		}
-		b.ReaperFallback(reaper, allEnemies, b.StartLoc)
-	}*/
+		b.ReaperFallback(reaper, allEnemiesReady, b.StartLoc)
+	}
 }
 
 func (b *bot) Micro() {

@@ -4,6 +4,7 @@ import (
 	"bitbucket.org/aisee/sc2lib"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/terran"
+	"math"
 )
 
 func (b *bot) OnUnitCreated(unit *scl.Unit) {
@@ -87,16 +88,15 @@ func (b *bot) Repair() {
 }
 
 func (b *bot) Scout() {
-	if b.EnemyStartLocs.Len() > 1 && b.Loop == 0 {
-		scv := b.Groups.Get(Miners).Units.ClosestTo(b.EnemyStartLocs[0])
+	scv := b.Groups.Get(Scout).Units.First()
+	if b.EnemyStartLocs.Len() > 1 && scv == nil && b.Loop < 60 {
+		scv = b.GetSCV(b.EnemyStartLocs[0], Scout, 45)
 		if scv != nil {
-			b.Groups.Add(Scout, scv)
 			scv.CommandPos(ability.Move, b.EnemyStartLocs[0])
 		}
 		return
 	}
 
-	scv := b.Groups.Get(Scout).Units.First()
 	if scv != nil {
 		if scv.IsIdle() {
 			// Check N-1 positions
@@ -109,7 +109,7 @@ func (b *bot) Scout() {
 			}
 			// If N-1 checked and not found, then N is EnemyStartLoc
 			b.RecalcEnemyStartLoc(b.EnemyStartLocs[b.EnemyStartLocs.Len()-1])
-			b.Groups.Add(Miners, scv) // dismiss scout
+			b.Groups.Add(ScoutBase, scv) // promote scout
 			return
 		}
 
@@ -117,12 +117,38 @@ func (b *bot) Scout() {
 			for _, p := range b.EnemyStartLocs[:b.EnemyStartLocs.Len()-1] {
 				if buildings.CloserThan(20, p).Exists() {
 					b.RecalcEnemyStartLoc(p)
-					b.Groups.Add(Miners, scv) // dismiss scout
+					b.Groups.Add(ScoutBase, scv) // promote scout
 					return
 				}
 			}
 		}
 	}
+}
+
+func (b *bot) ScoutBase() {
+	if b.Loop > 2688 { // 2:00
+		return
+	}
+
+	scv := b.Groups.Get(ScoutBase).Units.First()
+	if b.EnemyStartLocs.Len() <= 1 && scv == nil && b.Loop < 60 {
+		scv = b.GetSCV(b.EnemyStartLoc, Scout, 45)
+		if scv != nil {
+			b.Groups.Add(ScoutBase, scv)
+		}
+	}
+	if scv == nil {
+		return
+	}
+
+	enemies := b.AllEnemyUnits.Units().Filter(scl.DpsGt5)
+	if enemies.Exists() || b.Loop > 2016 { // 1:30
+		b.Groups.Add(Miners, scv) // dismiss scout
+	}
+
+	vec := (scv.Point() - b.EnemyStartLoc).Norm().Rotate(math.Pi / 10)
+	pos := b.EnemyStartLoc + vec*10
+	scv.CommandPos(ability.Move, pos)
 }
 
 func (b *bot) Miners() {
@@ -176,5 +202,6 @@ func (b *bot) Roles() {
 	b.Builders()
 	b.Repair()
 	b.Scout()
+	b.ScoutBase()
 	b.Miners()
 }
