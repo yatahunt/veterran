@@ -73,8 +73,11 @@ func (b *bot) Repair() {
 		}
 	}
 
+	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	healer := b.Groups.Get(ScvHealer).Units.First()
-	damagedSCVs := b.Units[terran.SCV].Filter(func(unit *scl.Unit) bool { return unit.Health < unit.HealthMax })
+	damagedSCVs := b.Units[terran.SCV].Filter(func(unit *scl.Unit) bool {
+		return unit.Health < unit.HealthMax && ccs.CloserThan(scl.ResourceSpreadDistance, unit.Point()).Exists()
+	})
 	if damagedSCVs.Exists() && damagedSCVs[0] != healer {
 		if healer == nil {
 			healer = b.GetSCV(damagedSCVs.Center(), ScvHealer, 45)

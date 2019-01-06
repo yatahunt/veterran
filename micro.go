@@ -45,7 +45,15 @@ func (b *bot) WorkerRushDefence() {
 			b.Groups.Add(Miners, unit)
 			continue
 		}
-		unit.Attack(enemies)
+		if scl.AttackDelay.UnitIsCool(unit) {
+			unit.Attack(enemies)
+		} else {
+			friends := army.InRangeOf(unit, 0)
+			friend := friends.Min(scl.CmpHits)
+			if friend != nil && friend.Hits < 45 && b.Minerals > 0 {
+				unit.CommandTag(ability.Effect_Repair_SCV, friend.Tag)
+			}
+		}
 	}
 }
 
@@ -59,9 +67,15 @@ func (b *bot) ReaperFallback(u *scl.Unit, enemies scl.Units, safePos scl.Point) 
 	}
 	score *= math.Log(math.Abs(p.Dist2(safePos)-4) + math.E)
 	for x := 0.0; x < 16; x++ {
-		vec := scl.Pt(5, 0).Rotate(math.Pi * 2.0 / 16.0 * x)
-		np := p + vec
-		np2 := p + vec*2
+		vec := scl.Pt(1, 0).Rotate(math.Pi * 2.0 / 16.0 * x)
+		np := p + vec * 5
+		var np2 scl.Point
+		for x := 1.0; x <= 10; x++ {
+			np2 := p + vec.Mul(x)
+			if b.IsPathable(np2) {
+				break
+			}
+		}
 		maxJump := 1.0
 		if u.Health < u.HealthMax {
 			maxJump = 2.0
@@ -158,7 +172,7 @@ func (b *bot) Reapers() {
 				// And it is closer than shooting distance - 0.5
 				if reaper.InRange(closestEnemy, -0.5) {
 					// Retreat a little
-					b.ReaperFallback(reaper, goodTargets, b.StartLoc)
+					b.ReaperFallback(reaper, goodTargets, b.EnemyStartLoc)
 					continue
 				}
 			}

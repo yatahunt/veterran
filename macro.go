@@ -10,8 +10,6 @@ import (
 	"math"
 )
 
-// todo: анализировать неуспешные попытки строительства
-
 type Booler func(b *bot) bool
 type Inter func(b *bot) int
 type Voider func(b *bot)
@@ -19,6 +17,7 @@ type BuildNode struct {
 	Name    string
 	Ability api.AbilityID
 	Premise Booler
+	WaitRes bool
 	Limit   Inter
 	Active  Inter
 	Method  Voider
@@ -29,10 +28,12 @@ type BuildNodes []BuildNode
 func BuildOne(b *bot) int { return 1 }
 
 var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
-	ability.Build_CommandCenter: scl.S5x5,
-	ability.Build_SupplyDepot:   scl.S2x2,
-	ability.Build_Barracks:      scl.S5x3,
-	ability.Build_Refinery:      scl.S3x3,
+	ability.Build_CommandCenter:  scl.S5x5,
+	ability.Build_SupplyDepot:    scl.S2x2,
+	ability.Build_Barracks:       scl.S5x3,
+	ability.Build_Refinery:       scl.S3x3,
+	ability.Build_EngineeringBay: scl.S3x3,
+	ability.Build_Armory:         scl.S3x3,
 }
 
 var RootBuildOrder = BuildNodes{
@@ -87,6 +88,18 @@ var RootBuildOrder = BuildNodes{
 }
 
 var RaxBuildOrder = BuildNodes{
+	// Needs factory
+	/*{
+		Name:    "Armory",
+		Ability: ability.Build_Armory,
+		Premise: func(b *bot) bool {
+			// todo: on half Weapons upgrade done
+			return b.Units[terran.EngineeringBay].Filter(scl.Ready).Len() >= 2
+		},
+		WaitRes: true,
+		Limit:   BuildOne,
+		Active:  BuildOne,
+	},*/
 	{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
@@ -95,6 +108,15 @@ var RaxBuildOrder = BuildNodes{
 			return 3 * ccs.Len()
 		},
 		Active: func(b *bot) int { return 3 },
+	},
+	{
+		Name:    "Engineering Bays",
+		Ability: ability.Build_EngineeringBay,
+		Premise: func(b *bot) bool {
+			return b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len() >= 2
+		},
+		Limit:  func(b *bot) int { return 1 },
+		Active: func(b *bot) int { return 1 },
 	},
 }
 
@@ -124,7 +146,12 @@ func (b *bot) Build(aid api.AbilityID) bool {
 
 	buildings := b.Units.Units().Filter(scl.Structure)
 	enemies := b.AllEnemyUnits.Units()
-	for _, pos := range buildPos[size] {
+	positions := buildPos[size]
+	if size == scl.S3x3 {
+		// Add larger building positions if there is not enough S3x3 positions
+		positions = append(positions, buildPos[scl.S5x3]...)
+	}
+	for _, pos := range positions {
 		if buildings.CloserThan(math.Sqrt2, pos).Exists() {
 			continue
 		}
@@ -148,10 +175,6 @@ func (b *bot) Build(aid api.AbilityID) bool {
 	}
 	log.Debugf("%d: Can't find position for %v", b.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
 	return false
-	/*if size == scl.S3x3 {
-		log.Debugf("%d: Trying bigger size for 3x3", b.Loop)
-		return b.BuildIfCan(aid, scl.S5x3, limit, active)
-	}*/
 }
 
 func (b *bot) BuildingsCheck() {
@@ -211,7 +234,15 @@ func (b *bot) BuildRefinery(cc *scl.Unit) {
 
 func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 	for _, node := range buildOrder {
-		if (node.Premise == nil || node.Premise(b)) && b.CanBuild(node.Ability, node.Limit(b), node.Active(b)) {
+		inLimits := b.Pending(node.Ability) < node.Limit(b) && b.Orders[node.Ability] < node.Active(b)
+		canBuy := b.CanBuy(node.Ability)
+		if (node.Premise == nil || node.Premise(b)) && inLimits && (canBuy || node.WaitRes) {
+			if !canBuy && node.WaitRes {
+				// reserve money for building
+				b.DeductResources(node.Ability)
+				log.Info(node.Ability)
+				continue
+			}
 			if node.Method != nil {
 				node.Method(b)
 			} else {
@@ -220,6 +251,27 @@ func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 		}
 		if node.Unlocks != nil && b.Units[scl.AbilityUnit[node.Ability]].Exists() {
 			b.ProcessBuildOrder(node.Unlocks)
+		}
+	}
+}
+
+func (b *bot) Upgrades() {
+	if eng := b.Units[terran.EngineeringBay].First(scl.Ready, scl.Idle); eng != nil {
+		b.RequestAvailableAbilities(true, eng) // request abilities again because we want to ignore resource reqs
+		for _, a := range []api.AbilityID{
+			ability.Research_TerranInfantryWeaponsLevel1, ability.Research_TerranInfantryArmorLevel1,
+			ability.Research_TerranInfantryWeaponsLevel2, ability.Research_TerranInfantryArmorLevel2,
+			ability.Research_TerranInfantryWeaponsLevel3, ability.Research_TerranInfantryArmorLevel3,
+		} {
+			if eng.HasAbility(a) {
+				if b.CanBuy(a) {
+					eng.Command(a)
+				} else {
+					// reserve money for upgrade
+					b.DeductResources(a)
+				}
+				break
+			}
 		}
 	}
 }
@@ -261,8 +313,8 @@ func (b *bot) Cast() {
 			homeMineral := b.MineralFields.Units().
 				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 				Max(func(unit *scl.Unit) float64 {
-				return float64(unit.MineralContents)
-			})
+					return float64(unit.MineralContents)
+				})
 			if homeMineral != nil {
 				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 			}
@@ -285,6 +337,7 @@ func (b *bot) OrderUnits(ccs scl.Units) {
 func (b *bot) Macro() {
 	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	b.BuildingsCheck()
+	b.Upgrades()
 	b.ProcessBuildOrder(RootBuildOrder)
 	b.Morph()
 	b.Cast()

@@ -42,7 +42,7 @@ func (b *bot) Step() {
 		b.InitBot()
 	}
 	if b.Loop == 8 {
-		b.ChatSend("VeTerran v0.3.3 (glhf)")
+		b.ChatSend("VeTerran v0.3.4 (glhf)")
 	}
 
 	b.Logic()

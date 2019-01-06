@@ -4,9 +4,12 @@ import (
 	"bitbucket.org/aisee/sc2lib"
 )
 
-// todo: всё ещё есть проблемы (дёрп) с назначением на продолжение строительства если рабочего убили?
+// todo: scan lurkers, darks on damage
+// todo: if too much gas add reactors
+// todo: add armory on level 1 finishes
 // todo: use dead units events
 // todo: wall closed flag -> no worker defence
+// todo: анализировать неуспешные попытки строительства
 
 var assault = false
 var buildPos = map[scl.BuildingSize]scl.Points{}
