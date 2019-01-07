@@ -6,6 +6,7 @@ import (
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/effect"
+	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 	"math"
 )
@@ -34,6 +35,7 @@ var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
 	ability.Build_Refinery:       scl.S3x3,
 	ability.Build_EngineeringBay: scl.S3x3,
 	ability.Build_Armory:         scl.S3x3,
+	ability.Build_Factory:        scl.S5x3,
 }
 
 var RootBuildOrder = BuildNodes{
@@ -80,6 +82,13 @@ var RootBuildOrder = BuildNodes{
 		Unlocks: RaxBuildOrder,
 	},
 	{
+		Name:    "Factory",
+		Ability: ability.Build_Factory,
+		Limit:   BuildOne,
+		Active:  BuildOne,
+		Unlocks: FactoryBuildOrder,
+	},
+	{
 		Name:    "Expansion CCs",
 		Ability: ability.Build_CommandCenter,
 		Limit:   func(b *bot) int { return buildPos[scl.S5x5].Len() },
@@ -88,26 +97,29 @@ var RootBuildOrder = BuildNodes{
 }
 
 var RaxBuildOrder = BuildNodes{
-	// Needs factory
-	/*{
+	{
 		Name:    "Armory",
 		Ability: ability.Build_Armory,
 		Premise: func(b *bot) bool {
 			// todo: on half Weapons upgrade done
-			return b.Units[terran.EngineeringBay].Filter(scl.Ready).Len() >= 2
+			return b.Units[terran.EngineeringBay].Filter(scl.Ready).Len() >= 2 &&
+				b.Units[terran.Factory].First(scl.Ready) != nil // Needs factory
 		},
 		WaitRes: true,
 		Limit:   BuildOne,
 		Active:  BuildOne,
-	},*/
+	},
 	{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
+		Premise: func(b *bot) bool {
+			return b.Units[terran.Barracks].First(scl.Ready, scl.Unused) == nil
+		},
 		Limit: func(b *bot) int {
 			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
-			return 3 * ccs.Len()
+			return scl.MinInt(5, 2 * ccs.Len())
 		},
-		Active: func(b *bot) int { return 3 },
+		Active: func(b *bot) int { return 2 },
 	},
 	{
 		Name:    "Engineering Bays",
@@ -115,8 +127,49 @@ var RaxBuildOrder = BuildNodes{
 		Premise: func(b *bot) bool {
 			return b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len() >= 2
 		},
-		Limit:  func(b *bot) int { return 1 },
-		Active: func(b *bot) int { return 1 },
+		Limit:  func(b *bot) int { return 2 },
+		Active: func(b *bot) int { return 2 },
+	},
+	{
+		Name:    "Barracks reactors",
+		Ability: ability.Build_Reactor_Barracks,
+		Premise: func(b *bot) bool {
+			return b.Vespene >= 200 && b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+		},
+		Limit: func(b *bot) int { return b.Units[terran.Barracks].Len() },
+		Active: func(b *bot) int { return 2 },
+		Method: func(b *bot) {
+			// todo: group?
+			if rax := b.Units[terran.BarracksFlying].First(); rax != nil {
+				rax.CommandPos(ability.Build_Reactor_Barracks, firstBarrackBuildPos[1])
+				return
+			}
+
+			rax := b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
+			if rax.Point().IsCloserThan(3, b.MainRamp.Top) && firstBarrackBuildPos[0] != firstBarrackBuildPos[1] {
+				if b.EnemyUnits.Units().CloserThan(safeBuildRange, rax.Point()).Exists() {
+					return
+				}
+				rax.Command(ability.Lift_Barracks)
+			} else {
+				rax.Command(ability.Build_Reactor_Barracks)
+			}
+		},
+	},
+}
+
+var FactoryBuildOrder = BuildNodes{
+	{
+		Name:    "Factory Tech Lab",
+		Ability: ability.Build_TechLab_Factory,
+		Premise: func(b *bot) bool {
+			return b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+		},
+		Limit:  BuildOne,
+		Active: BuildOne,
+		Method: func(b *bot) {
+			b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_TechLab_Factory)
+		},
 	},
 }
 
@@ -181,6 +234,8 @@ func (b *bot) BuildingsCheck() {
 	builders := b.Groups.Get(Builders).Units
 	buildings := b.Groups.Get(UnderConstruction).Units
 	enemies := b.EnemyUnits.Units().Filter(scl.DpsGt5)
+	// This is const. Move somewhere else?
+	addonsTypes := append(scl.UnitAliases.For(terran.Reactor), scl.UnitAliases.For(terran.TechLab)...)
 	for _, building := range buildings {
 		if building.BuildProgress == 1 {
 			switch building.UnitType {
@@ -194,12 +249,16 @@ func (b *bot) BuildingsCheck() {
 			}
 			continue
 		}
+
 		// Cancel building if it will be destroyed soon
 		if building.HPS*2.5 > building.Hits {
 			building.Command(ability.Cancel)
 		}
+
 		// Find SCV to continue work if disrupted
-		if building.FindAssignedBuilder(builders) == nil && enemies.CanAttack(building, 0).Empty() {
+		if building.FindAssignedBuilder(builders) == nil &&
+			enemies.CanAttack(building, 0).Empty() &&
+			!addonsTypes.Contain(building.UnitType) {
 			scv := b.GetSCV(building.Point(), Builders, 45)
 			if scv != nil {
 				scv.CommandTag(ability.Smart, building.Tag)
@@ -240,7 +299,6 @@ func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 			if !canBuy && node.WaitRes {
 				// reserve money for building
 				b.DeductResources(node.Ability)
-				log.Info(node.Ability)
 				continue
 			}
 			if node.Method != nil {
@@ -256,6 +314,7 @@ func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 }
 
 func (b *bot) Upgrades() {
+	// todo: done upgrages list to skip checks
 	if eng := b.Units[terran.EngineeringBay].First(scl.Ready, scl.Idle); eng != nil {
 		b.RequestAvailableAbilities(true, eng) // request abilities again because we want to ignore resource reqs
 		for _, a := range []api.AbilityID{
@@ -272,6 +331,14 @@ func (b *bot) Upgrades() {
 				}
 				break
 			}
+		}
+	}
+	lab := b.Units[terran.FactoryTechLab].First(scl.Ready, scl.Idle)
+	if lab != nil && b.Units[terran.Cyclone].Exists() {
+		b.RequestAvailableAbilities(true, lab)
+		if lab.HasAbility(ability.Research_CycloneResearchLockOnDamageUpgrade) &&
+			b.CanBuy(ability.Research_CycloneResearchLockOnDamageUpgrade) {
+			lab.Command(ability.Research_CycloneResearchLockOnDamageUpgrade)
 		}
 	}
 }
@@ -299,12 +366,32 @@ func (b *bot) Cast() {
 	if cc != nil {
 		// Scan
 		if b.Orders[ability.Effect_Scan] == 0 && b.EffectPoints(effect.ScannerSweep).Empty() {
+			// Reaper wants to see highground
 			if reaper := b.Groups.Get(Reapers).Units.ClosestTo(b.EnemyStartLoc); reaper != nil {
 				if enemy := b.AllEnemyUnits.Units().CanAttack(reaper, 1).ClosestTo(reaper.Point()); enemy != nil {
 					if !b.IsVisible(enemy.Point()) {
-						pos := enemy.Point().Towards(b.EnemyStartLoc, 10)
+						pos := enemy.Point().Towards(b.EnemyStartLoc, 8)
 						cc.CommandPos(ability.Effect_Scan, pos)
+						return
 					}
+				}
+			}
+
+			// Lurkers
+			if eps := b.EffectPoints(effect.LurkerSpines); eps.Exists() {
+				cc.CommandPos(ability.Effect_Scan, eps.ClosestTo(b.EnemyStartLoc))
+				return
+			}
+
+			// DTs
+			if b.EnemyRace == api.Race_Protoss {
+				immortals := b.AllEnemyUnits[protoss.Immortal]
+				hitByDT := b.Units.Units().First(func(unit *scl.Unit) bool {
+					return unit.HitsLost >= 41 && (!unit.IsArmored() || immortals.CanAttack(unit, 0).Empty())
+				})
+				if hitByDT != nil {
+					cc.CommandPos(ability.Effect_Scan, hitByDT.Point())
+					return
 				}
 			}
 		}
@@ -322,12 +409,27 @@ func (b *bot) Cast() {
 	}
 }
 
-func (b *bot) OrderUnits(ccs scl.Units) {
-	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Idle)
+func (b *bot) OrderUnits() {
+	factory := b.Units[terran.Factory].First(scl.Ready, scl.Unused, scl.HasTechlab)
+	if factory != nil {
+		if b.CanBuy(ability.Train_Cyclone) {
+			b.OrderTrain(factory, ability.Train_Cyclone)
+		} else {
+			b.DeductResources(ability.Train_Cyclone) // Gather money
+		}
+	}
+
+	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused)
 	if rax != nil && b.CanBuy(ability.Train_Reaper) {
+		if scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
+			// I need to pass this param because else duplicate order will be ignored
+			// But I need to be sure that there was no previous order recently
+			rax.SpamCmds = true
+		}
 		b.OrderTrain(rax, ability.Train_Reaper)
 	}
 
+	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	cc := ccs.First(scl.Ready, scl.Idle)
 	if cc != nil && b.Units[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70) && b.CanBuy(ability.Train_SCV) {
 		b.OrderTrain(cc, ability.Train_SCV)
@@ -335,11 +437,10 @@ func (b *bot) OrderUnits(ccs scl.Units) {
 }
 
 func (b *bot) Macro() {
-	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	b.BuildingsCheck()
 	b.Upgrades()
 	b.ProcessBuildOrder(RootBuildOrder)
 	b.Morph()
 	b.Cast()
-	b.OrderUnits(ccs)
+	b.OrderUnits()
 }

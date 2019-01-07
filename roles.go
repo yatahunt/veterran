@@ -16,6 +16,10 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 		b.Groups.Add(Reapers, unit)
 		return
 	}
+	if unit.UnitType == terran.Cyclone {
+		b.Groups.Add(Cyclones, unit)
+		return
+	}
 	if unit.IsStructure() && unit.BuildProgress < 1 {
 		b.Groups.Add(UnderConstruction, unit)
 		return
@@ -31,7 +35,7 @@ func (b *bot) Builders() {
 		})
 		if enemy != nil || u.Hits < 21 {
 			u.Command(ability.Halt_TerranBuild)
-			u.CommandQueue(ability.Stop_Stop)
+			u.CommandQueue(ability.Stop_Stop_4)
 		}
 	}
 
@@ -45,9 +49,9 @@ func (b *bot) Builders() {
 }
 
 func (b *bot) Repair() {
-	reps := b.Groups.Get(Repairers).Units
+	reps := append(b.Groups.Get(Repairers).Units, b.Groups.Get(UnitHealers).Units...)
 	for _, u := range reps {
-		if u.Hits < 45 || u.IsIdle() {
+		if u.Hits < 25 || u.IsIdle() {
 			b.Groups.Add(Miners, u)
 		}
 	}
@@ -56,6 +60,7 @@ func (b *bot) Repair() {
 		return
 	}
 
+	// Repairers
 	buildings := b.Groups.Get(Buildings).Units
 	for _, building := range buildings {
 		ars := building.FindAssignedRepairers(reps)
@@ -73,6 +78,7 @@ func (b *bot) Repair() {
 		}
 	}
 
+	// ScvHealer
 	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	healer := b.Groups.Get(ScvHealer).Units.First()
 	damagedSCVs := b.Units[terran.SCV].Filter(func(unit *scl.Unit) bool {
@@ -87,6 +93,23 @@ func (b *bot) Repair() {
 		}
 	} else if healer != nil {
 		b.Groups.Add(Miners, healer)
+	}
+
+	// UnitHealers
+	mechs := b.Groups.Get(MechHealing).Units
+	for _, mech := range mechs {
+		if mech.Health == mech.HealthMax {
+			b.OnUnitCreated(mech) // Add to corresponding group
+			continue
+		}
+		ars := mech.FindAssignedRepairers(reps)
+		maxArs := int(mech.Radius * 4)
+		if ars.Len() < maxArs {
+			rep := b.GetSCV(mech.Point(), UnitHealers, 45)
+			if rep != nil {
+				rep.CommandTag(ability.Effect_Repair_SCV, mech.Tag)
+			}
+		}
 	}
 }
 

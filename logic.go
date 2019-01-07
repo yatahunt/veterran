@@ -4,9 +4,8 @@ import (
 	"bitbucket.org/aisee/sc2lib"
 )
 
-// todo: scan lurkers, darks on damage
-// todo: if too much gas add reactors
-// todo: add armory on level 1 finishes
+// todo: if banshee build towers
+// todo: fix GroundEvade
 // todo: use dead units events
 // todo: wall closed flag -> no worker defence
 // todo: анализировать неуспешные попытки строительства
@@ -21,11 +20,15 @@ const (
 	Builders
 	Repairers
 	ScvHealer
+	UnitHealers
 	WorkerRushDefenders
 	Scout
 	ScoutBase
 	Reapers
-	Retreat
+	ReapersRetreat
+	Cyclones
+	MechRetreat
+	MechHealing
 	UnderConstruction
 	Buildings
 	MaxGroup

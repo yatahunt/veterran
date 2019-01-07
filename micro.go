@@ -68,7 +68,7 @@ func (b *bot) ReaperFallback(u *scl.Unit, enemies scl.Units, safePos scl.Point) 
 	score *= math.Log(math.Abs(p.Dist2(safePos)-4) + math.E)
 	for x := 0.0; x < 16; x++ {
 		vec := scl.Pt(1, 0).Rotate(math.Pi * 2.0 / 16.0 * x)
-		np := p + vec * 5
+		np := p + vec*5
 		var np2 scl.Point
 		for x := 1.0; x <= 10; x++ {
 			np2 := p + vec.Mul(x)
@@ -157,7 +157,7 @@ func (b *bot) Reapers() {
 	// Main army
 	for _, reaper := range reapers {
 		if reaper.Hits < 21 {
-			b.Groups.Add(Retreat, reaper)
+			b.Groups.Add(ReapersRetreat, reaper)
 			continue
 		}
 
@@ -208,7 +208,7 @@ func (b *bot) Reapers() {
 	}
 
 	// Damaged reapers
-	reapers = b.Groups.Get(Retreat).Units
+	reapers = b.Groups.Get(ReapersRetreat).Units
 	for _, reaper := range reapers {
 		if reaper.Health > 30 {
 			b.Groups.Add(Reapers, reaper)
@@ -229,7 +229,148 @@ func (b *bot) Reapers() {
 	}
 }
 
+func CycloneAttackFunc(u *scl.Unit, priority int, targets scl.Units) bool {
+	hasLockOn := u.HasAbility(ability.Effect_LockOn)
+	visibleTargets := targets.Filter(scl.Visible)
+	if hasLockOn {
+		closeTargets := visibleTargets.InRangeOf(u, 2) // Range = 7. Weapons + 2
+		if closeTargets.Exists() {
+			target := closeTargets.Max(func(unit *scl.Unit) float64 {
+				if unit.IsArmored() {
+					return unit.Hits * 2
+				}
+				return unit.Hits
+			})
+			u.CommandTag(ability.Effect_LockOn, target.Tag)
+			return true
+		}
+		return false
+	}
+	closeTargets := visibleTargets.InRangeOf(u, 0)
+	if closeTargets.Exists() {
+		target := closeTargets.Min(func(unit *scl.Unit) float64 {
+			return unit.Hits
+		})
+		u.CommandTag(ability.Attack_Attack_23, target.Tag)
+		return true
+	}
+	return false
+}
+
+func CycloneMoveFunc(u *scl.Unit, target *scl.Unit) {
+	// Unit need to be closer to the target to shoot? (lock-on range)
+	if !u.InRange(target, 2-0.1) || !target.IsVisible() {
+		if u.WeaponCooldown > 0 {
+			// Spamming this thing is the key. Or orders will be ignored (or postponed)
+			u.SpamCmds = true
+		}
+		// Move closer
+		u.CommandPos(ability.Move, target.Point())
+	}
+}
+
+func (b *bot) Cyclones() {
+	okTargets := scl.Units{}
+	goodTargets := scl.Units{}
+	airTargets := scl.Units{}
+	allEnemies := b.AllEnemyUnits.Units()
+	// allEnemiesReady := allEnemies.Filter(scl.Ready)
+	cyclones := b.Groups.Get(Cyclones).Units
+	for _, enemy := range allEnemies {
+		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
+			continue
+		}
+		okTargets.Add(enemy)
+		if enemy.IsStructure() && !enemy.IsDefensive() {
+			continue
+		}
+		goodTargets.Add(enemy)
+		if !enemy.IsFlying {
+			continue
+		}
+		airTargets.Add(enemy)
+	}
+
+	for _, cyclone := range cyclones {
+		if cyclone.Hits < 51 {
+			b.Groups.Add(MechRetreat, cyclone)
+			continue
+		}
+
+		retreat := cyclone.HPS > 0
+		// Keep range
+		// Weapon is recharging
+		if !retreat && !cyclone.HasAbility(ability.Effect_LockOn) {
+			// There is an enemy
+			if closestEnemy := goodTargets.Filter(scl.Visible).ClosestTo(cyclone.Point()); closestEnemy != nil {
+				// And it is closer than sight range - 2
+				if cyclone.InRange(closestEnemy, 4) {
+					// Retreat a little
+					retreat = true
+				}
+			}
+		}
+		if retreat && !cyclone.HasAbility(ability.Effect_LockOn) {
+			// pos := cyclone.GroundEvade(goodTargets, 2, b.StartLoc)
+			cyclone.CommandPos(ability.Move, b.StartLoc)
+			continue
+		}
+
+		// Attack
+		if airTargets.Exists() || goodTargets.Exists() || okTargets.Exists() {
+			cyclone.AttackCustom(CycloneAttackFunc, CycloneMoveFunc, airTargets, goodTargets, okTargets)
+		} else {
+			// Copypaste
+			if !b.IsExplored(b.EnemyStartLoc) {
+				cyclone.CommandPos(ability.Attack, b.EnemyStartLoc)
+			} else {
+				// Search for other bases
+				if cyclone.IsIdle() {
+					pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
+					cyclone.CommandPos(ability.Move, pos)
+				}
+			}
+		}
+	}
+}
+
+func (b *bot) MechRetreat() {
+	us := b.Groups.Get(MechRetreat).Units
+	if us.Empty() {
+		return
+	}
+	enemies := b.AllEnemyUnits.Units().Filter(scl.Ready)
+	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).Filter(scl.Ready)
+	scvs := b.Units[terran.SCV]
+	mfs := b.MineralFields.Units()
+	var healingPoints scl.Points
+	for _, cc := range ccs {
+		if scvs.CloserThan(scl.ResourceSpreadDistance, cc.Point()).Len() < 4 {
+			continue
+		}
+		healingPoints.Add(mfs.CloserThan(scl.ResourceSpreadDistance, cc.Point()).Center().Towards(cc.Point(), 2))
+	}
+	if healingPoints.Empty() {
+		return
+	}
+	for _, u := range us {
+		if u.Health == u.HealthMax {
+			b.OnUnitCreated(u) // Add to corresponding group
+			continue
+		}
+		hp := healingPoints.ClosestTo(u.Point())
+		if u.Point().IsCloserThan(2, hp) {
+			b.Groups.Add(MechHealing, u)
+			continue
+		}
+		pos := u.GroundEvade(enemies, 1, hp)
+		u.CommandPos(ability.Move, pos)
+	}
+}
+
 func (b *bot) Micro() {
 	b.WorkerRushDefence()
 	b.Reapers()
+	b.Cyclones()
+	b.MechRetreat()
 }
