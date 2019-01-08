@@ -118,6 +118,7 @@ func (b *bot) FindBuildingsPositions() {
 	/*b.Debug2x2Buildings(buildPos[scl.S2x2]...)
 	b.Debug3x3Buildings(buildPos[scl.S3x3]...)
 	b.Debug5x3Buildings(buildPos[scl.S5x3]...)
+	b.Debug3x3Buildings(buildPos[scl.S5x5]...)
 	b.DebugSend()*/
 }
 

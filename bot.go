@@ -17,7 +17,17 @@ func (b *bot) InitBot() {
 	/*for _, ramp := range b.Ramps {
 		b.Debug2x2Buildings(b.FindRamp2x2Positions(ramp)...)
 		b.Debug3x3Buildings(b.FindRampBarracksPositions(ramp))
+	}*/
+	/*b.DebugMap()
+
+	start := time.Now()
+	for x := 1; x < 100; x++ {
+		b.Path(b.MainRamp.Top, b.EnemyRamp.Top)
 	}
+	path, dist := b.Path(b.MainRamp.Top, b.EnemyRamp.Top)
+	log.Info(time.Now().Sub(start), dist, path)
+	b.DebugPath(path)
+
 	b.DebugSend()*/
 }
 
@@ -42,7 +52,7 @@ func (b *bot) Step() {
 		b.InitBot()
 	}
 	if b.Loop == 8 {
-		b.ChatSend("VeTerran v0.4.0 (glhf)")
+		b.ChatSend("VeTerran v0.4.1 (glhf)")
 	}
 
 	b.Logic()

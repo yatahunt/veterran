@@ -410,6 +410,12 @@ func (b *bot) Cast() {
 }
 
 func (b *bot) OrderUnits() {
+	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+	cc := ccs.First(scl.Ready, scl.Idle)
+	if cc != nil && b.Units[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70) && b.CanBuy(ability.Train_SCV) {
+		b.OrderTrain(cc, ability.Train_SCV)
+	}
+
 	factory := b.Units[terran.Factory].First(scl.Ready, scl.Unused, scl.HasTechlab)
 	if factory != nil {
 		if b.CanBuy(ability.Train_Cyclone) {
@@ -427,12 +433,6 @@ func (b *bot) OrderUnits() {
 			rax.SpamCmds = true
 		}
 		b.OrderTrain(rax, ability.Train_Reaper)
-	}
-
-	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
-	cc := ccs.First(scl.Ready, scl.Idle)
-	if cc != nil && b.Units[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70) && b.CanBuy(ability.Train_SCV) {
-		b.OrderTrain(cc, ability.Train_SCV)
 	}
 }
 

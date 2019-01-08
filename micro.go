@@ -77,7 +77,7 @@ func (b *bot) ReaperFallback(u *scl.Unit, enemies scl.Units, safePos scl.Point) 
 			}
 		}
 		maxJump := 1.0
-		if u.Health < u.HealthMax {
+		if u.Hits < u.HitsMax {
 			maxJump = 2.0
 		}
 		if (math.Abs(b.HeightAt(np)-h) > maxJump || !b.IsPathable(np)) &&
