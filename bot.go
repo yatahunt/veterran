@@ -18,16 +18,17 @@ func (b *bot) InitBot() {
 		b.Debug2x2Buildings(b.FindRamp2x2Positions(ramp)...)
 		b.Debug3x3Buildings(b.FindRampBarracksPositions(ramp))
 	}*/
-	/*b.DebugMap()
 
-	start := time.Now()
+	/*start := time.Now()
 	for x := 1; x < 100; x++ {
 		b.Path(b.MainRamp.Top, b.EnemyRamp.Top)
 	}
 	path, dist := b.Path(b.MainRamp.Top, b.EnemyRamp.Top)
 	log.Info(time.Now().Sub(start), dist, path)
 	b.DebugPath(path)
+	b.DebugSend()*/
 
+	/*b.DebugMap()
 	b.DebugSend()*/
 }
 
@@ -62,4 +63,9 @@ func (b *bot) Step() {
 		b.Info.SendActions(b.Actions)
 		b.Actions = nil
 	}
+
+	/*if b.Loop % 20 == 0 {
+		b.DebugMap()
+		b.DebugSend()
+	}*/
 }
