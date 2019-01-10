@@ -36,7 +36,10 @@ func (b *bot) InitBot() {
 	b.DebugPath(path)
 	b.DebugSend()*/
 
-	/*b.DebugPath(b.HomePathes.From(b.EnemyRamp.Top))
+	/*start := time.Now()
+	path := b.HomePathes.From(b.EnemyRamp.Top)
+	log.Info(time.Now().Sub(start))
+	b.DebugPath(path)
 	b.DebugSend()*/
 
 	/*b.DebugMap()
@@ -62,6 +65,10 @@ func (b *bot) Step() {
 
 	if b.ExpLocs.Len() == 0 {
 		b.InitBot()
+	} else if b.Loop % 20 == 0 { // todo: проверку получше
+		go b.InitPathes()
+		/* b.DebugPath(b.HomePathes.From(b.EnemyRamp.Top))
+		b.DebugSend() */
 	}
 	if b.Loop == 8 {
 		b.ChatSend("VeTerran v0.4.1 (glhf)")
