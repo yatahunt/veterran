@@ -11,6 +11,7 @@ func (b *bot) InitBot() {
 	b.InitMining()
 	b.FindRamps()
 	b.InitRamps()
+	go b.InitPathes()
 
 	b.FindBuildingsPositions()
 
@@ -26,6 +27,16 @@ func (b *bot) InitBot() {
 	path, dist := b.Path(b.MainRamp.Top, b.EnemyRamp.Top)
 	log.Info(time.Now().Sub(start), dist, path)
 	b.DebugPath(path)
+	b.DebugSend()*/
+
+	/*start := time.Now()
+	pathes := b.FindPathes(b.MainRamp.Top)
+	log.Info(time.Now().Sub(start), pathes)
+	path := pathes.From(b.EnemyRamp.Top)
+	b.DebugPath(path)
+	b.DebugSend()*/
+
+	/*b.DebugPath(b.HomePathes.From(b.EnemyRamp.Top))
 	b.DebugSend()*/
 
 	/*b.DebugMap()

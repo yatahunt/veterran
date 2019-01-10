@@ -36,15 +36,6 @@ const (
 const safeBuildRange = 7
 
 func (b *bot) FindBuildingsPositions() {
-	homeMinerals := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, b.StartLoc)
-	if homeMinerals.Len() == 0 {
-		return // This should not happen
-	}
-	vec := homeMinerals.Center().Dir(b.StartLoc)
-	if vec.Len() == 1 {
-		vec = b.StartLoc.Dir(b.MapCenter)
-	}
-
 	rp2x2 := b.FindRamp2x2Positions(b.MainRamp)
 	firstBarrackBuildPos = b.FindRampBarracksPositions(b.MainRamp)
 	rbpts := b.GetBuildingPoints(firstBarrackBuildPos[1], scl.S5x3) // Take second position, with addon
