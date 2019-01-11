@@ -117,7 +117,7 @@ var RaxBuildOrder = BuildNodes{
 		},
 		Limit: func(b *bot) int {
 			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
-			return scl.MinInt(5, 2 * ccs.Len())
+			return scl.MinInt(5, 2*ccs.Len())
 		},
 		Active: func(b *bot) int { return 2 },
 	},
@@ -136,7 +136,7 @@ var RaxBuildOrder = BuildNodes{
 		Premise: func(b *bot) bool {
 			return b.Vespene >= 200 && b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
-		Limit: func(b *bot) int { return b.Units[terran.Barracks].Len() },
+		Limit:  func(b *bot) int { return b.Units[terran.Barracks].Len() },
 		Active: func(b *bot) int { return 2 },
 		Method: func(b *bot) {
 			// todo: group?
@@ -379,15 +379,19 @@ func (b *bot) Cast() {
 
 			// Lurkers
 			if eps := b.EffectPoints(effect.LurkerSpines); eps.Exists() {
+				// todo: check if bot already sees the lurker using his position approximation
 				cc.CommandPos(ability.Effect_Scan, eps.ClosestTo(b.EnemyStartLoc))
 				return
 			}
 
 			// DTs
 			if b.EnemyRace == api.Race_Protoss {
-				immortals := b.AllEnemyUnits[protoss.Immortal]
+				immortals := b.EnemyUnits[protoss.Immortal]
+				dts := b.EnemyUnits[protoss.DarkTemplar]
 				hitByDT := b.Units.Units().First(func(unit *scl.Unit) bool {
-					return unit.HitsLost >= 41 && (!unit.IsArmored() || immortals.CanAttack(unit, 0).Empty())
+					return unit.HitsLost >= 41 &&
+						!((unit.IsArmored() && immortals.CanAttack(unit, 0).Exists()) ||
+							dts.CanAttack(unit, 0).Exists())
 				})
 				if hitByDT != nil {
 					cc.CommandPos(ability.Effect_Scan, hitByDT.Point())
@@ -400,8 +404,8 @@ func (b *bot) Cast() {
 			homeMineral := b.MineralFields.Units().
 				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 				Max(func(unit *scl.Unit) float64 {
-					return float64(unit.MineralContents)
-				})
+				return float64(unit.MineralContents)
+			})
 			if homeMineral != nil {
 				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 			}

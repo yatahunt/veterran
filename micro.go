@@ -311,8 +311,8 @@ func (b *bot) Cyclones() {
 			}
 		}
 		if retreat && !cyclone.HasAbility(ability.Effect_LockOn) {
-			// pos := cyclone.GroundEvade(goodTargets, 2, b.StartLoc)
-			cyclone.CommandPos(ability.Move, b.StartLoc)
+			pos := cyclone.GroundEvade(goodTargets, 2, b.StartLoc)
+			cyclone.CommandPos(ability.Move, pos)
 			continue
 		}
 
