@@ -5,7 +5,8 @@ import (
 )
 
 // todo: if banshee build towers
-// todo: fix GroundEvade
+// todo: рабочие пытаются поставить все здания на одной точке
+// todo: орбиталки без минералов не кидают мулов
 // todo: use dead units events
 // todo: wall closed flag -> no worker defence
 // todo: анализировать неуспешные попытки строительства

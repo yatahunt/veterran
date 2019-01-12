@@ -193,11 +193,10 @@ func (b *bot) Miners() {
 			b.Groups.Add(Miners, miner)
 			continue
 		}
-		pos := miner.GroundEvade(enemies, safeBuildRange, b.StartLoc)
-		miner.CommandPos(ability.Move, pos)
+		miner.GroundFallback(enemies, 2, b.HomePaths)
 	}
 
-	if b.Loop%6 != 0 {
+	if b.Loop%b.FramesPerOrder != 0 {
 		// try to fix destribution bug. Might be caused by AssignedHarvesters lagging
 		return
 	}
@@ -217,7 +216,8 @@ func (b *bot) Miners() {
 			// Get scv gathering minerals
 			mfs := b.MineralFields.Units()
 			scv := b.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
-				return unit.IsGathering() && mfs.ByTag(unit.TargetTag()) != nil
+				return unit.IsGathering() && unit.IsCloserThan(scl.ResourceSpreadDistance, refinery) &&
+					mfs.ByTag(unit.TargetTag()) != nil
 			}).ClosestTo(refinery.Point())
 			if scv != nil {
 				scv.CommandTag(ability.Smart, refinery.Tag)

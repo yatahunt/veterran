@@ -11,7 +11,8 @@ func (b *bot) InitBot() {
 	b.InitMining()
 	b.FindRamps()
 	b.InitRamps()
-	go b.InitPathes()
+	// b.LoadPaths(b.Info.GameInfo().MapName)
+	go b.RenewPaths()
 
 	b.FindBuildingsPositions()
 
@@ -30,14 +31,14 @@ func (b *bot) InitBot() {
 	b.DebugSend()*/
 
 	/*start := time.Now()
-	pathes := b.FindPathes(b.MainRamp.Top)
-	log.Info(time.Now().Sub(start), pathes)
-	path := pathes.From(b.EnemyRamp.Top)
+	paths := b.FindPaths(b.MainRamp.Top)
+	log.Info(time.Now().Sub(start), paths)
+	path := paths.From(b.EnemyRamp.Top)
 	b.DebugPath(path)
 	b.DebugSend()*/
 
 	/*start := time.Now()
-	path := b.HomePathes.From(b.EnemyRamp.Top)
+	path := b.HomePaths.From(b.EnemyRamp.Top)
 	log.Info(time.Now().Sub(start))
 	b.DebugPath(path)
 	b.DebugSend()*/
@@ -67,7 +68,7 @@ func (b *bot) Step() {
 		b.InitBot()
 	}
 	if b.Loop == 8 {
-		b.ChatSend("VeTerran v0.4.1 (glhf)")
+		b.ChatSend("VeTerran v0.5.0 (glhf)")
 	}
 
 	b.Logic()
