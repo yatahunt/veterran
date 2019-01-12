@@ -289,6 +289,60 @@ func (b *bot) Cyclones() {
 	}
 }
 
+func (b *bot) Mines() {
+	okTargets := scl.Units{}
+	goodTargets := scl.Units{}
+	allEnemies := b.AllEnemyUnits.Units()
+	// allEnemiesReady := allEnemies.Filter(scl.Ready)
+	mines := b.Groups.Get(Mines).Units
+	for _, enemy := range allEnemies {
+		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
+			continue
+		}
+		okTargets.Add(enemy)
+		if enemy.IsStructure() && !enemy.IsDefensive() {
+			continue
+		}
+		goodTargets.Add(enemy)
+	}
+
+	for _, mine := range mines {
+		if mine.Hits < ? {
+			b.Groups.Add(MechRetreat, mine)
+			continue
+		}
+
+		// Keep range
+		attackers := goodTargets.CanAttack(cyclone, 2)
+		retreat := cyclone.HPS > 0 && attackers.Exists()
+		if !retreat && !cyclone.HasAbility(ability.Effect_LockOn) && attackers.Exists() {
+			target := allEnemies.ByTag(cyclone.EngagedTargetTag)
+			// Someone is locked on and he is close enough
+			retreat = target != nil && cyclone.InRange(target, 5)
+		}
+		if retreat {
+			cyclone.GroundFallback(goodTargets, 2, b.HomePaths)
+			continue
+		}
+
+		// Attack
+		if airTargets.Exists() || goodTargets.Exists() || okTargets.Exists() {
+			cyclone.AttackCustom(CycloneAttackFunc, CycloneMoveFunc, airTargets, goodTargets, okTargets)
+		} else {
+			// Copypaste
+			if !b.IsExplored(b.EnemyStartLoc) {
+				cyclone.CommandPos(ability.Attack, b.EnemyStartLoc)
+			} else {
+				// Search for other bases
+				if cyclone.IsIdle() {
+					pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
+					cyclone.CommandPos(ability.Move, pos)
+				}
+			}
+		}
+	}
+}
+
 func (b *bot) MechRetreat() {
 	us := b.Groups.Get(MechRetreat).Units
 	if us.Empty() {
@@ -334,5 +388,6 @@ func (b *bot) Micro() {
 	b.WorkerRushDefence()
 	b.Reapers()
 	b.Cyclones()
+	b.Mines()
 	b.MechRetreat()
 }

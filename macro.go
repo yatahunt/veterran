@@ -68,7 +68,7 @@ var RootBuildOrder = BuildNodes{
 		Premise: func(b *bot) bool {
 			raxPending := b.Pending(ability.Build_Barracks)
 			refPending := b.Pending(ability.Build_Refinery)
-			return b.Vespene < 200 && (raxPending > 0 && refPending == 0 || raxPending >= 3 && refPending >= 1)
+			return b.Vespene < 200 && (raxPending > 0 && refPending == 0 || raxPending >= 1 && refPending >= 1)
 		},
 		Limit:  func(b *bot) int { return 20 },
 		Active: func(b *bot) int { return 2 },
@@ -83,7 +83,10 @@ var RootBuildOrder = BuildNodes{
 	{
 		Name:    "Factory",
 		Ability: ability.Build_Factory,
-		Limit:   BuildOne,
+		Limit: func(b *bot) int {
+			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			return scl.MinInt(3, ccs.Len())
+		},
 		Active:  BuildOne,
 		Unlocks: FactoryBuildOrder,
 	},
@@ -101,7 +104,7 @@ var RaxBuildOrder = BuildNodes{
 		Ability: ability.Build_Armory,
 		Premise: func(b *bot) bool {
 			// todo: on half Weapons upgrade done
-			return b.Units[terran.EngineeringBay].Filter(scl.Ready).Len() >= 2 &&
+			return b.Units[terran.EngineeringBay].Filter(scl.Ready).Len() >= 1 &&
 				b.Units[terran.Factory].First(scl.Ready) != nil // Needs factory
 		},
 		WaitRes: true,
@@ -115,9 +118,9 @@ var RaxBuildOrder = BuildNodes{
 			return b.Units[terran.Barracks].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func(b *bot) int {
-			ccs := b.Units.OfType(terran.CommandCenter)
-			orbitals := b.Units.OfType(terran.OrbitalCommand)
-			return scl.MinInt(5, ccs.Len()+2*orbitals.Len())
+			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			// orbitals := b.Units.OfType(terran.OrbitalCommand)
+			return scl.MinInt(5, ccs.Len())
 		},
 		Active: func(b *bot) int { return 2 },
 	},
@@ -127,8 +130,8 @@ var RaxBuildOrder = BuildNodes{
 		Premise: func(b *bot) bool {
 			return b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len() >= 2
 		},
-		Limit:  func(b *bot) int { return 2 },
-		Active: func(b *bot) int { return 2 },
+		Limit:  func(b *bot) int { return 1 },
+		Active: func(b *bot) int { return 1 },
 	},
 	{
 		Name:    "Barracks reactors",
@@ -166,10 +169,26 @@ var FactoryBuildOrder = BuildNodes{
 		Premise: func(b *bot) bool {
 			return b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
-		Limit:  BuildOne,
+		Limit: func(b *bot) int {
+			return (b.Units[terran.Factory].Len() + 1) / 2
+		},
 		Active: BuildOne,
 		Method: func(b *bot) {
 			b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_TechLab_Factory)
+		},
+	},
+	{
+		Name:    "Factory Reactor",
+		Ability: ability.Build_Reactor_Factory,
+		Premise: func(b *bot) bool {
+			return b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+		},
+		Limit: func(b *bot) int {
+			return b.Units[terran.Factory].Len() / 2
+		},
+		Active: BuildOne,
+		Method: func(b *bot) {
+			b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Factory)
 		},
 	},
 }
@@ -437,12 +456,21 @@ func (b *bot) OrderUnits() {
 			b.DeductResources(ability.Train_Cyclone) // Gather money
 		}
 	}
+	factory = b.Units[terran.Factory].First(func(unit *scl.Unit) bool {
+		return unit.IsReady() && unit.IsUnused() && !unit.HasTechlab()
+	})
+	if factory != nil && b.CanBuy(ability.Train_WidowMine) {
+		if scl.UnitsOrders[factory.Tag].Loop+b.FramesPerOrder <= b.Loop {
+			// I need to pass this param because else duplicate order will be ignored
+			// But I need to be sure that there was no previous order recently
+			factory.SpamCmds = true
+		}
+		b.OrderTrain(factory, ability.Train_WidowMine)
+	}
 
 	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused)
 	if rax != nil && b.CanBuy(ability.Train_Reaper) {
 		if scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
-			// I need to pass this param because else duplicate order will be ignored
-			// But I need to be sure that there was no previous order recently
 			rax.SpamCmds = true
 		}
 		b.OrderTrain(rax, ability.Train_Reaper)

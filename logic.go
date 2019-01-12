@@ -5,6 +5,7 @@ import (
 )
 
 // todo: if banshee build towers
+// todo: no units around & taking damage => cloaked banshee
 // todo: рабочие пытаются поставить все здания на одной точке
 // todo: орбиталки без минералов не кидают мулов
 // todo: use dead units events
@@ -28,6 +29,7 @@ const (
 	Reapers
 	ReapersRetreat
 	Cyclones
+	Mines
 	MechRetreat
 	MechHealing
 	UnderConstruction
