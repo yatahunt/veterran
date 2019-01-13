@@ -123,7 +123,7 @@ func (b *bot) Reapers() {
 
 		// Keep range
 		// Weapon is recharging
-		if !scl.AttackDelay.IsCool(reaper.UnitType, reaper.WeaponCooldown, reaper.Bot.FramesPerOrder) {
+		if !scl.AttackDelay.UnitIsCool(reaper) {
 			if b.ThrowMine(reaper, goodTargets) {
 				continue
 			}
@@ -140,7 +140,7 @@ func (b *bot) Reapers() {
 
 		// Attack
 		if goodTargets.Exists() || okTargets.Exists() {
-			reaper.AttackCustom(scl.DefaultAttackFunc, ReaperMoveFunc, goodTargets, okTargets/*, hazards*/)
+			reaper.AttackCustom(scl.DefaultAttackFunc, ReaperMoveFunc, goodTargets, okTargets /*, hazards*/)
 		} else {
 			if !b.IsExplored(b.EnemyStartLoc) {
 				reaper.CommandPos(ability.Attack, b.EnemyStartLoc)
@@ -162,7 +162,7 @@ func (b *bot) Reapers() {
 			continue
 		}
 		// Use attack if enemy is close but can't attack reaper
-		if scl.AttackDelay.IsCool(reaper.UnitType, reaper.WeaponCooldown, reaper.Bot.FramesPerOrder) &&
+		if scl.AttackDelay.UnitIsCool(reaper) &&
 			(goodTargets.InRangeOf(reaper, 0).Exists() || okTargets.InRangeOf(reaper, 0).Exists()) &&
 			allEnemiesReady.CanAttack(reaper, 1).Empty() {
 			reaper.AttackCustom(scl.DefaultAttackFunc, ReaperMoveFunc, goodTargets, okTargets)
@@ -290,55 +290,77 @@ func (b *bot) Cyclones() {
 }
 
 func (b *bot) Mines() {
-	okTargets := scl.Units{}
-	goodTargets := scl.Units{}
+	targets := scl.Units{}
+	detectors := scl.Units{}
 	allEnemies := b.AllEnemyUnits.Units()
 	// allEnemiesReady := allEnemies.Filter(scl.Ready)
 	mines := b.Groups.Get(Mines).Units
 	for _, enemy := range allEnemies {
-		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
+		if enemy.DetectRange > 0 {
+			detectors.Add(enemy)
+		}
+		if enemy.IsStructure() || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue
 		}
-		okTargets.Add(enemy)
-		if enemy.IsStructure() && !enemy.IsDefensive() {
-			continue
-		}
-		goodTargets.Add(enemy)
+		targets.Add(enemy)
 	}
 
 	for _, mine := range mines {
-		if mine.Hits < ? {
-			b.Groups.Add(MechRetreat, mine)
+		if mine.IsBurrowed && !mine.HasAbility(ability.Smart) { // Reloading
+			if mine.Hits < mine.HitsMax {
+				b.Groups.Add(MechRetreat, mine)
+			} else {
+				b.Groups.Add(MinesRetreat, mine)
+			}
+			mine.Command(ability.BurrowUp_WidowMine)
 			continue
 		}
 
-		// Keep range
-		attackers := goodTargets.CanAttack(cyclone, 2)
-		retreat := cyclone.HPS > 0 && attackers.Exists()
-		if !retreat && !cyclone.HasAbility(ability.Effect_LockOn) && attackers.Exists() {
-			target := allEnemies.ByTag(cyclone.EngagedTargetTag)
-			// Someone is locked on and he is close enough
-			retreat = target != nil && cyclone.InRange(target, 5)
-		}
-		if retreat {
-			cyclone.GroundFallback(goodTargets, 2, b.HomePaths)
+		attackers := allEnemies.CanAttack(mine, 2)
+		if mine.IsBurrowed && targets.CloserThan(10, mine.Point()).Empty() && attackers.Empty() {
+			mine.Command(ability.BurrowUp_WidowMine)
 			continue
 		}
 
-		// Attack
-		if airTargets.Exists() || goodTargets.Exists() || okTargets.Exists() {
-			cyclone.AttackCustom(CycloneAttackFunc, CycloneMoveFunc, airTargets, goodTargets, okTargets)
+		if attackers.Exists() && !mine.IsBurrowed {
+			mine.Command(ability.BurrowDown_WidowMine)
+			continue
+		}
+
+		if targets.Exists() {
+			mine.CommandPos(ability.Move, targets.ClosestTo(mine.Point()).Point())
 		} else {
 			// Copypaste
 			if !b.IsExplored(b.EnemyStartLoc) {
-				cyclone.CommandPos(ability.Attack, b.EnemyStartLoc)
+				mine.CommandPos(ability.Attack, b.EnemyStartLoc)
 			} else {
 				// Search for other bases
-				if cyclone.IsIdle() {
+				if mine.IsIdle() {
 					pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
-					cyclone.CommandPos(ability.Move, pos)
+					mine.CommandPos(ability.Move, pos)
 				}
 			}
+		}
+	}
+
+	mines = b.Groups.Get(MinesRetreat).Units
+	for _, mine := range mines {
+		if mine.Hits < mine.HitsMax {
+			b.Groups.Add(MechRetreat, mine)
+			continue
+		}
+		if mine.IsBurrowed && mine.HasAbility(ability.Smart) {
+			b.Groups.Add(Mines, mine)
+			continue
+		}
+		if mine.IsIdle() {
+			pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
+			mfs := b.NeutralUnits.Units().CloserThan(scl.ResourceSpreadDistance, pos).Filter(scl.Mineral)
+			if mfs.Exists() {
+				pos = pos.Towards(mfs.Center(), 4)
+			}
+			mine.CommandPos(ability.Move, pos)
+			mine.CommandQueue(ability.BurrowDown_WidowMine)
 		}
 	}
 }

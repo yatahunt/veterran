@@ -18,13 +18,15 @@ type bot struct {
 func runAgent(info client.AgentInfo) {
 	b := bot{}
 	b.Info = info
-	b.FramesPerOrder = 3 // todo: 6 for realtime
+	b.FramesPerOrder = 3
+	if b.Info.IsRealtime() {
+		b.FramesPerOrder = 6
+	}
 	b.UnitCreatedCallback = b.OnUnitCreated
 
 	for b.Info.IsInGame() {
 		b.Step()
 
-		// todo: 0 for realtime
 		if err := b.Info.Step(1); err != nil {
 			log.Error(err)
 			if strings.Contains(err.Error(), "An existing connection was forcibly closed by the remote host.") {

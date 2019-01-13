@@ -56,7 +56,8 @@ var RootBuildOrder = BuildNodes{
 		Name:    "First barrack",
 		Ability: ability.Build_Barracks,
 		Premise: func(b *bot) bool {
-			return b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).First(scl.Ready) != nil
+			return b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).First(scl.Ready) != nil &&
+				b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Empty()
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,
@@ -170,7 +171,7 @@ var FactoryBuildOrder = BuildNodes{
 			return b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
 		Limit: func(b *bot) int {
-			return (b.Units[terran.Factory].Len() + 1) / 2
+			return b.Units[terran.Factory].Len() / 2
 		},
 		Active: BuildOne,
 		Method: func(b *bot) {
@@ -184,7 +185,7 @@ var FactoryBuildOrder = BuildNodes{
 			return b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
 		Limit: func(b *bot) int {
-			return b.Units[terran.Factory].Len() / 2
+			return (b.Units[terran.Factory].Len() + 1) / 2
 		},
 		Active: BuildOne,
 		Method: func(b *bot) {
@@ -354,11 +355,15 @@ func (b *bot) Upgrades() {
 		}
 	}
 	lab := b.Units[terran.FactoryTechLab].First(scl.Ready, scl.Idle)
-	if lab != nil && b.Units[terran.Cyclone].Exists() {
+	if lab != nil && (b.Units[terran.Cyclone].Exists() || b.Units[terran.WidowMine].Exists()) {
 		b.RequestAvailableAbilities(true, lab)
-		if lab.HasAbility(ability.Research_CycloneResearchLockOnDamageUpgrade) &&
+		if b.Units[terran.Cyclone].Exists() && lab.HasAbility(ability.Research_CycloneResearchLockOnDamageUpgrade) &&
 			b.CanBuy(ability.Research_CycloneResearchLockOnDamageUpgrade) {
 			lab.Command(ability.Research_CycloneResearchLockOnDamageUpgrade)
+		}
+		if b.Units[terran.WidowMine].Exists() && lab.HasAbility(ability.Research_DrillingClaws) &&
+			b.CanBuy(ability.Research_DrillingClaws) {
+			lab.Command(ability.Research_DrillingClaws)
 		}
 	}
 }

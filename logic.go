@@ -30,6 +30,7 @@ const (
 	ReapersRetreat
 	Cyclones
 	Mines
+	MinesRetreat
 	MechRetreat
 	MechHealing
 	UnderConstruction
