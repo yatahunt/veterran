@@ -7,6 +7,7 @@ import (
 func (b *bot) InitBot() {
 	scl.InitUnits(b.Info.Data().Units)
 	scl.InitUpgrades(b.Info.Data().Upgrades)
+	scl.InitEffects(b.Info.Data().Effects)
 	b.InitLocations()
 	b.FindExpansions()
 	b.InitMining()

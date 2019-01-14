@@ -73,25 +73,7 @@ func (b *bot) ThrowMine(reaper *scl.Unit, targets scl.Units) bool {
 func ReaperMoveFunc(u *scl.Unit, target *scl.Unit) {
 	// Unit need to be closer to the target to shoot?
 	if !u.InRange(target, -0.1) || !target.IsVisible() {
-		if u.WeaponCooldown > 0 {
-			// Spamming this thing is the key. Or orders will be ignored (or postponed)
-			u.SpamCmds = true
-		}
-		enemies := u.Bot.AllEnemyUnits.Units()
-		pos, safe := u.GroundFallbackPos(enemies, 2, u.Bot.EnemyReaperPaths, 2)
-		if !safe {
-			friendsDPS := u.Bot.Units.Units().CloserThan(safeBuildRange, u.Point()).Sum(scl.CmpGroundDPS)
-			enemiesDPS := enemies.CloserThan(safeBuildRange, target.Point()).Sum(scl.CmpGroundDPS)
-			if friendsDPS >= enemiesDPS {
-				safe = true
-			}
-		}
-		if safe {
-			// Move closer
-			u.CommandPos(ability.Move, target.Point())
-		} else {
-			u.CommandPos(ability.Move, pos)
-		}
+		u.AttackMove(target, u.Bot.EnemyReaperPaths)
 	}
 }
 
@@ -207,26 +189,7 @@ func CycloneAttackFunc(u *scl.Unit, priority int, targets scl.Units) bool {
 func CycloneMoveFunc(u *scl.Unit, target *scl.Unit) {
 	// Unit need to be closer to the target to shoot? (lock-on range)
 	if !u.InRange(target, 2-0.1) || !target.IsVisible() {
-		if u.WeaponCooldown > 0 {
-			// Spamming this thing is the key. Or orders will be ignored (or postponed)
-			u.SpamCmds = true
-		}
-		// copypaste here, todo: remove
-		enemies := u.Bot.AllEnemyUnits.Units()
-		pos, safe := u.GroundFallbackPos(enemies, 2, u.Bot.EnemyReaperPaths, 2)
-		if !safe {
-			friendsDPS := u.Bot.Units.Units().CloserThan(safeBuildRange, u.Point()).Sum(scl.CmpGroundDPS)
-			enemiesDPS := enemies.CloserThan(safeBuildRange, target.Point()).Sum(scl.CmpGroundDPS)
-			if friendsDPS >= enemiesDPS {
-				safe = true
-			}
-		}
-		if safe {
-			// Move closer
-			u.CommandPos(ability.Move, target.Point())
-		} else {
-			u.CommandPos(ability.Move, pos)
-		}
+		u.AttackMove(target, u.Bot.EnemyPaths)
 	}
 }
 
