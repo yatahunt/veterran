@@ -306,7 +306,24 @@ func (b *bot) Mines() {
 	}
 
 	for _, mine := range mines {
-		if mine.IsBurrowed && !mine.HasAbility(ability.Smart) { // Reloading
+		attackers := allEnemies.CanAttack(mine, 2)
+		// Something that could detect mine is close, ex: photon cannon
+		detectorIsNear := detectors.First(func(unit *scl.Unit) bool {
+			return unit.Point().IsCloserThan(float64(unit.DetectRange)+1, mine.Point())
+		}) != nil
+		// Someone is attacking mine, but it can't attack anyone
+		detected := targets.Empty() && mine.HPS > 0
+		if !detected && detectorIsNear {
+			// In range of known detector
+			detected = detectors.First(func(unit *scl.Unit) bool {
+				return unit.Point().IsCloserThan(float64(unit.DetectRange), mine.Point())
+			}) != nil
+		}
+
+		if mine.IsBurrowed && (detected ||
+			!mine.HasAbility(ability.Smart) || // Reloading
+			targets.CloserThan(10, mine.Point()).Empty() && !detectorIsNear && attackers.Empty()) {
+			// No targets, enemies or close detectors around
 			if mine.Hits < mine.HitsMax {
 				b.Groups.Add(MechRetreat, mine)
 			} else {
@@ -316,13 +333,8 @@ func (b *bot) Mines() {
 			continue
 		}
 
-		attackers := allEnemies.CanAttack(mine, 2)
-		if mine.IsBurrowed && targets.CloserThan(10, mine.Point()).Empty() && attackers.Empty() {
-			mine.Command(ability.BurrowUp_WidowMine)
-			continue
-		}
-
-		if attackers.Exists() && !mine.IsBurrowed {
+		targetIsVeryClose := targets.CloserThan(2, mine.Point()).Exists() // For enemies that can't attack ground
+		if !mine.IsBurrowed && !detected && (attackers.Exists() || detectorIsNear || targetIsVeryClose) {
 			mine.Command(ability.BurrowDown_WidowMine)
 			continue
 		}
