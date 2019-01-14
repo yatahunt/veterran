@@ -8,7 +8,7 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/effect"
 	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
-	"math"
+	"github.com/chippydip/go-sc2ai/enums/zerg"
 )
 
 type Booler func(b *bot) bool
@@ -34,6 +34,7 @@ var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
 	ability.Build_Barracks:       scl.S5x3,
 	ability.Build_Refinery:       scl.S3x3,
 	ability.Build_EngineeringBay: scl.S3x3,
+	ability.Build_MissileTurret:  scl.S2x2,
 	ability.Build_Armory:         scl.S3x3,
 	ability.Build_Factory:        scl.S5x3,
 }
@@ -104,8 +105,7 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Armory",
 		Ability: ability.Build_Armory,
 		Premise: func(b *bot) bool {
-			// todo: on half Weapons upgrade done
-			return b.Units[terran.EngineeringBay].Filter(scl.Ready).Len() >= 1 &&
+			return b.Units[terran.EngineeringBay].First(scl.Ready) != nil &&
 				b.Units[terran.Factory].First(scl.Ready) != nil // Needs factory
 		},
 		WaitRes: true,
@@ -131,8 +131,17 @@ var RaxBuildOrder = BuildNodes{
 		Premise: func(b *bot) bool {
 			return b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len() >= 2
 		},
-		Limit:  func(b *bot) int { return 1 },
-		Active: func(b *bot) int { return 1 },
+		Limit:  BuildOne,
+		Active: BuildOne,
+	},
+	{
+		Name:    "Missile Turrets",
+		Ability: ability.Build_MissileTurret,
+		Premise: func(b *bot) bool {
+			return buildTurrets && b.Units[terran.EngineeringBay].First(scl.Ready) != nil
+		},
+		Limit:  func(b *bot) int { return turretsPos.Len() },
+		Active: func(b *bot) int { return turretsPos.Len() },
 	},
 	{
 		Name:    "Barracks reactors",
@@ -218,20 +227,17 @@ func (b *bot) Build(aid api.AbilityID) bool {
 		return false // Not available because of tech reqs, like: supply is needed for barracks
 	}
 
-	buildings := b.Units.Units().Filter(scl.Structure)
 	enemies := b.AllEnemyUnits.Units()
 	positions := buildPos[size]
 	if size == scl.S3x3 {
 		// Add larger building positions if there is not enough S3x3 positions
 		positions = append(positions, buildPos[scl.S5x3]...)
 	}
+	if aid == ability.Build_MissileTurret {
+		positions = turretsPos
+	}
 	for _, pos := range positions {
-		if buildings.CloserThan(math.Sqrt2, pos).Exists() {
-			continue
-		}
-
-		bps := b.GetBuildingPoints(pos, size)
-		if !b.CheckPoints(bps, scl.IsNoCreep) {
+		if !b.IsPosOk(pos, size, 0, scl.IsBuildable, scl.IsNoCreep) {
 			continue
 		}
 
@@ -395,9 +401,11 @@ func (b *bot) Cast() {
 	if cc != nil {
 		// Scan
 		if b.Orders[ability.Effect_Scan] == 0 && b.EffectPoints(effect.ScannerSweep).Empty() {
+			allEnemies := b.AllEnemyUnits.Units()
+			units := b.Units.Units()
 			// Reaper wants to see highground
 			if reaper := b.Groups.Get(Reapers).Units.ClosestTo(b.EnemyStartLoc); reaper != nil {
-				if enemy := b.AllEnemyUnits.Units().CanAttack(reaper, 1).ClosestTo(reaper.Point()); enemy != nil {
+				if enemy := allEnemies.CanAttack(reaper, 1).ClosestTo(reaper.Point()); enemy != nil {
 					if !b.IsVisible(enemy.Point()) && b.HeightAt(enemy.Point()) > b.HeightAt(reaper.Point()) {
 						pos := enemy.Point().Towards(b.EnemyStartLoc, 8)
 						cc.CommandPos(ability.Effect_Scan, pos)
@@ -417,7 +425,7 @@ func (b *bot) Cast() {
 			if b.EnemyRace == api.Race_Protoss {
 				immortals := b.EnemyUnits[protoss.Immortal]
 				dts := b.EnemyUnits[protoss.DarkTemplar]
-				hitByDT := b.Units.Units().First(func(unit *scl.Unit) bool {
+				hitByDT := units.First(func(unit *scl.Unit) bool {
 					return unit.HitsLost >= 41 &&
 						!((unit.IsArmored() && immortals.CanAttack(unit, 0).Exists()) ||
 							dts.CanAttack(unit, 0).Exists())
@@ -427,14 +435,22 @@ func (b *bot) Cast() {
 					return
 				}
 			}
+
+			// Anything else todo: test
+			for _, u := range units {
+				if u.HitsLost > 0 && allEnemies.CanAttack(u, 2).Empty() {
+					cc.CommandPos(ability.Effect_Scan, u.Point())
+					return
+				}
+			}
 		}
 		// Mule
 		if cc.Energy >= 75 || (b.Loop < 4032 && cc.Energy >= 50) { // 3 min
 			homeMineral := b.MineralFields.Units().
 				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 				Max(func(unit *scl.Unit) float64 {
-					return float64(unit.MineralContents)
-				})
+				return float64(unit.MineralContents)
+			})
 			if homeMineral != nil {
 				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 			}
@@ -483,6 +499,14 @@ func (b *bot) OrderUnits() {
 }
 
 func (b *bot) Macro() {
+	if !buildTurrets && b.EnemyUnits.OfType(terran.Banshee, terran.Ghost, terran.WidowMine, terran.Medivac,
+		terran.VikingFighter, terran.Liberator, terran.Battlecruiser, terran.Starport, zerg.Mutalisk, zerg.LurkerMP,
+		zerg.Corruptor, zerg.Spire, zerg.GreaterSpire, protoss.DarkTemplar, protoss.WarpPrism, protoss.Phoenix,
+		protoss.VoidRay, protoss.Oracle, protoss.Tempest, protoss.Carrier, protoss.Stargate, protoss.DarkShrine).
+		Exists() {
+		buildTurrets = true
+	}
+
 	b.BuildingsCheck()
 	b.Upgrades()
 	b.ProcessBuildOrder(RootBuildOrder)

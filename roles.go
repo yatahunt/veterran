@@ -24,6 +24,10 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 		b.Groups.Add(Mines, unit)
 		return
 	}
+	if unit.UnitType == terran.CommandCenter {
+		b.FindTurretPosition(unit)
+		return
+	}
 	if unit.IsStructure() && unit.BuildProgress < 1 {
 		b.Groups.Add(UnderConstruction, unit)
 		return
