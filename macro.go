@@ -140,8 +140,9 @@ var RaxBuildOrder = BuildNodes{
 		Premise: func(b *bot) bool {
 			return buildTurrets && b.Units[terran.EngineeringBay].First(scl.Ready) != nil
 		},
-		Limit:  func(b *bot) int { return turretsPos.Len() },
-		Active: func(b *bot) int { return turretsPos.Len() },
+		Limit:   func(b *bot) int { return turretsPos.Len() },
+		Active:  func(b *bot) int { return turretsPos.Len() },
+		WaitRes: true,
 	},
 	{
 		Name:    "Barracks reactors",
@@ -436,21 +437,21 @@ func (b *bot) Cast() {
 				}
 			}
 
-			// Anything else todo: test
-			for _, u := range units {
+			// Anything else - bad idea
+			/*for _, u := range units {
 				if u.HitsLost > 0 && allEnemies.CanAttack(u, 2).Empty() {
 					cc.CommandPos(ability.Effect_Scan, u.Point())
 					return
 				}
-			}
+			}*/
 		}
 		// Mule
 		if cc.Energy >= 75 || (b.Loop < 4032 && cc.Energy >= 50) { // 3 min
 			homeMineral := b.MineralFields.Units().
 				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 				Max(func(unit *scl.Unit) float64 {
-				return float64(unit.MineralContents)
-			})
+					return float64(unit.MineralContents)
+				})
 			if homeMineral != nil {
 				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 			}

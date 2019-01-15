@@ -73,7 +73,12 @@ func (b *bot) ThrowMine(reaper *scl.Unit, targets scl.Units) bool {
 func ReaperMoveFunc(u *scl.Unit, target *scl.Unit) {
 	// Unit need to be closer to the target to shoot?
 	if !u.InRange(target, -0.1) || !target.IsVisible() {
-		u.AttackMove(target, u.Bot.EnemyReaperPaths)
+		u.AttackMove(target, u.Bot.HomeReaperPaths)
+		/*if u.Hits == u.HitsMax {
+			u.AttackMove(target, u.Bot.EnemyReaperPaths)
+		} else {
+			u.AttackMove(target, u.Bot.HomeReaperPaths)
+		}*/
 	}
 }
 
@@ -189,7 +194,7 @@ func CycloneAttackFunc(u *scl.Unit, priority int, targets scl.Units) bool {
 func CycloneMoveFunc(u *scl.Unit, target *scl.Unit) {
 	// Unit need to be closer to the target to shoot? (lock-on range)
 	if !u.InRange(target, 2-0.1) || !target.IsVisible() {
-		u.AttackMove(target, u.Bot.EnemyPaths)
+		u.AttackMove(target, u.Bot.HomePaths)
 	}
 }
 
@@ -365,7 +370,7 @@ func (b *bot) MechRetreat() {
 			continue
 		}
 		hp := healingPoints.ClosestTo(u.Point())
-		if u.Point().IsCloserThan(2, hp) {
+		if u.Point().IsCloserThan(4, hp) {
 			b.Groups.Add(MechHealing, u)
 			continue
 		}
@@ -376,8 +381,16 @@ func (b *bot) MechRetreat() {
 				continue
 			}
 		}
-		pos := u.GroundEvade(enemies, 1, hp)
-		u.CommandPos(ability.Move, pos)
+
+		if u.WeaponCooldown > 0 {
+			u.SpamCmds = true // Spamming this thing is the key. Or orders will be ignored (or postponed)
+		}
+		pos, safe := u.GroundFallbackPos(enemies, 2, b.HomePaths, 2)
+		if safe {
+			u.CommandPos(ability.Move, hp)
+		} else {
+			u.CommandPos(ability.Move, pos)
+		}
 	}
 }
 

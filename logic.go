@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bitbucket.org/aisee/minilog"
 	"bitbucket.org/aisee/sc2lib"
 	"github.com/chippydip/go-sc2ai/api"
 )
 
+// todo: враги рядом с экспом не стёрлись и рабочий так и не пошёл достраивать CC
+// todo: не бояться больших групп врагов с радиусом атаки меньше, чем у юнита
 // todo: check scans for mines
 // todo: if banshee build turrets
 // todo: no units around & taking damage => cloaked banshee
@@ -110,7 +113,7 @@ func (b *bot) FindBuildingsPositions() {
 					continue
 				}
 				pos := b.StartLoc + vec
-				if mfs.ClosestTo(pos).Point().Dist2(pos) != 9 {
+				if mfs.ClosestTo(pos).Point().Dist2(pos) >= 16 {
 					continue
 				}
 				if !b.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable) { // scl.IsPathable?
@@ -148,19 +151,35 @@ func (b *bot) FindBuildingsPositions() {
 	b.Debug3x3Buildings(buildPos[scl.S3x3]...)
 	b.Debug5x3Buildings(buildPos[scl.S5x3]...)
 	b.Debug3x3Buildings(buildPos[scl.S5x5]...)
-	b.DebugSend()
+	// b.DebugSend()
 }
 
 func (b *bot) FindTurretPosition(cc *scl.Unit) {
 	mfs := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, cc.Point())
+	/*vesps := b.VespeneGeysers.Units().CloserThan(scl.ResourceSpreadDistance, cc.Point())
+	mfs.Add(vesps...)*/
 	if mfs.Empty() {
 		return
 	}
-	vec := cc.Point().Dir(mfs.Center())
-	pos := (cc.Point() + vec * 3).Floor()
-	if vec == scl.Pt(-1, -1) {
-		pos += vec
+	log.Info(len(mfs), mfs.Center()) // todo: mineral fields by id or bit
+
+	for _, p := range b.GetBuildingPoints(cc.Point(), scl.S5x5) {
+		b.SetBuildable(p, false)
 	}
+
+	var pos scl.Point
+	vec := (mfs.Center() - cc.Point()).Norm()
+	for x := 3.0; x < 8; x++ {
+		pos = (cc.Point() + vec.Mul(x)).Floor()
+		if b.IsPosOk(pos, scl.S2x2, 0, scl.IsBuildable, scl.IsNoCreep) {
+			break
+		}
+		pos = 0
+	}
+	if pos == 0 {
+		return
+	}
+	pos += 0.5 + 0.5i // todo: add everywhere
 	if !turretsPos.Has(pos) {
 		turretsPos.Add(pos)
 	}
