@@ -335,7 +335,7 @@ func (b *bot) Mines() {
 		}
 		if mine.IsIdle() {
 			pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
-			mfs := b.NeutralUnits.Units().CloserThan(scl.ResourceSpreadDistance, pos).Filter(scl.Mineral)
+			mfs := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, pos)
 			if mfs.Exists() {
 				pos = pos.Towards(mfs.Center(), 4)
 			}
