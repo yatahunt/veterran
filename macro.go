@@ -410,6 +410,7 @@ func (b *bot) Cast() {
 					if !b.IsVisible(enemy.Point()) && b.HeightAt(enemy.Point()) > b.HeightAt(reaper.Point()) {
 						pos := enemy.Point().Towards(b.EnemyStartLoc, 8)
 						cc.CommandPos(ability.Effect_Scan, pos)
+						log.Debug("Reaper sight scan")
 						return
 					}
 				}
@@ -433,6 +434,7 @@ func (b *bot) Cast() {
 				})
 				if hitByDT != nil {
 					cc.CommandPos(ability.Effect_Scan, hitByDT.Point())
+					log.Debug("DT scan")
 					return
 				}
 			}
@@ -442,6 +444,7 @@ func (b *bot) Cast() {
 				for _, u := range units {
 					if u.HitsLost == 12 && allEnemies.CanAttack(u, 2).Empty() {
 						cc.CommandPos(ability.Effect_Scan, u.Point())
+						log.Debug("Banshee scan")
 						return
 					}
 				}
@@ -474,10 +477,20 @@ func (b *bot) OrderUnits() {
 
 	factory := b.Units[terran.Factory].First(scl.Ready, scl.Unused, scl.HasTechlab)
 	if factory != nil {
-		if b.CanBuy(ability.Train_Cyclone) {
-			b.OrderTrain(factory, ability.Train_Cyclone)
+		cyclones := b.Units[terran.Cyclone].Len()
+		tanks := b.Units.OfType(scl.UnitAliases.For(terran.SiegeTank)...).Len()
+		if cyclones <= tanks {
+			if b.CanBuy(ability.Train_Cyclone) {
+				b.OrderTrain(factory, ability.Train_Cyclone)
+			} else if cyclones == 0 {
+				b.DeductResources(ability.Train_Cyclone) // Gather money
+			}
 		} else {
-			b.DeductResources(ability.Train_Cyclone) // Gather money
+			if b.CanBuy(ability.Train_SiegeTank) {
+				b.OrderTrain(factory, ability.Train_SiegeTank)
+			} else if tanks == 0 {
+				b.DeductResources(ability.Train_SiegeTank) // Gather money
+			}
 		}
 	}
 	factory = b.Units[terran.Factory].First(func(unit *scl.Unit) bool {

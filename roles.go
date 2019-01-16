@@ -24,6 +24,10 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 		b.Groups.Add(Mines, unit)
 		return
 	}
+	if unit.UnitType == terran.SiegeTank || unit.UnitType == terran.SiegeTankSieged {
+		b.Groups.Add(Tanks, unit)
+		return
+	}
 	if unit.UnitType == terran.CommandCenter {
 		b.FindTurretPosition(unit)
 		return

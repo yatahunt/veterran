@@ -82,6 +82,18 @@ func ReaperMoveFunc(u *scl.Unit, target *scl.Unit) {
 	}
 }
 
+func (b *bot) Explore(u *scl.Unit) {
+	if !b.IsExplored(b.EnemyStartLoc) {
+		u.CommandPos(ability.Attack, b.EnemyStartLoc)
+	} else {
+		// Search for other bases
+		if u.IsIdle() {
+			pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
+			u.CommandPos(ability.Move, pos)
+		}
+	}
+}
+
 func (b *bot) Reapers() {
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
@@ -129,15 +141,7 @@ func (b *bot) Reapers() {
 		if goodTargets.Exists() || okTargets.Exists() {
 			reaper.AttackCustom(scl.DefaultAttackFunc, ReaperMoveFunc, goodTargets, okTargets /*, hazards*/)
 		} else {
-			if !b.IsExplored(b.EnemyStartLoc) {
-				reaper.CommandPos(ability.Attack, b.EnemyStartLoc)
-			} else {
-				// Search for other bases
-				if reaper.IsIdle() {
-					pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
-					reaper.CommandPos(ability.Move, pos)
-				}
-			}
+			b.Explore(reaper)
 		}
 	}
 
@@ -243,16 +247,7 @@ func (b *bot) Cyclones() {
 		if airTargets.Exists() || goodTargets.Exists() || okTargets.Exists() {
 			cyclone.AttackCustom(CycloneAttackFunc, CycloneMoveFunc, airTargets, goodTargets, okTargets)
 		} else {
-			// Copypaste
-			if !b.IsExplored(b.EnemyStartLoc) {
-				cyclone.CommandPos(ability.Attack, b.EnemyStartLoc)
-			} else {
-				// Search for other bases
-				if cyclone.IsIdle() {
-					pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
-					cyclone.CommandPos(ability.Move, pos)
-				}
-			}
+			b.Explore(cyclone)
 		}
 	}
 }
@@ -310,16 +305,7 @@ func (b *bot) Mines() {
 		if targets.Exists() {
 			mine.CommandPos(ability.Move, targets.ClosestTo(mine.Point()).Point())
 		} else {
-			// Copypaste
-			if !b.IsExplored(b.EnemyStartLoc) {
-				mine.CommandPos(ability.Attack, b.EnemyStartLoc)
-			} else {
-				// Search for other bases
-				if mine.IsIdle() {
-					pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
-					mine.CommandPos(ability.Move, pos)
-				}
-			}
+			b.Explore(mine)
 		}
 	}
 
@@ -341,6 +327,70 @@ func (b *bot) Mines() {
 			}
 			mine.CommandPos(ability.Move, pos)
 			mine.CommandQueue(ability.BurrowDown_WidowMine)
+		}
+	}
+}
+
+func (b *bot) Tanks() {
+	okTargets := scl.Units{}
+	goodTargets := scl.Units{}
+	allEnemies := b.AllEnemyUnits.Units()
+	tanks := b.Groups.Get(Tanks).Units
+	for _, enemy := range allEnemies {
+		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
+			continue
+		}
+		okTargets.Add(enemy)
+		if enemy.IsStructure() && !enemy.IsDefensive() {
+			continue
+		}
+		goodTargets.Add(enemy)
+	}
+
+	for _, tank := range tanks {
+		if tank.UnitType == terran.SiegeTank {
+			if tank.Hits < 71 {
+				b.Groups.Add(MechRetreat, tank)
+				continue
+			}
+
+			targets := goodTargets.InRangeOf(tank, 0)
+			if targets.Empty() {
+				targets = okTargets.InRangeOf(tank, 0)
+			}
+			farTargets := goodTargets.InRangeOf(tank, 13-7) // Sieged range - mobile range
+			if farTargets.Empty() {
+				farTargets = okTargets.InRangeOf(tank, 13-7)
+			}
+			attackers := allEnemies.CanAttack(tank, 2)
+
+			if targets.Empty() && farTargets.Exists() && attackers.Exists() {
+				tank.Command(ability.Morph_SiegeMode)
+				continue
+			}
+
+			if goodTargets.Exists() || okTargets.Exists() {
+				tank.Attack(goodTargets, okTargets)
+			} else {
+				b.Explore(tank)
+			}
+		}
+		if tank.UnitType == terran.SiegeTankSieged {
+			farTargets := goodTargets.InRangeOf(tank, 2).Filter(func(unit *scl.Unit) bool {
+				return unit.IsFurtherThan(float64(tank.Radius + unit.Radius + 2), tank)
+			})
+			targets := farTargets.InRangeOf(tank, 0)
+			if targets.Empty() {
+				targets = okTargets.InRangeOf(tank, 0)
+			}
+			if targets.Exists() {
+				tank.Attack(targets)
+				continue
+			}
+
+			if farTargets.Empty() {
+				tank.Command(ability.Morph_Unsiege)
+			}
 		}
 	}
 }
@@ -381,6 +431,13 @@ func (b *bot) MechRetreat() {
 				continue
 			}
 		}
+		if u.UnitType == terran.SiegeTank {
+			targets := enemies.Filter(scl.Visible).InRangeOf(u, 0)
+			if targets.Exists() {
+				u.Attack(targets)
+				continue
+			}
+		}
 
 		if u.WeaponCooldown > 0 {
 			u.SpamCmds = true // Spamming this thing is the key. Or orders will be ignored (or postponed)
@@ -399,5 +456,6 @@ func (b *bot) Micro() {
 	b.Reapers()
 	b.Cyclones()
 	b.Mines()
+	b.Tanks()
 	b.MechRetreat()
 }

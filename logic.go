@@ -37,6 +37,7 @@ const (
 	Cyclones
 	Mines
 	MinesRetreat
+	Tanks
 	MechRetreat
 	MechHealing
 	UnderConstruction
