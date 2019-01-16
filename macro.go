@@ -403,6 +403,7 @@ func (b *bot) Cast() {
 		// Scan
 		if b.Orders[ability.Effect_Scan] == 0 && b.EffectPoints(effect.ScannerSweep).Empty() {
 			allEnemies := b.AllEnemyUnits.Units()
+			visibleEnemies := allEnemies.Filter(scl.Visible)
 			units := b.Units.Units()
 			// Reaper wants to see highground
 			if reaper := b.Groups.Get(Reapers).Units.ClosestTo(b.EnemyStartLoc); reaper != nil {
@@ -413,6 +414,20 @@ func (b *bot) Cast() {
 						log.Debug("Reaper sight scan")
 						return
 					}
+				}
+			}
+
+			// Vision for tanks
+			tanks := b.Units[terran.SiegeTankSieged]
+			tanks.OrderBy(func(unit *scl.Unit) float64 {
+				return unit.Point().Dist2(b.EnemyStartLoc)
+			}, false)
+			for _, tank := range tanks {
+				targets := allEnemies.InRangeOf(tank, 0)
+				if targets.Exists() && visibleEnemies.InRangeOf(tank, 0).Empty() {
+					pos := targets.ClosestTo(b.EnemyStartLoc).Point()
+					cc.CommandPos(ability.Effect_Scan, pos)
+					log.Debug("Tank sight scan")
 				}
 			}
 
@@ -455,8 +470,8 @@ func (b *bot) Cast() {
 			homeMineral := b.MineralFields.Units().
 				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 				Max(func(unit *scl.Unit) float64 {
-					return float64(unit.MineralContents)
-				})
+				return float64(unit.MineralContents)
+			})
 			if homeMineral != nil {
 				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 			}
