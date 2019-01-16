@@ -43,7 +43,7 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 	runner.Set("map", maps[rand.Intn(len(maps))]+".SC2Map")
-	// runner.Set("map", "BlueshiftLE.SC2Map")
+	// runner.Set("map", "DarknessSanctuaryLE.SC2Map")
 	runner.Set("ComputerOpponent", "true")
 	runner.Set("ComputerRace", "random")           // terran zerg protoss random
 	runner.Set("ComputerDifficulty", "CheatMoney") // CheatInsane CheatMoney VeryHard

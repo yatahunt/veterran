@@ -254,14 +254,14 @@ func (b *bot) Cyclones() {
 
 func (b *bot) Mines() {
 	targets := scl.Units{}
-	detectors := scl.Units{}
+	// detectors := scl.Units{}
 	allEnemies := b.AllEnemyUnits.Units()
 	// allEnemiesReady := allEnemies.Filter(scl.Ready)
 	mines := b.Groups.Get(Mines).Units
 	for _, enemy := range allEnemies {
-		if enemy.DetectRange > 0 {
+		/*if enemy.DetectRange > 0 {
 			detectors.Add(enemy)
-		}
+		}*/
 		if enemy.IsStructure() || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue
 		}
@@ -271,23 +271,23 @@ func (b *bot) Mines() {
 	for _, mine := range mines {
 		attackers := allEnemies.CanAttack(mine, 2)
 		// Something that could detect mine is close, ex: photon cannon
-		detectorIsNear := detectors.First(func(unit *scl.Unit) bool {
+		/*detectorIsNear := detectors.First(func(unit *scl.Unit) bool {
 			return unit.Point().IsCloserThan(float64(unit.DetectRange)+1, mine.Point())
-		}) != nil
+		}) != nil*/
 		// Someone is attacking mine, but it can't attack anyone
-		detected := targets.Empty() && mine.HPS > 0
-		if !detected && detectorIsNear {
+		detected := targets.InRangeOf(mine, 0).Empty() && mine.HPS > 0
+		/*if !detected && detectorIsNear {
 			// In range of known detector
 			detected = detectors.First(func(unit *scl.Unit) bool {
 				return unit.Point().IsCloserThan(float64(unit.DetectRange), mine.Point())
 			}) != nil
-		}
+		}*/
 
 		if mine.IsBurrowed && (detected ||
 			!mine.HasAbility(ability.Smart) || // Reloading
-			targets.CloserThan(10, mine.Point()).Empty() && !detectorIsNear && attackers.Empty()) {
+			targets.CloserThan(10, mine.Point()).Empty() /*&& !detectorIsNear*/ && attackers.Empty()) {
 			// No targets, enemies or close detectors around
-			if mine.Hits < mine.HitsMax {
+			if mine.Hits < mine.HitsMax / 2 {
 				b.Groups.Add(MechRetreat, mine)
 			} else {
 				b.Groups.Add(MinesRetreat, mine)
@@ -296,8 +296,8 @@ func (b *bot) Mines() {
 			continue
 		}
 
-		targetIsVeryClose := targets.CloserThan(2, mine.Point()).Exists() // For enemies that can't attack ground
-		if !mine.IsBurrowed && !detected && (attackers.Exists() || detectorIsNear || targetIsVeryClose) {
+		targetIsVeryClose := targets.CloserThan(4, mine.Point()).Exists() // For enemies that can't attack ground
+		if !mine.IsBurrowed && !detected && (attackers.Exists() /*|| detectorIsNear*/ || targetIsVeryClose) {
 			mine.Command(ability.BurrowDown_WidowMine)
 			continue
 		}
@@ -364,6 +364,18 @@ func (b *bot) Tanks() {
 			}
 			attackers := allEnemies.CanAttack(tank, 2)
 
+			if !scl.AttackDelay.UnitIsCool(tank) {
+				retreat := attackers.Exists()
+				if !retreat && goodTargets.Exists() {
+					closestTarget := goodTargets.ClosestTo(tank.Point())
+					retreat = tank.RangeDelta(closestTarget, -0.1) <= 0
+				}
+				if retreat {
+					tank.GroundFallback(attackers, 2, b.HomeReaperPaths)
+					continue
+				}
+			}
+
 			if targets.Empty() && farTargets.Exists() && attackers.Exists() {
 				tank.Command(ability.Morph_SiegeMode)
 				continue
@@ -377,7 +389,7 @@ func (b *bot) Tanks() {
 		}
 		if tank.UnitType == terran.SiegeTankSieged {
 			farTargets := goodTargets.InRangeOf(tank, 2).Filter(func(unit *scl.Unit) bool {
-				return unit.IsFurtherThan(float64(tank.Radius + unit.Radius + 2), tank)
+				return unit.IsFurtherThan(float64(tank.Radius+unit.Radius+2), tank)
 			})
 			targets := farTargets.InRangeOf(tank, 0)
 			if targets.Empty() {

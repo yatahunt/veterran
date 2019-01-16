@@ -29,7 +29,7 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 		return
 	}
 	if unit.UnitType == terran.CommandCenter {
-		b.FindTurretPosition(unit)
+		findTurretPositionFor = unit
 		return
 	}
 	if unit.IsStructure() && unit.BuildProgress < 1 {

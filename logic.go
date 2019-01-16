@@ -1,11 +1,17 @@
 package main
 
 import (
-	"bitbucket.org/aisee/minilog"
 	"bitbucket.org/aisee/sc2lib"
 	"github.com/chippydip/go-sc2ai/api"
 )
 
+// todo: надо раньше выходить на вторую базу
+// todo: минка от одного линга будет тупо отступать в сторону противоположную лингу
+// todo: Мины закапываются, но не стреляют, а сразу выкапываются
+// todo: юниты не очень эффективно избегают штормов
+// todo: что-то придумать с самоубийственной атакой юнитов малого радиуса, когда накопились танки и мины
+// todo: мины должны избегать детекторов или наоборот не бояться их
+// todo: рабы всё ещё творят херню когда их больше, чем нужно
 // todo: враги рядом с экспом не стёрлись и рабочий так и не пошёл достраивать CC
 // todo: не бояться больших групп врагов с радиусом атаки меньше, чем у юнита
 // todo: check scans for mines
@@ -14,13 +20,13 @@ import (
 // todo: рабочие пытаются поставить все здания на одной точке
 // todo: орбиталки без минералов не кидают мулов
 // todo: use dead units events
-// todo: wall closed flag -> no worker defence
 // todo: анализировать неуспешные попытки строительства
 
 var buildPos = map[scl.BuildingSize]scl.Points{}
 var firstBarrackBuildPos = scl.Points{}
 var buildTurrets = false
 var turretsPos = scl.Points{}
+var findTurretPositionFor *scl.Unit
 
 const (
 	Miners scl.GroupID = iota + 1
@@ -46,19 +52,11 @@ const (
 )
 const safeBuildRange = 7
 
-func (b *bot) FindBuildingsPositions() {
-	// Positions for first 2 supplies and barrack
-	rp2x2 := b.FindRamp2x2Positions(b.MainRamp)
-	firstBarrackBuildPos = b.FindRampBarracksPositions(b.MainRamp)
-	for _, p := range b.GetBuildingPoints(firstBarrackBuildPos[1], scl.S5x3) { // Take second position, with addon
-		b.SetBuildable(p, false)
-		b.SetPathable(p, false)
-	}
-
-	// Positions for main base buildings
+func (b *bot) FindMainBuildingTypesPositions(startLoc scl.Point) (scl.Points, scl.Points, scl.Points) {
 	var pf2x2, pf3x3, pf5x3 scl.Points
-	slh := b.HeightAt(b.StartLoc)
-	start := b.StartLoc + 9
+	slh := b.HeightAt(startLoc)
+	start := startLoc + 9
+
 	for y := -3.0; y <= 3; y++ {
 		for x := -9.0; x <= 9; x++ {
 			pos := start + scl.Pt(3, 2).Mul(x) + scl.Pt(-6, 8).Mul(y)
@@ -87,6 +85,20 @@ func (b *bot) FindBuildingsPositions() {
 			}
 		}
 	}
+	return pf2x2, pf3x3, pf5x3
+}
+
+func (b *bot) FindBuildingsPositions() {
+	// Positions for first 2 supplies and barrack
+	rp2x2 := b.FindRamp2x2Positions(b.MainRamp)
+	firstBarrackBuildPos = b.FindRampBarracksPositions(b.MainRamp)
+	for _, p := range b.GetBuildingPoints(firstBarrackBuildPos[1], scl.S5x3) { // Take second position, with addon
+		b.SetBuildable(p, false)
+		b.SetPathable(p, false)
+	}
+
+	// Positions for main base buildings
+	pf2x2, pf3x3, pf5x3 := b.FindMainBuildingTypesPositions(b.StartLoc)
 
 	// Mark buildings positions as non-buildable
 	for size, poses := range map[scl.BuildingSize]scl.Points{
@@ -110,14 +122,14 @@ func (b *bot) FindBuildingsPositions() {
 			for x := -12.0; x <= 12; x++ {
 				vec := scl.Pt(x, y)
 				dist := vec.Len()
-				if dist <= 64 || dist >= 144 {
+				if dist <= 8 || dist >= 12 {
 					continue
 				}
 				pos := b.StartLoc + vec
-				if mfs.ClosestTo(pos).Point().Dist2(pos) >= 16 {
+				if mfs.ClosestTo(pos).Point().Dist2(pos) >= 9 {
 					continue
 				}
-				if !b.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable) { // scl.IsPathable?
+				if !b.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable, scl.IsPathable) {
 					continue
 				}
 				pf3x3.Add(pos)
@@ -136,33 +148,42 @@ func (b *bot) FindBuildingsPositions() {
 	// Don't build fast wall against protoss, but be ready for worker rush
 	if b.EnemyRace == api.Race_Protoss {
 		// Insert supplies for wall after pos that is closest to base
-		pf2x2 = append(pf2x2[:1], append(rp2x2, pf2x2...)...)
+		pos := pf2x2.FurthestTo(b.MainRamp.Top)
+		pf2x2 = append(scl.Points{pos}, append(rp2x2, pf2x2...)...)
 		// Use closest 5x3 position for first barracks
-		firstBarrackBuildPos[0], pf5x3 = pf5x3[0], pf5x3[1:]
-		buildPos[scl.S2x2] = pf2x2
+		firstBarrackBuildPos[0] = pf5x3.FurthestTo(b.MainRamp.Top)
 	} else {
-		buildPos[scl.S2x2] = append(rp2x2, pf2x2...)
+		pf2x2 = append(rp2x2, pf2x2...)
 	}
 
+	// Positions for buildings on expansions
+	pf2x2a, pf3x3a, pf5x3a := b.FindMainBuildingTypesPositions(b.ExpLocs[0])
+	pf2x2a.OrderByDistanceTo(b.ExpLocs[0], false)
+	pf3x3a.OrderByDistanceTo(b.ExpLocs[0], false)
+	pf5x3a.OrderByDistanceTo(b.ExpLocs[0], false)
+	pf2x2 = append(pf2x2, pf2x2a...)
+	pf3x3 = append(pf3x3, pf3x3a...)
+	pf5x3 = append(pf5x3, pf5x3a...)
+
+	buildPos[scl.S2x2] = pf2x2
 	buildPos[scl.S3x3] = pf3x3
 	buildPos[scl.S5x3] = pf5x3
 	buildPos[scl.S5x5] = b.ExpLocs
 
-	b.Debug2x2Buildings(buildPos[scl.S2x2]...)
+	/*b.Debug2x2Buildings(buildPos[scl.S2x2]...)
 	b.Debug3x3Buildings(buildPos[scl.S3x3]...)
 	b.Debug5x3Buildings(buildPos[scl.S5x3]...)
 	b.Debug3x3Buildings(buildPos[scl.S5x5]...)
-	// b.DebugSend()
+	b.DebugSend()*/
 }
 
 func (b *bot) FindTurretPosition(cc *scl.Unit) {
 	mfs := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, cc.Point())
-	/*vesps := b.VespeneGeysers.Units().CloserThan(scl.ResourceSpreadDistance, cc.Point())
-	mfs.Add(vesps...)*/
+	vesps := b.VespeneGeysers.Units().CloserThan(scl.ResourceSpreadDistance, cc.Point())
+	mfs.Add(vesps...)
 	if mfs.Empty() {
 		return
 	}
-	log.Info(len(mfs), mfs.Center()) // todo: mineral fields by id or bit
 
 	for _, p := range b.GetBuildingPoints(cc.Point(), scl.S5x5) {
 		b.SetBuildable(p, false)
@@ -184,8 +205,8 @@ func (b *bot) FindTurretPosition(cc *scl.Unit) {
 	if !turretsPos.Has(pos) {
 		turretsPos.Add(pos)
 	}
-	b.Debug2x2Buildings(turretsPos...)
-	b.DebugSend()
+	/*b.Debug2x2Buildings(turretsPos...)
+	b.DebugSend()*/
 }
 
 func (b *bot) RecalcEnemyStartLoc(np scl.Point) {

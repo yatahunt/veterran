@@ -65,12 +65,13 @@ var RootBuildOrder = BuildNodes{
 		Method: func(b *bot) { b.BuildFirstBarrack() },
 	},
 	{
-		Name:    "Refineries",
+		Name:    "Refinery",
 		Ability: ability.Build_Refinery,
 		Premise: func(b *bot) bool {
 			raxPending := b.Pending(ability.Build_Barracks)
 			refPending := b.Pending(ability.Build_Refinery)
-			return b.Vespene < 200 && (raxPending > 0 && refPending == 0 || raxPending >= 1 && refPending >= 1)
+			return b.Vespene < b.Minerals * 2 &&
+				(raxPending > 0 && refPending == 0 || raxPending >= 1 && refPending >= 1)
 		},
 		Limit:  func(b *bot) int { return 20 },
 		Active: func(b *bot) int { return 2 },
@@ -87,7 +88,7 @@ var RootBuildOrder = BuildNodes{
 		Ability: ability.Build_Factory,
 		Limit: func(b *bot) int {
 			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
-			return scl.MinInt(3, ccs.Len())
+			return ccs.Len() // scl.MinInt(3, ccs.Len())
 		},
 		Active:  BuildOne,
 		Unlocks: FactoryBuildOrder,
@@ -112,7 +113,7 @@ var RaxBuildOrder = BuildNodes{
 		Limit:   BuildOne,
 		Active:  BuildOne,
 	},
-	{
+	/*{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
 		Premise: func(b *bot) bool {
@@ -124,7 +125,7 @@ var RaxBuildOrder = BuildNodes{
 			return scl.MinInt(5, ccs.Len())
 		},
 		Active: func(b *bot) int { return 2 },
-	},
+	},*/
 	{
 		Name:    "Engineering Bays",
 		Ability: ability.Build_EngineeringBay,
@@ -151,7 +152,7 @@ var RaxBuildOrder = BuildNodes{
 			return (b.Vespene >= 200 && b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil) ||
 				b.Units[terran.BarracksFlying].First() != nil
 		},
-		Limit:  func(b *bot) int { return b.Units[terran.Barracks].Len() },
+		Limit:  func(b *bot) int { return b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Len() },
 		Active: func(b *bot) int { return 2 },
 		Method: func(b *bot) {
 			// todo: group?
@@ -161,7 +162,8 @@ var RaxBuildOrder = BuildNodes{
 			}
 
 			rax := b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
-			if rax.Point().IsCloserThan(3, b.MainRamp.Top) && firstBarrackBuildPos[0] != firstBarrackBuildPos[1] {
+			if rax.Point().IsCloserThan(3, firstBarrackBuildPos[0]) &&
+				firstBarrackBuildPos[0] != firstBarrackBuildPos[1] {
 				if b.EnemyUnits.Units().CloserThan(safeBuildRange, rax.Point()).Exists() {
 					return
 				}
@@ -178,10 +180,11 @@ var FactoryBuildOrder = BuildNodes{
 		Name:    "Factory Tech Lab",
 		Ability: ability.Build_TechLab_Factory,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+			return b.Units[terran.FactoryReactor].Exists() &&
+				b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
 		Limit: func(b *bot) int {
-			return b.Units[terran.Factory].Len() / 2
+			return b.Units[terran.Factory].Len() - 1
 		},
 		Active: BuildOne,
 		Method: func(b *bot) {
@@ -194,9 +197,10 @@ var FactoryBuildOrder = BuildNodes{
 		Premise: func(b *bot) bool {
 			return b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
-		Limit: func(b *bot) int {
+		Limit: BuildOne,
+		/*func(b *bot) int {
 			return (b.Units[terran.Factory].Len() + 1) / 2
-		},
+		},*/
 		Active: BuildOne,
 		Method: func(b *bot) {
 			b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Factory)
@@ -343,7 +347,7 @@ func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 
 func (b *bot) Upgrades() {
 	// todo: done upgrages list to skip checks
-	if eng := b.Units[terran.EngineeringBay].First(scl.Ready, scl.Idle); eng != nil {
+	/*if eng := b.Units[terran.EngineeringBay].First(scl.Ready, scl.Idle); eng != nil {
 		b.RequestAvailableAbilities(true, eng) // request abilities again because we want to ignore resource reqs
 		for _, a := range []api.AbilityID{
 			ability.Research_TerranInfantryWeaponsLevel1, ability.Research_TerranInfantryArmorLevel1,
@@ -360,7 +364,7 @@ func (b *bot) Upgrades() {
 				break
 			}
 		}
-	}
+	}*/
 	lab := b.Units[terran.FactoryTechLab].First(scl.Ready, scl.Idle)
 	if lab != nil && (b.Units[terran.Cyclone].Exists() || b.Units[terran.WidowMine].Exists()) {
 		b.RequestAvailableAbilities(true, lab)
@@ -403,7 +407,7 @@ func (b *bot) Cast() {
 		// Scan
 		if b.Orders[ability.Effect_Scan] == 0 && b.EffectPoints(effect.ScannerSweep).Empty() {
 			allEnemies := b.AllEnemyUnits.Units()
-			visibleEnemies := allEnemies.Filter(scl.Visible)
+			visibleEnemies := allEnemies.Filter(scl.PosVisible)
 			units := b.Units.Units()
 			// Reaper wants to see highground
 			if reaper := b.Groups.Get(Reapers).Units.ClosestTo(b.EnemyStartLoc); reaper != nil {
@@ -411,7 +415,7 @@ func (b *bot) Cast() {
 					if !b.IsVisible(enemy.Point()) && b.HeightAt(enemy.Point()) > b.HeightAt(reaper.Point()) {
 						pos := enemy.Point().Towards(b.EnemyStartLoc, 8)
 						cc.CommandPos(ability.Effect_Scan, pos)
-						log.Debug("Reaper sight scan")
+						log.Info("Reaper sight scan")
 						return
 					}
 				}
@@ -427,7 +431,7 @@ func (b *bot) Cast() {
 				if targets.Exists() && visibleEnemies.InRangeOf(tank, 0).Empty() {
 					pos := targets.ClosestTo(b.EnemyStartLoc).Point()
 					cc.CommandPos(ability.Effect_Scan, pos)
-					log.Debug("Tank sight scan")
+					log.Info("Tank sight scan")
 				}
 			}
 
@@ -435,6 +439,7 @@ func (b *bot) Cast() {
 			if eps := b.EffectPoints(effect.LurkerSpines); eps.Exists() {
 				// todo: check if bot already sees the lurker using his position approximation
 				cc.CommandPos(ability.Effect_Scan, eps.ClosestTo(b.EnemyStartLoc))
+				log.Info("Lurker scan")
 				return
 			}
 
@@ -449,7 +454,7 @@ func (b *bot) Cast() {
 				})
 				if hitByDT != nil {
 					cc.CommandPos(ability.Effect_Scan, hitByDT.Point())
-					log.Debug("DT scan")
+					log.Info("DT scan")
 					return
 				}
 			}
@@ -459,7 +464,7 @@ func (b *bot) Cast() {
 				for _, u := range units {
 					if u.HitsLost == 12 && allEnemies.CanAttack(u, 2).Empty() {
 						cc.CommandPos(ability.Effect_Scan, u.Point())
-						log.Debug("Banshee scan")
+						log.Info("Banshee scan")
 						return
 					}
 				}
@@ -470,8 +475,8 @@ func (b *bot) Cast() {
 			homeMineral := b.MineralFields.Units().
 				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 				Max(func(unit *scl.Unit) float64 {
-				return float64(unit.MineralContents)
-			})
+					return float64(unit.MineralContents)
+				})
 			if homeMineral != nil {
 				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 			}
@@ -536,6 +541,10 @@ func (b *bot) Macro() {
 		protoss.VoidRay, protoss.Oracle, protoss.Tempest, protoss.Carrier, protoss.Stargate, protoss.DarkShrine).
 		Exists() {
 		buildTurrets = true
+	}
+	if findTurretPositionFor != nil {
+		b.FindTurretPosition(findTurretPositionFor)
+		findTurretPositionFor = nil
 	}
 
 	b.BuildingsCheck()
