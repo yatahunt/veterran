@@ -437,13 +437,15 @@ func (b *bot) Cast() {
 				}
 			}
 
-			// Anything else - bad idea
-			/*for _, u := range units {
-				if u.HitsLost > 0 && allEnemies.CanAttack(u, 2).Empty() {
-					cc.CommandPos(ability.Effect_Scan, u.Point())
-					return
+			// Early banshee without upgrades
+			if b.EnemyRace == api.Race_Terran {
+				for _, u := range units {
+					if u.HitsLost == 12 && allEnemies.CanAttack(u, 2).Empty() {
+						cc.CommandPos(ability.Effect_Scan, u.Point())
+						return
+					}
 				}
-			}*/
+			}
 		}
 		// Mule
 		if cc.Energy >= 75 || (b.Loop < 4032 && cc.Energy >= 50) { // 3 min
