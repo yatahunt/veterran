@@ -28,6 +28,14 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 		b.Groups.Add(Tanks, unit)
 		return
 	}
+	if unit.UnitType == terran.Raven {
+		b.Groups.Add(Ravens, unit)
+		return
+	}
+	if unit.UnitType == terran.Battlecruiser {
+		b.Groups.Add(Battlecruisers, unit)
+		return
+	}
 	if unit.UnitType == terran.CommandCenter {
 		findTurretPositionFor = unit
 		// No return! Add it to UnderConstruction group if needed

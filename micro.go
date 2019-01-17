@@ -8,6 +8,7 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/zerg"
 	"math"
 	"math/rand"
+	"github.com/chippydip/go-sc2ai/api"
 )
 
 func (b *bot) WorkerRushDefence() {
@@ -305,7 +306,7 @@ func (b *bot) Mines() {
 		if mine.HPS > 0 {
 			// detected = targets.InRangeOf(mine, 0).Empty() - this is wrong? Mine has no weapon?
 			detected = targets.First(func(unit *scl.Unit) bool {
-				return mine.Point().Dist(unit.Point()) <= float64(mine.Radius + unit.Radius + 5)
+				return mine.Point().Dist(unit.Point()) <= float64(mine.Radius+unit.Radius+5)
 			}) == nil
 		}
 		/*if !detected && detectorIsNear {
@@ -447,6 +448,63 @@ func (b *bot) Tanks() {
 	}
 }
 
+func (b *bot) Ravens() {
+	ravens := b.Groups.Get(Ravens).Units
+	if ravens.Empty() {
+		return
+	}
+
+	friends := append(b.Groups.Get(Tanks).Units, b.Groups.Get(Cyclones).Units...)
+	if friends.Empty() {
+		friends = b.Groups.Get(Reapers).Units
+	}
+	if friends.Empty() {
+		friends = b.Groups.Get(Mines).Units
+	}
+	if friends.Empty() {
+		friends = b.Groups.Get(Battlecruisers).Units
+	}
+	if friends.Empty() {
+		return
+	}
+
+	allEnemies := b.AllEnemyUnits.Units()
+	allEnemiesReady := allEnemies.Filter(scl.Ready)
+	enemiesCenter := allEnemiesReady.Center()
+	friends.OrderBy(func(unit *scl.Unit) float64 {
+		return unit.Point().Dist2(enemiesCenter)
+	}, false)
+
+	for n, raven := range ravens {
+		if raven.Hits < 71 {
+			b.Groups.Add(MechRetreat, raven)
+			continue
+		}
+
+		if raven.Energy >= 50 {
+			if raven.TargetAbility() == ability.Effect_AutoTurret {
+				continue // Let him finish placing
+			}
+			closeEnemies := allEnemies.CloserThan(6, raven.Point())
+			if closeEnemies.Exists() && closeEnemies.Sum(scl.CmpHits) >= 300 {
+				pos := raven.Point().Towards(closeEnemies.Center(), 1)
+				pos = b.FindClosestPos(pos, scl.S2x2, 0, 1, 1, scl.IsBuildable, scl.IsPathable)
+				if pos != 0 {
+					raven.CommandPos(ability.Effect_AutoTurret, pos.S2x2Fix())
+					continue
+				}
+			}
+		}
+
+		pos := friends[scl.MinInt(n, len(friends)-1)].Point().Towards(enemiesCenter, 2)
+		pos, safe := raven.AirEvade(allEnemiesReady.CanAttack(raven, 1), 1, pos)
+		if !safe || pos.IsFurtherThan(1, raven.Point()) {
+			raven.CommandPos(ability.Move, pos)
+			continue
+		}
+	}
+}
+
 func (b *bot) MechRetreat() {
 	us := b.Groups.Get(MechRetreat).Units
 	if us.Empty() {
@@ -504,11 +562,87 @@ func (b *bot) MechRetreat() {
 	}
 }
 
+func (b *bot) Battlecruisers() {
+	bcs := b.Groups.Get(Battlecruisers).Units
+	if bcs.Empty() {
+		return
+	}
+
+	okTargets := scl.Units{}
+	goodTargets := scl.Units{}
+	yamaTargets := scl.Units{}
+	yamaFiring := map[api.UnitTag]int{}
+	allEnemies := b.AllEnemyUnits.Units()
+	// allEnemiesReady := allEnemies.Filter(scl.Ready)
+
+	for _, enemy := range allEnemies {
+		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
+			continue
+		}
+		okTargets.Add(enemy)
+		if enemy.IsStructure() && !enemy.IsDefensive() {
+			continue
+		}
+		goodTargets.Add(enemy)
+		if enemy.AirDamage() > 0 && enemy.Hits > 120 { // Carrier?
+			yamaTargets.Add(enemy)
+		}
+	}
+
+	for _, bc := range bcs {
+		if bc.TargetAbility() == ability.Effect_YamatoGun {
+			yamaFiring[bc.TargetTag()]++
+		}
+	}
+
+	for _, bc := range bcs {
+		if (bc.HasAbility(ability.Effect_TacticalJump) && (bc.Hits <= bc.HPS || bc.Hits < 50)) ||
+			(!bc.HasAbility(ability.Effect_TacticalJump) && (bc.Hits <= bc.HPS*4 || bc.Hits < 100)) {
+			cc := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Max(func(unit *scl.Unit) float64 {
+				return float64(unit.AssignedHarvesters)
+			})
+			if cc != nil {
+				pos := cc.Point() - b.StartMinVec*3
+				bc.CommandPos(ability.Effect_TacticalJump, pos)
+				b.Groups.Add(MechRetreat, bc)
+				continue
+			}
+		}
+
+		if yamaTargets.Exists() && bc.HasAbility(ability.Effect_YamatoGun) {
+			targets := yamaTargets.InRangeOf(bc, 4).Filter(func(unit *scl.Unit) bool {
+				return unit.Hits - float64(yamaFiring[unit.Tag] * 240) > 0
+			})
+			if targets.Exists() {
+				target := targets.Filter(func(unit *scl.Unit) bool {
+					return unit.Hits - float64(yamaFiring[unit.Tag] * 240) <= 240
+				}).Max(scl.CmpHits)
+				if target == nil {
+					target = targets.Max(scl.CmpHits)
+				}
+				bc.CommandTag(ability.Effect_YamatoGun, target.Tag)
+				yamaFiring[target.Tag]++
+				continue
+			}
+		}
+
+		// retreat is needed?
+
+		if goodTargets.Exists() || okTargets.Exists() {
+			bc.Attack(goodTargets, okTargets)
+		} else {
+			b.Explore(bc)
+		}
+	}
+}
+
 func (b *bot) Micro() {
 	b.WorkerRushDefence()
 	b.Reapers()
 	b.Cyclones()
 	b.Mines()
 	b.Tanks()
+	b.Ravens()
 	b.MechRetreat()
+	b.Battlecruisers()
 }

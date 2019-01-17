@@ -41,6 +41,8 @@ const (
 	Mines
 	MinesRetreat
 	Tanks
+	Ravens
+	Battlecruisers
 	MechRetreat
 	MechHealing
 	UnderConstruction
@@ -198,7 +200,7 @@ func (b *bot) FindTurretPosition(cc *scl.Unit) {
 	if pos == 0 {
 		return
 	}
-	pos += 0.5 + 0.5i // todo: add everywhere
+	pos = pos.S2x2Fix()
 	if !turretsPos.Has(pos) {
 		turretsPos.Add(pos)
 	}

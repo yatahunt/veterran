@@ -58,7 +58,7 @@ var RootBuildOrder = BuildNodes{
 			if ccs.Len() == 1 && ccs.First().UnitType == terran.OrbitalCommand {
 				return true
 			}
-			if ccs.Len() <= b.FoodUsed / 30 {
+			if ccs.Len() <= b.FoodUsed/30 {
 				return true
 			}
 			return false
@@ -75,8 +75,8 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Barrack",
 		Ability: ability.Build_Barracks,
 		Premise: func(b *bot) bool {
-			return b.Units.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
-				b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Empty()
+			// b.Units.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
+			return b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Empty()
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,
@@ -104,12 +104,31 @@ var RootBuildOrder = BuildNodes{
 	{
 		Name:    "Factory",
 		Ability: ability.Build_Factory,
+		Premise: func(b *bot) bool {
+			return b.Units[terran.Factory].First(scl.Ready, scl.Unused) == nil
+		},
 		Limit: func(b *bot) int {
 			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
 			return ccs.Len() // scl.MinInt(3, ccs.Len())
 		},
 		Active:  BuildOne,
 		Unlocks: FactoryBuildOrder,
+	},
+	{
+		Name:    "Starport",
+		Ability: ability.Build_Starport,
+		Premise: func(b *bot) bool {
+			return b.Units[terran.Starport].First(scl.Ready, scl.Unused) == nil
+		},
+		Limit: func(b *bot) int {
+			if b.Units[terran.FusionCore].First(scl.Ready) == nil {
+				return 1
+			}
+			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			return scl.MinInt(4, ccs.Len())
+		},
+		Active:  BuildOne,
+		Unlocks: StarportBuildOrder,
 	},
 }
 
@@ -118,14 +137,17 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Armory",
 		Ability: ability.Build_Armory,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.EngineeringBay].First(scl.Ready) != nil &&
-				b.Units[terran.Factory].First(scl.Ready) != nil // Needs factory
+			// b.Units[terran.Factory].First(scl.Ready) != nil // Needs factory
+			return b.Units[terran.EngineeringBay].First(scl.Ready) != nil
 		},
 		WaitRes: Yes,
 		Limit: func(b *bot) int {
-			return scl.MinInt(2, b.Units[terran.Factory].Len())
+			if b.Units[terran.FusionCore].First(scl.Ready) != nil {
+				return 2
+			}
+			return 1
 		},
-		Active:  BuildOne,
+		Active: BuildOne,
 	},
 	/*{
 		Name:    "Barracks",
@@ -141,7 +163,7 @@ var RaxBuildOrder = BuildNodes{
 		Active: func(b *bot) int { return 2 },
 	},*/
 	{
-		Name:    "Engineering Bays",
+		Name:    "Engineering Bay",
 		Ability: ability.Build_EngineeringBay,
 		Premise: func(b *bot) bool {
 			return b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len() >= 2
@@ -153,7 +175,8 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Missile Turrets",
 		Ability: ability.Build_MissileTurret,
 		Premise: func(b *bot) bool {
-			return buildTurrets && b.Units[terran.EngineeringBay].First(scl.Ready) != nil
+			//  && b.Units[terran.EngineeringBay].First(scl.Ready) != nil
+			return buildTurrets
 		},
 		Limit:   func(b *bot) int { return turretsPos.Len() },
 		Active:  func(b *bot) int { return turretsPos.Len() },
@@ -219,6 +242,29 @@ var FactoryBuildOrder = BuildNodes{
 		Method: func(b *bot) {
 			b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Factory)
 		},
+	},
+}
+
+var StarportBuildOrder = BuildNodes{
+	{
+		Name:    "Starport Tech Lab",
+		Ability: ability.Build_TechLab_Starport,
+		Limit: func(b *bot) int {
+			return b.Units[terran.Starport].Len()
+		},
+		Active: BuildOne,
+		Method: func(b *bot) {
+			b.Units[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_TechLab_Starport)
+		},
+	},
+	{
+		Name:    "Fusion Core",
+		Ability: ability.Build_FusionCore,
+		Premise: func(b *bot) bool {
+			return b.Units[terran.Raven].Exists()
+		},
+		Limit:  BuildOne,
+		Active: BuildOne,
 	},
 }
 
@@ -371,6 +417,7 @@ func (b *bot) Upgrades() {
 			if eng.HasAbility(a) {
 				if b.CanBuy(a) {
 					eng.Command(a)
+					return
 				} else {
 					// reserve money for upgrade
 					b.DeductResources(a)
@@ -382,14 +429,23 @@ func (b *bot) Upgrades() {
 
 	if arm := b.Units[terran.Armory].First(scl.Ready, scl.Idle); arm != nil {
 		b.RequestAvailableAbilities(true, arm) // request abilities again because we want to ignore resource reqs
-		for _, a := range []api.AbilityID{
-			ability.Research_TerranVehicleWeaponsLevel1, ability.Research_TerranVehicleAndShipPlatingLevel1,
-			ability.Research_TerranVehicleWeaponsLevel2, ability.Research_TerranVehicleAndShipPlatingLevel2,
-			ability.Research_TerranVehicleWeaponsLevel3, ability.Research_TerranVehicleAndShipPlatingLevel3,
-		} {
+		upgrades := []api.AbilityID{
+			ability.Research_TerranVehicleAndShipPlatingLevel1,
+			ability.Research_TerranVehicleAndShipPlatingLevel2,
+			ability.Research_TerranVehicleAndShipPlatingLevel3,
+		}
+		if b.Units[terran.Battlecruiser].Exists() {
+			upgrades = append([]api.AbilityID{
+				ability.Research_TerranShipWeaponsLevel1,
+				ability.Research_TerranShipWeaponsLevel2,
+				ability.Research_TerranShipWeaponsLevel3,
+			}, upgrades...)
+		}
+		for _, a := range upgrades {
 			if arm.HasAbility(a) {
 				if b.CanBuy(a) {
 					arm.Command(a)
+					return
 				} else {
 					// reserve money for upgrade
 					b.DeductResources(a)
@@ -398,17 +454,29 @@ func (b *bot) Upgrades() {
 			}
 		}
 	}
-	
+
 	lab := b.Units[terran.FactoryTechLab].First(scl.Ready, scl.Idle)
 	if lab != nil && (b.Units[terran.Cyclone].Exists() || b.Units[terran.WidowMine].Exists()) {
 		b.RequestAvailableAbilities(true, lab)
 		if b.Units[terran.Cyclone].Exists() && lab.HasAbility(ability.Research_CycloneResearchLockOnDamageUpgrade) &&
 			b.CanBuy(ability.Research_CycloneResearchLockOnDamageUpgrade) {
 			lab.Command(ability.Research_CycloneResearchLockOnDamageUpgrade)
+			return
 		}
 		if b.Units[terran.WidowMine].Exists() && lab.HasAbility(ability.Research_DrillingClaws) &&
 			b.CanBuy(ability.Research_DrillingClaws) {
 			lab.Command(ability.Research_DrillingClaws)
+			return
+		}
+	}
+
+	fc := b.Units[terran.FusionCore].First(scl.Ready, scl.Idle)
+	if fc != nil && b.Pending(ability.Train_Battlecruiser) > 0 {
+		b.RequestAvailableAbilities(true, fc)
+		if fc.HasAbility(ability.Research_BattlecruiserWeaponRefit) &&
+			b.CanBuy(ability.Research_BattlecruiserWeaponRefit) {
+			fc.Command(ability.Research_BattlecruiserWeaponRefit)
+			return
 		}
 	}
 }
@@ -527,6 +595,25 @@ func (b *bot) OrderUnits() {
 	if cc != nil && b.Units[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70-refs.Len()) &&
 		b.CanBuy(ability.Train_SCV) {
 		b.OrderTrain(cc, ability.Train_SCV)
+	}
+
+	starport := b.Units[terran.Starport].First(scl.Ready, scl.Unused, scl.HasTechlab)
+	if starport != nil {
+		ravens := b.Pending(ability.Train_Raven)
+		if b.Units[terran.FusionCore].First(scl.Ready) != nil {
+			if b.CanBuy(ability.Train_Battlecruiser) {
+				b.OrderTrain(starport, ability.Train_Battlecruiser)
+			} else {
+				b.DeductResources(ability.Train_Battlecruiser) // Gather money
+			}
+		}
+		if ravens < 2 {
+			if b.CanBuy(ability.Train_Raven) {
+				b.OrderTrain(starport, ability.Train_Raven)
+			} else if ravens == 0 {
+				b.DeductResources(ability.Train_Raven) // Gather money
+			}
+		}
 	}
 
 	factory := b.Units[terran.Factory].First(scl.Ready, scl.Unused, scl.HasTechlab)
