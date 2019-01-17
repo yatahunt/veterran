@@ -221,19 +221,28 @@ func (b *bot) Miners() {
 	b.HandleMiners(miners, ccs, 1)
 
 	// If there is ready unsaturated refinery and an scv gathering, send it there
-	if b.Minerals > b.Vespene {
-		refinery := b.Units[terran.Refinery].
-			First(func(unit *scl.Unit) bool { return unit.IsReady() && unit.AssignedHarvesters < 3 })
-		if refinery != nil && b.Minerals > b.Vespene {
+	refs := b.Units[terran.Refinery]
+	if b.Minerals / 2 > b.Vespene {
+		ref := refs.First(func(unit *scl.Unit) bool { return unit.IsReady() && unit.AssignedHarvesters < 3 })
+		if ref != nil {
 			// Get scv gathering minerals
 			mfs := b.MineralFields.Units()
 			scv := b.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
 				return unit.IsGathering() && unit.IsCloserThan(scl.ResourceSpreadDistance, refinery) &&
 					mfs.ByTag(unit.TargetTag()) != nil
-			}).ClosestTo(refinery.Point())
+			}).ClosestTo(ref.Point())
 			if scv != nil {
-				scv.CommandTag(ability.Smart, refinery.Tag)
+				scv.CommandTag(ability.Smart, ref.Tag)
 			}
+		}
+	} else if b.Minerals < b.Vespene && refs.Exists() {
+		mfs := b.MineralFields.Units()
+		scv := b.Groups.Get(Miners).Units.First(func(unit *scl.Unit) bool {
+			tag := unit.TargetTag()
+			return unit.IsGathering() && refs.ByTag(tag) != nil
+		})
+		if scv != nil {
+			scv.CommandTag(ability.Smart, mfs.ClosestTo(scv.Point()).Tag)
 		}
 	}
 }

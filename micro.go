@@ -12,7 +12,10 @@ import (
 
 func (b *bot) WorkerRushDefence() {
 	enemiesRange := 12.0
-	workersRange := 12.0
+	workersRange := 10.0
+	if workerRush {
+		workersRange = 70.0
+	}
 	if building := b.Units.Units().Filter(scl.Structure).ClosestTo(b.MainRamp.Top); building != nil {
 		workersRange = math.Max(workersRange, building.Point().Dist(b.StartLoc)+6)
 	}
@@ -23,6 +26,9 @@ func (b *bot) WorkerRushDefence() {
 	if enemies.Empty() || enemies.Sum(scl.CmpGroundScore) > workers.Sum(scl.CmpGroundScore)*2 {
 		enemies = b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).CloserThan(workersRange, b.StartLoc)
 		alert = enemies.CloserThan(workersRange-4, b.StartLoc).Exists()
+		if alert && enemies.Len() >= 10 {
+			workerRush = true
+		}
 	}
 
 	army := b.Groups.Get(WorkerRushDefenders).Units

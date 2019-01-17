@@ -22,6 +22,7 @@ import (
 // todo: use dead units events
 // todo: анализировать неуспешные попытки строительства
 
+var workerRush = false
 var buildPos = map[scl.BuildingSize]scl.Points{}
 var firstBarrackBuildPos = scl.Points{}
 var buildTurrets = false
