@@ -30,7 +30,7 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 	}
 	if unit.UnitType == terran.CommandCenter {
 		findTurretPositionFor = unit
-		return
+		// No return! Add it to UnderConstruction group if needed
 	}
 	if unit.IsStructure() && unit.BuildProgress < 1 {
 		b.Groups.Add(UnderConstruction, unit)
@@ -228,7 +228,7 @@ func (b *bot) Miners() {
 			// Get scv gathering minerals
 			mfs := b.MineralFields.Units()
 			scv := b.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
-				return unit.IsGathering() && unit.IsCloserThan(scl.ResourceSpreadDistance, refinery) &&
+				return unit.IsGathering() && unit.IsCloserThan(scl.ResourceSpreadDistance, ref) &&
 					mfs.ByTag(unit.TargetTag()) != nil
 			}).ClosestTo(ref.Point())
 			if scv != nil {

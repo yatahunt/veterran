@@ -18,15 +18,16 @@ type BuildNode struct {
 	Name    string
 	Ability api.AbilityID
 	Premise Booler
-	WaitRes bool
+	WaitRes Booler
 	Limit   Inter
 	Active  Inter
 	Method  Voider
-	Unlocks BuildNodes // [] ?
+	Unlocks BuildNodes
 }
 type BuildNodes []BuildNode
 
 func BuildOne(b *bot) int { return 1 }
+func Yes(b *bot) bool     { return true }
 
 var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
 	ability.Build_CommandCenter:  scl.S5x5,
@@ -47,6 +48,23 @@ var RootBuildOrder = BuildNodes{
 		Active:  BuildOne,
 	},
 	{
+		Name:    "Expansion CCs",
+		Ability: ability.Build_CommandCenter,
+		Limit:   func(b *bot) int { return buildPos[scl.S5x5].Len() },
+		Active:  BuildOne,
+		WaitRes: func(b *bot) bool {
+			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			// First orbital is morphing
+			if ccs.Len() == 1 && ccs.First().UnitType == terran.OrbitalCommand {
+				return true
+			}
+			if ccs.Len() <= b.FoodUsed / 30 {
+				return true
+			}
+			return false
+		},
+	},
+	{
 		Name:    "Supplies",
 		Ability: ability.Build_SupplyDepot,
 		Premise: func(b *bot) bool { return b.FoodLeft < 6+b.FoodUsed/20 && b.FoodCap < 200 },
@@ -54,10 +72,10 @@ var RootBuildOrder = BuildNodes{
 		Active:  func(b *bot) int { return 1 + b.FoodUsed/50 },
 	},
 	{
-		Name:    "First barrack",
+		Name:    "Barrack",
 		Ability: ability.Build_Barracks,
 		Premise: func(b *bot) bool {
-			return b.Units.OfType(terran.SupplyDepot, terran.SupplyDepotLowered).First(scl.Ready) != nil &&
+			return b.Units.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
 				b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Empty()
 		},
 		Limit:  BuildOne,
@@ -70,7 +88,7 @@ var RootBuildOrder = BuildNodes{
 		Premise: func(b *bot) bool {
 			raxPending := b.Pending(ability.Build_Barracks)
 			refPending := b.Pending(ability.Build_Refinery)
-			return b.Vespene < b.Minerals * 2 &&
+			return b.Vespene < b.Minerals*2 &&
 				(raxPending > 0 && refPending == 0 || raxPending >= 1 && refPending >= 1)
 		},
 		Limit:  func(b *bot) int { return 20 },
@@ -93,12 +111,6 @@ var RootBuildOrder = BuildNodes{
 		Active:  BuildOne,
 		Unlocks: FactoryBuildOrder,
 	},
-	{
-		Name:    "Expansion CCs",
-		Ability: ability.Build_CommandCenter,
-		Limit:   func(b *bot) int { return buildPos[scl.S5x5].Len() },
-		Active:  BuildOne,
-	},
 }
 
 var RaxBuildOrder = BuildNodes{
@@ -109,8 +121,10 @@ var RaxBuildOrder = BuildNodes{
 			return b.Units[terran.EngineeringBay].First(scl.Ready) != nil &&
 				b.Units[terran.Factory].First(scl.Ready) != nil // Needs factory
 		},
-		WaitRes: true,
-		Limit:   BuildOne,
+		WaitRes: Yes,
+		Limit: func(b *bot) int {
+			return scl.MinInt(2, b.Units[terran.Factory].Len())
+		},
 		Active:  BuildOne,
 	},
 	/*{
@@ -143,7 +157,7 @@ var RaxBuildOrder = BuildNodes{
 		},
 		Limit:   func(b *bot) int { return turretsPos.Len() },
 		Active:  func(b *bot) int { return turretsPos.Len() },
-		WaitRes: true,
+		WaitRes: Yes,
 	},
 	{
 		Name:    "Barracks reactors",
@@ -327,8 +341,8 @@ func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 	for _, node := range buildOrder {
 		inLimits := b.Pending(node.Ability) < node.Limit(b) && b.Orders[node.Ability] < node.Active(b)
 		canBuy := b.CanBuy(node.Ability)
-		if (node.Premise == nil || node.Premise(b)) && inLimits && (canBuy || node.WaitRes) {
-			if !canBuy && node.WaitRes {
+		if (node.Premise == nil || node.Premise(b)) && inLimits && (canBuy || node.WaitRes(b)) {
+			if !canBuy && node.WaitRes(b) {
 				// reserve money for building
 				b.DeductResources(node.Ability)
 				continue
@@ -365,6 +379,26 @@ func (b *bot) Upgrades() {
 			}
 		}
 	}*/
+
+	if arm := b.Units[terran.Armory].First(scl.Ready, scl.Idle); arm != nil {
+		b.RequestAvailableAbilities(true, arm) // request abilities again because we want to ignore resource reqs
+		for _, a := range []api.AbilityID{
+			ability.Research_TerranVehicleWeaponsLevel1, ability.Research_TerranVehicleAndShipPlatingLevel1,
+			ability.Research_TerranVehicleWeaponsLevel2, ability.Research_TerranVehicleAndShipPlatingLevel2,
+			ability.Research_TerranVehicleWeaponsLevel3, ability.Research_TerranVehicleAndShipPlatingLevel3,
+		} {
+			if arm.HasAbility(a) {
+				if b.CanBuy(a) {
+					arm.Command(a)
+				} else {
+					// reserve money for upgrade
+					b.DeductResources(a)
+				}
+				break
+			}
+		}
+	}
+	
 	lab := b.Units[terran.FactoryTechLab].First(scl.Ready, scl.Idle)
 	if lab != nil && (b.Units[terran.Cyclone].Exists() || b.Units[terran.WidowMine].Exists()) {
 		b.RequestAvailableAbilities(true, lab)
@@ -475,8 +509,8 @@ func (b *bot) Cast() {
 			homeMineral := b.MineralFields.Units().
 				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 				Max(func(unit *scl.Unit) float64 {
-					return float64(unit.MineralContents)
-				})
+				return float64(unit.MineralContents)
+			})
 			if homeMineral != nil {
 				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 			}

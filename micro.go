@@ -132,14 +132,22 @@ func (b *bot) Reapers() {
 			if b.ThrowMine(reaper, goodTargets) {
 				continue
 			}
+
 			// There is an enemy
-			if closestEnemy := goodTargets.Filter(scl.Visible).ClosestTo(reaper.Point()); closestEnemy != nil {
+			/*if closestEnemy := goodTargets.Filter(scl.Visible).ClosestTo(reaper.Point()); closestEnemy != nil {
 				// And it is closer than shooting distance - 0.5
 				if reaper.InRange(closestEnemy, -0.5) {
 					// Retreat a little
 					reaper.GroundFallback(goodTargets, -0.5, b.HomeReaperPaths)
 					continue
 				}
+			}*/
+
+			attackers := allEnemiesReady.CanAttack(reaper, 0.1)
+			closeTargets := goodTargets.InRangeOf(reaper, -0.5)
+			if attackers.Exists() || closeTargets.Exists() {
+				reaper.GroundFallback(attackers, 0.1, b.HomeReaperPaths)
+				continue
 			}
 		}
 
@@ -213,7 +221,7 @@ func (b *bot) Cyclones() {
 	goodTargets := scl.Units{}
 	airTargets := scl.Units{}
 	allEnemies := b.AllEnemyUnits.Units()
-	// allEnemiesReady := allEnemies.Filter(scl.Ready)
+	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	cyclones := b.Groups.Get(Cyclones).Units
 	for _, enemy := range allEnemies {
 		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -237,7 +245,19 @@ func (b *bot) Cyclones() {
 		}
 
 		// Keep range
-		attackers := goodTargets.CanAttack(cyclone, 2)
+		canAttack := scl.AttackDelay.UnitIsCool(cyclone) // Weapons are cool
+		if canAttack && !cyclone.HasAbility(ability.Effect_LockOn) { // And if can't lock on
+			canAttack = allEnemies.ByTag(cyclone.EngagedTargetTag) == nil // There is no lock
+		}
+		if !canAttack {
+			attackers := allEnemiesReady.CanAttack(cyclone, 0.1)
+			closeTargets := goodTargets.InRangeOf(cyclone, -0.5)
+			if attackers.Exists() || closeTargets.Exists() {
+				cyclone.GroundFallback(attackers, 0.1, b.HomePaths)
+				continue
+			}
+		}
+		/*attackers := allEnemiesReady.CanAttack(cyclone, 2)
 		retreat := cyclone.HPS > 0 && attackers.Exists()
 		if !retreat && !cyclone.HasAbility(ability.Effect_LockOn) && attackers.Exists() {
 			target := allEnemies.ByTag(cyclone.EngagedTargetTag)
@@ -245,9 +265,9 @@ func (b *bot) Cyclones() {
 			retreat = target != nil && cyclone.InRange(target, 5)
 		}
 		if retreat {
-			cyclone.GroundFallback(goodTargets, 2, b.HomePaths)
+			cyclone.GroundFallback(attackers, 2, b.HomePaths)
 			continue
-		}
+		}*/
 
 		// Attack
 		if airTargets.Exists() || goodTargets.Exists() || okTargets.Exists() {
@@ -281,7 +301,13 @@ func (b *bot) Mines() {
 			return unit.Point().IsCloserThan(float64(unit.DetectRange)+1, mine.Point())
 		}) != nil*/
 		// Someone is attacking mine, but it can't attack anyone
-		detected := targets.InRangeOf(mine, 0).Empty() && mine.HPS > 0
+		detected := false
+		if mine.HPS > 0 {
+			// detected = targets.InRangeOf(mine, 0).Empty() - this is wrong? Mine has no weapon?
+			detected = targets.First(func(unit *scl.Unit) bool {
+				return mine.Point().Dist(unit.Point()) <= float64(mine.Radius + unit.Radius + 5)
+			}) == nil
+		}
 		/*if !detected && detectorIsNear {
 			// In range of known detector
 			detected = detectors.First(func(unit *scl.Unit) bool {
@@ -293,7 +319,7 @@ func (b *bot) Mines() {
 			!mine.HasAbility(ability.Smart) || // Reloading
 			targets.CloserThan(10, mine.Point()).Empty() /*&& !detectorIsNear*/ && attackers.Empty()) {
 			// No targets, enemies or close detectors around
-			if mine.Hits < mine.HitsMax / 2 {
+			if mine.Hits < mine.HitsMax/2 {
 				b.Groups.Add(MechRetreat, mine)
 			} else {
 				b.Groups.Add(MinesRetreat, mine)
@@ -302,8 +328,8 @@ func (b *bot) Mines() {
 			continue
 		}
 
-		targetIsVeryClose := targets.CloserThan(4, mine.Point()).Exists() // For enemies that can't attack ground
-		if !mine.IsBurrowed && !detected && (attackers.Exists() /*|| detectorIsNear*/ || targetIsVeryClose) {
+		targetIsClose := targets.CloserThan(4, mine.Point()).Exists() // For enemies that can't attack ground
+		if !mine.IsBurrowed && !detected && (attackers.Exists() /*|| detectorIsNear*/ || targetIsClose) {
 			mine.Command(ability.BurrowDown_WidowMine)
 			continue
 		}
@@ -341,6 +367,7 @@ func (b *bot) Tanks() {
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
 	allEnemies := b.AllEnemyUnits.Units()
+	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	tanks := b.Groups.Get(Tanks).Units
 	for _, enemy := range allEnemies {
 		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -360,6 +387,26 @@ func (b *bot) Tanks() {
 				continue
 			}
 
+			// Keep range
+			attackers := allEnemiesReady.CanAttack(tank, 0.1)
+			if !scl.AttackDelay.UnitIsCool(tank) {
+				closeTargets := goodTargets.InRangeOf(tank, -0.5)
+				if attackers.Exists() || closeTargets.Exists() {
+					tank.GroundFallback(attackers, 0.1, b.HomePaths)
+					continue
+				}
+
+				/*retreat := attackers.Exists()
+				if !retreat && goodTargets.Exists() {
+					closestTarget := goodTargets.ClosestTo(tank.Point())
+					retreat = tank.RangeDelta(closestTarget, -0.1) <= 0
+				}
+				if retreat {
+					tank.GroundFallback(attackers, 2, b.HomePaths)
+					continue
+				}*/
+			}
+
 			targets := goodTargets.InRangeOf(tank, 0)
 			if targets.Empty() {
 				targets = okTargets.InRangeOf(tank, 0)
@@ -367,19 +414,6 @@ func (b *bot) Tanks() {
 			farTargets := goodTargets.InRangeOf(tank, 13-7) // Sieged range - mobile range
 			if farTargets.Empty() {
 				farTargets = okTargets.InRangeOf(tank, 13-7)
-			}
-			attackers := allEnemies.CanAttack(tank, 2)
-
-			if !scl.AttackDelay.UnitIsCool(tank) {
-				retreat := attackers.Exists()
-				if !retreat && goodTargets.Exists() {
-					closestTarget := goodTargets.ClosestTo(tank.Point())
-					retreat = tank.RangeDelta(closestTarget, -0.1) <= 0
-				}
-				if retreat {
-					tank.GroundFallback(attackers, 2, b.HomeReaperPaths)
-					continue
-				}
 			}
 
 			if targets.Empty() && farTargets.Exists() && attackers.Exists() {
@@ -419,17 +453,15 @@ func (b *bot) MechRetreat() {
 		return
 	}
 	enemies := b.AllEnemyUnits.Units().Filter(scl.Ready)
-	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).Filter(scl.Ready)
 	scvs := b.Units[terran.SCV]
-	mfs := b.MineralFields.Units()
-	var healingPoints scl.Points
-	for _, cc := range ccs {
-		if scvs.CloserThan(scl.ResourceSpreadDistance, cc.Point()).Len() < 4 {
+	var healingPoints []int
+	for expNum, expLoc := range b.ExpLocs {
+		if scvs.CloserThan(scl.ResourceSpreadDistance, expLoc).Len() < 4 {
 			continue
 		}
-		healingPoints.Add(mfs.CloserThan(scl.ResourceSpreadDistance, cc.Point()).Center().Towards(cc.Point(), 2))
+		healingPoints = append(healingPoints, expNum)
 	}
-	if healingPoints.Empty() {
+	if len(healingPoints) == 0 {
 		return
 	}
 	for _, u := range us {
@@ -437,8 +469,19 @@ func (b *bot) MechRetreat() {
 			b.OnUnitCreated(u) // Add to corresponding group
 			continue
 		}
-		hp := healingPoints.ClosestTo(u.Point())
-		if u.Point().IsCloserThan(4, hp) {
+		// Find closest healing point
+		var healingExp int
+		var healingPoint scl.Point
+		dist := math.Inf(1)
+		for _, expNum := range healingPoints {
+			newDist := u.Point().Dist2(b.ExpLocs[expNum])
+			if newDist < dist {
+				healingExp = expNum
+				healingPoint = b.ExpLocs[expNum] - b.StartMinVec*3
+				dist = newDist
+			}
+		}
+		if u.Point().IsCloserThan(4, healingPoint) {
 			b.Groups.Add(MechHealing, u)
 			continue
 		}
@@ -457,15 +500,7 @@ func (b *bot) MechRetreat() {
 			}
 		}
 
-		if u.WeaponCooldown > 0 {
-			u.SpamCmds = true // Spamming this thing is the key. Or orders will be ignored (or postponed)
-		}
-		pos, safe := u.GroundFallbackPos(enemies, 2, b.HomePaths, 2)
-		if safe {
-			u.CommandPos(ability.Move, hp)
-		} else {
-			u.CommandPos(ability.Move, pos)
-		}
+		u.GroundFallback(enemies, 2, b.ExpPaths[healingExp])
 	}
 }
 
