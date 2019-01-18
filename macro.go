@@ -38,6 +38,8 @@ var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
 	ability.Build_MissileTurret:  scl.S2x2,
 	ability.Build_Armory:         scl.S3x3,
 	ability.Build_Factory:        scl.S5x3,
+	ability.Build_Starport:       scl.S5x3,
+	ability.Build_FusionCore:     scl.S3x3,
 }
 
 var RootBuildOrder = BuildNodes{
@@ -58,7 +60,7 @@ var RootBuildOrder = BuildNodes{
 			if ccs.Len() == 1 && ccs.First().UnitType == terran.OrbitalCommand {
 				return true
 			}
-			if ccs.Len() <= b.FoodUsed/30 {
+			if ccs.Len() <= b.FoodUsed/35 {
 				return true
 			}
 			return false
@@ -75,8 +77,8 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Barrack",
 		Ability: ability.Build_Barracks,
 		Premise: func(b *bot) bool {
-			// b.Units.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
-			return b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Empty()
+			return b.Units.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
+				b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Empty()
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,
@@ -86,6 +88,9 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Refinery",
 		Ability: ability.Build_Refinery,
 		Premise: func(b *bot) bool {
+			if workerRush {
+				return false
+			}
 			raxPending := b.Pending(ability.Build_Barracks)
 			refPending := b.Pending(ability.Build_Refinery)
 			return b.Vespene < b.Minerals*2 &&
@@ -109,7 +114,7 @@ var RootBuildOrder = BuildNodes{
 		},
 		Limit: func(b *bot) int {
 			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
-			return ccs.Len() // scl.MinInt(3, ccs.Len())
+			return scl.MinInt(4, ccs.Len())
 		},
 		Active:  BuildOne,
 		Unlocks: FactoryBuildOrder,
@@ -121,10 +126,13 @@ var RootBuildOrder = BuildNodes{
 			return b.Units[terran.Starport].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func(b *bot) int {
+			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			if ccs.Len() < 2 {
+				return 0
+			}
 			if b.Units[terran.FusionCore].First(scl.Ready) == nil {
 				return 1
 			}
-			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
 			return scl.MinInt(4, ccs.Len())
 		},
 		Active:  BuildOne,
@@ -249,6 +257,9 @@ var StarportBuildOrder = BuildNodes{
 	{
 		Name:    "Starport Tech Lab",
 		Ability: ability.Build_TechLab_Starport,
+		Premise: func(b *bot) bool {
+			return b.Units[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+		},
 		Limit: func(b *bot) int {
 			return b.Units[terran.Starport].Len()
 		},
@@ -356,6 +367,11 @@ func (b *bot) BuildingsCheck() {
 				scv.CommandTag(ability.Smart, building.Tag)
 			}
 		}
+
+		// Cancel refinery if worker rush is detected and don't build new until enemy is gone
+		if workerRush && building.UnitType == terran.Refinery {
+			building.Command(ability.Cancel)
+		}
 	}
 }
 
@@ -387,8 +403,9 @@ func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 	for _, node := range buildOrder {
 		inLimits := b.Pending(node.Ability) < node.Limit(b) && b.Orders[node.Ability] < node.Active(b)
 		canBuy := b.CanBuy(node.Ability)
-		if (node.Premise == nil || node.Premise(b)) && inLimits && (canBuy || node.WaitRes(b)) {
-			if !canBuy && node.WaitRes(b) {
+		waitRes := node.WaitRes != nil && node.WaitRes(b)
+		if (node.Premise == nil || node.Premise(b)) && inLimits && (canBuy || waitRes) {
+			if !canBuy && waitRes {
 				// reserve money for building
 				b.DeductResources(node.Ability)
 				continue
@@ -504,7 +521,9 @@ func (b *bot) Morph() {
 }
 
 func (b *bot) Cast() {
-	cc := b.Units[terran.OrbitalCommand].First(func(unit *scl.Unit) bool { return unit.Energy >= 50 })
+	cc := b.Units[terran.OrbitalCommand].
+		Filter(func(unit *scl.Unit) bool { return unit.Energy >= 50 }).
+		Max(func(unit *scl.Unit) float64 { return float64(unit.Energy) })
 	if cc != nil {
 		// Scan
 		if b.Orders[ability.Effect_Scan] == 0 && b.EffectPoints(effect.ScannerSweep).Empty() {
@@ -512,13 +531,15 @@ func (b *bot) Cast() {
 			visibleEnemies := allEnemies.Filter(scl.PosVisible)
 			units := b.Units.Units()
 			// Reaper wants to see highground
-			if reaper := b.Groups.Get(Reapers).Units.ClosestTo(b.EnemyStartLoc); reaper != nil {
-				if enemy := allEnemies.CanAttack(reaper, 1).ClosestTo(reaper.Point()); enemy != nil {
-					if !b.IsVisible(enemy.Point()) && b.HeightAt(enemy.Point()) > b.HeightAt(reaper.Point()) {
-						pos := enemy.Point().Towards(b.EnemyStartLoc, 8)
-						cc.CommandPos(ability.Effect_Scan, pos)
-						log.Info("Reaper sight scan")
-						return
+			if b.Units[terran.Raven].Empty() {
+				if reaper := b.Groups.Get(Reapers).Units.ClosestTo(b.EnemyStartLoc); reaper != nil {
+					if enemy := allEnemies.CanAttack(reaper, 1).ClosestTo(reaper.Point()); enemy != nil {
+						if !b.IsVisible(enemy.Point()) && b.HeightAt(enemy.Point()) > b.HeightAt(reaper.Point()) {
+							pos := enemy.Point().Towards(b.EnemyStartLoc, 8)
+							cc.CommandPos(ability.Effect_Scan, pos)
+							log.Info("Reaper sight scan")
+							return
+						}
 					}
 				}
 			}
@@ -547,12 +568,9 @@ func (b *bot) Cast() {
 
 			// DTs
 			if b.EnemyRace == api.Race_Protoss {
-				immortals := b.EnemyUnits[protoss.Immortal]
 				dts := b.EnemyUnits[protoss.DarkTemplar]
 				hitByDT := units.First(func(unit *scl.Unit) bool {
-					return unit.HitsLost >= 41 &&
-						!((unit.IsArmored() && immortals.CanAttack(unit, 0).Exists()) ||
-							dts.CanAttack(unit, 0).Exists())
+					return unit.HitsLost >= 41 && !unit.IsArmored() && !dts.CanAttack(unit, 0).Exists()
 				})
 				if hitByDT != nil {
 					cc.CommandPos(ability.Effect_Scan, hitByDT.Point())
@@ -577,8 +595,8 @@ func (b *bot) Cast() {
 			homeMineral := b.MineralFields.Units().
 				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 				Max(func(unit *scl.Unit) float64 {
-				return float64(unit.MineralContents)
-			})
+					return float64(unit.MineralContents)
+				})
 			if homeMineral != nil {
 				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 			}
@@ -593,7 +611,7 @@ func (b *bot) OrderUnits() {
 		return unit.IsReady() && unit.VespeneContents > 0
 	})
 	if cc != nil && b.Units[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70-refs.Len()) &&
-		b.CanBuy(ability.Train_SCV) {
+		b.CanBuy(ability.Train_SCV) && !workerRush {
 		b.OrderTrain(cc, ability.Train_SCV)
 	}
 
@@ -647,11 +665,19 @@ func (b *bot) OrderUnits() {
 	}
 
 	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused)
-	if rax != nil && b.CanBuy(ability.Train_Reaper) {
-		if scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
-			rax.SpamCmds = true
+	if rax != nil {
+		if b.Pending(ability.Train_Reaper) < 4 && b.CanBuy(ability.Train_Reaper) {
+			if scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
+				rax.SpamCmds = true
+			}
+			b.OrderTrain(rax, ability.Train_Reaper)
 		}
-		b.OrderTrain(rax, ability.Train_Reaper)
+		if (workerRush || b.Minerals > 600) && b.CanBuy(ability.Train_Marine) {
+			if scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
+				rax.SpamCmds = true
+			}
+			b.OrderTrain(rax, ability.Train_Marine)
+		}
 	}
 }
 

@@ -5,6 +5,11 @@ import (
 	"github.com/chippydip/go-sc2ai/api"
 )
 
+// todo: не балансировать минералы если ресурсов мало
+// todo: что могут батлы против викингов кроме яматы?
+// todo: ? иногда CC сканят дважды
+// todo: минки должны выкапываться под плохими эффектами
+// todo: батлы должны отступать на лечение по прямой и рейвены тоже
 // todo: + надо раньше выходить на вторую базу
 // todo: + минка от одного линга будет тупо отступать в сторону противоположную лингу
 // todo: ? мины закапываются, но не стреляют, а сразу выкапываются
@@ -35,11 +40,12 @@ const (
 	WorkerRushDefenders
 	Scout
 	ScoutBase
+	Marines
 	Reapers
 	ReapersRetreat
 	Cyclones
-	Mines
-	MinesRetreat
+	WidowMines
+	WidowMinesRetreat
 	Tanks
 	Ravens
 	Battlecruisers

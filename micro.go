@@ -2,34 +2,37 @@ package main
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 	"github.com/chippydip/go-sc2ai/enums/zerg"
 	"math"
 	"math/rand"
-	"github.com/chippydip/go-sc2ai/api"
 )
 
 func (b *bot) WorkerRushDefence() {
 	enemiesRange := 12.0
 	workersRange := 10.0
-	if workerRush {
-		workersRange = 70.0
-	}
 	if building := b.Units.Units().Filter(scl.Structure).ClosestTo(b.MainRamp.Top); building != nil {
 		workersRange = math.Max(workersRange, building.Point().Dist(b.StartLoc)+6)
+	}
+	if workerRush {
+		workersRange = 70.0
 	}
 
 	workers := b.Units.OfType(terran.SCV).CloserThan(scl.ResourceSpreadDistance, b.StartLoc)
 	enemies := b.EnemyUnits.Units().Filter(scl.NotFlying).CloserThan(enemiesRange, b.StartLoc)
 	alert := enemies.CloserThan(enemiesRange-4, b.StartLoc).Exists()
-	if enemies.Empty() || enemies.Sum(scl.CmpGroundScore) > workers.Sum(scl.CmpGroundScore)*2 {
+	if enemies.Empty() || enemies.Sum(scl.CmpGroundScore) > workers.Sum(scl.CmpGroundScore)*2 || workerRush {
 		enemies = b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).CloserThan(workersRange, b.StartLoc)
 		alert = enemies.CloserThan(workersRange-4, b.StartLoc).Exists()
 		if alert && enemies.Len() >= 10 {
 			workerRush = true
 		}
+	}
+	if workerRush && b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).CloserThan(70, b.StartLoc).Empty() {
+		workerRush = false
 	}
 
 	army := b.Groups.Get(WorkerRushDefenders).Units
@@ -101,6 +104,41 @@ func (b *bot) Explore(u *scl.Unit) {
 	}
 }
 
+func (b *bot) Marines() {
+	okTargets := scl.Units{}
+	goodTargets := scl.Units{}
+	allEnemies := b.AllEnemyUnits.Units()
+	allEnemiesReady := allEnemies.Filter(scl.Ready)
+	marines := b.Groups.Get(Marines).Units
+	for _, enemy := range allEnemies {
+		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
+			continue
+		}
+		okTargets.Add(enemy)
+		if !enemy.IsStructure() || enemy.IsDefensive() {
+			goodTargets.Add(enemy)
+		}
+	}
+
+	for _, marine := range marines {
+		if !scl.AttackDelay.UnitIsCool(marine) {
+			attackers := allEnemiesReady.CanAttack(marine, 2)
+			closeTargets := goodTargets.InRangeOf(marine, -0.5)
+			if attackers.Exists() || closeTargets.Exists() {
+				marine.GroundFallback(attackers, 2, b.HomePaths)
+				continue
+			}
+		}
+
+		// Attack
+		if goodTargets.Exists() || okTargets.Exists() {
+			marine.Attack(goodTargets, okTargets)
+		} else {
+			b.Explore(marine)
+		}
+	}
+}
+
 func (b *bot) Reapers() {
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
@@ -144,10 +182,10 @@ func (b *bot) Reapers() {
 				}
 			}*/
 
-			attackers := allEnemiesReady.CanAttack(reaper, 0.1)
+			attackers := allEnemiesReady.CanAttack(reaper, 2)
 			closeTargets := goodTargets.InRangeOf(reaper, -0.5)
 			if attackers.Exists() || closeTargets.Exists() {
-				reaper.GroundFallback(attackers, 0.1, b.HomeReaperPaths)
+				reaper.GroundFallback(attackers, 2, b.HomeReaperPaths)
 				continue
 			}
 		}
@@ -246,19 +284,19 @@ func (b *bot) Cyclones() {
 		}
 
 		// Keep range
-		canAttack := scl.AttackDelay.UnitIsCool(cyclone) // Weapons are cool
-		if canAttack && !cyclone.HasAbility(ability.Effect_LockOn) { // And if can't lock on
+		// canAttack := scl.AttackDelay.UnitIsCool(cyclone) || cyclone.HasAbility(ability.Effect_LockOn)
+		/* if canAttack && ! { // And if can't lock on
 			canAttack = allEnemies.ByTag(cyclone.EngagedTargetTag) == nil // There is no lock
-		}
-		if !canAttack {
-			attackers := allEnemiesReady.CanAttack(cyclone, 0.1)
+		} */
+		/*if !canAttack {
+			attackers := allEnemiesReady.CanAttack(cyclone, 4)
 			closeTargets := goodTargets.InRangeOf(cyclone, -0.5)
 			if attackers.Exists() || closeTargets.Exists() {
-				cyclone.GroundFallback(attackers, 0.1, b.HomePaths)
+				cyclone.GroundFallback(attackers, 2, b.HomePaths)
 				continue
 			}
-		}
-		/*attackers := allEnemiesReady.CanAttack(cyclone, 2)
+		}*/
+		attackers := allEnemiesReady.CanAttack(cyclone, 2)
 		retreat := cyclone.HPS > 0 && attackers.Exists()
 		if !retreat && !cyclone.HasAbility(ability.Effect_LockOn) && attackers.Exists() {
 			target := allEnemies.ByTag(cyclone.EngagedTargetTag)
@@ -268,7 +306,7 @@ func (b *bot) Cyclones() {
 		if retreat {
 			cyclone.GroundFallback(attackers, 2, b.HomePaths)
 			continue
-		}*/
+		}
 
 		// Attack
 		if airTargets.Exists() || goodTargets.Exists() || okTargets.Exists() {
@@ -284,7 +322,7 @@ func (b *bot) Mines() {
 	// detectors := scl.Units{}
 	allEnemies := b.AllEnemyUnits.Units()
 	// allEnemiesReady := allEnemies.Filter(scl.Ready)
-	mines := b.Groups.Get(Mines).Units
+	mines := b.Groups.Get(WidowMines).Units
 	for _, enemy := range allEnemies {
 		/*if enemy.DetectRange > 0 {
 			detectors.Add(enemy)
@@ -323,7 +361,7 @@ func (b *bot) Mines() {
 			if mine.Hits < mine.HitsMax/2 {
 				b.Groups.Add(MechRetreat, mine)
 			} else {
-				b.Groups.Add(MinesRetreat, mine)
+				b.Groups.Add(WidowMinesRetreat, mine)
 			}
 			mine.Command(ability.BurrowUp_WidowMine)
 			continue
@@ -342,23 +380,34 @@ func (b *bot) Mines() {
 		}
 	}
 
-	mines = b.Groups.Get(MinesRetreat).Units
+	mines = b.Groups.Get(WidowMinesRetreat).Units
 	for _, mine := range mines {
 		if mine.Hits < mine.HitsMax {
 			b.Groups.Add(MechRetreat, mine)
 			continue
 		}
 		if mine.IsBurrowed && mine.HasAbility(ability.Smart) {
-			b.Groups.Add(Mines, mine)
+			b.Groups.Add(WidowMines, mine)
 			continue
 		}
 		if mine.IsIdle() {
-			pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
-			mfs := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, pos)
-			if mfs.Exists() {
-				pos = pos.Towards(mfs.Center(), 4)
+			vec := (b.EnemyStartLoc - mine.Point()).Norm()
+			p1 := mine.Point() - vec*20
+			p2 := p1
+			if rand.Intn(2) == 1 {
+				vec *= 1i
+			} else {
+				vec *= -1i
 			}
-			mine.CommandPos(ability.Move, pos)
+			for {
+				if !b.IsPathable(p2 + vec*10) {
+					break
+				}
+				p2 += vec * 10
+			}
+
+			mine.CommandPos(ability.Move, p1)
+			mine.CommandPosQueue(ability.Move, p2)
 			mine.CommandQueue(ability.BurrowDown_WidowMine)
 		}
 	}
@@ -389,11 +438,11 @@ func (b *bot) Tanks() {
 			}
 
 			// Keep range
-			attackers := allEnemiesReady.CanAttack(tank, 0.1)
+			attackers := allEnemiesReady.CanAttack(tank, 2)
 			if !scl.AttackDelay.UnitIsCool(tank) {
 				closeTargets := goodTargets.InRangeOf(tank, -0.5)
 				if attackers.Exists() || closeTargets.Exists() {
-					tank.GroundFallback(attackers, 0.1, b.HomePaths)
+					tank.GroundFallback(attackers, 2, b.HomePaths)
 					continue
 				}
 
@@ -456,13 +505,13 @@ func (b *bot) Ravens() {
 
 	friends := append(b.Groups.Get(Tanks).Units, b.Groups.Get(Cyclones).Units...)
 	if friends.Empty() {
-		friends = b.Groups.Get(Reapers).Units
-	}
-	if friends.Empty() {
-		friends = b.Groups.Get(Mines).Units
+		friends = b.Groups.Get(WidowMines).Units
 	}
 	if friends.Empty() {
 		friends = b.Groups.Get(Battlecruisers).Units
+	}
+	if friends.Empty() {
+		friends = b.Groups.Get(Reapers).Units
 	}
 	if friends.Empty() {
 		return
@@ -485,9 +534,9 @@ func (b *bot) Ravens() {
 			if raven.TargetAbility() == ability.Effect_AutoTurret {
 				continue // Let him finish placing
 			}
-			closeEnemies := allEnemies.CloserThan(6, raven.Point())
+			closeEnemies := allEnemies.CloserThan(8, raven.Point())
 			if closeEnemies.Exists() && closeEnemies.Sum(scl.CmpHits) >= 300 {
-				pos := raven.Point().Towards(closeEnemies.Center(), 1)
+				pos := raven.Point().Towards(closeEnemies.Center(), 3)
 				pos = b.FindClosestPos(pos, scl.S2x2, 0, 1, 1, scl.IsBuildable, scl.IsPathable)
 				if pos != 0 {
 					raven.CommandPos(ability.Effect_AutoTurret, pos.S2x2Fix())
@@ -497,10 +546,86 @@ func (b *bot) Ravens() {
 		}
 
 		pos := friends[scl.MinInt(n, len(friends)-1)].Point().Towards(enemiesCenter, 2)
-		pos, safe := raven.AirEvade(allEnemiesReady.CanAttack(raven, 1), 1, pos)
+		pos, safe := raven.AirEvade(allEnemiesReady.CanAttack(raven, 2), 2, pos)
 		if !safe || pos.IsFurtherThan(1, raven.Point()) {
 			raven.CommandPos(ability.Move, pos)
 			continue
+		}
+	}
+}
+
+func (b *bot) Battlecruisers() {
+	bcs := b.Groups.Get(Battlecruisers).Units
+	if bcs.Empty() {
+		return
+	}
+
+	okTargets := scl.Units{}
+	goodTargets := scl.Units{}
+	yamaTargets := scl.Units{}
+	yamaFiring := map[api.UnitTag]int{}
+	allEnemies := b.AllEnemyUnits.Units()
+	// allEnemiesReady := allEnemies.Filter(scl.Ready)
+
+	for _, enemy := range allEnemies {
+		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
+			continue
+		}
+		okTargets.Add(enemy)
+		if enemy.IsStructure() && !enemy.IsDefensive() {
+			continue
+		}
+		goodTargets.Add(enemy)
+		if enemy.AirDamage() > 0 && enemy.Hits > 120 { // Carrier?
+			yamaTargets.Add(enemy)
+		}
+	}
+
+	for _, bc := range bcs {
+		if bc.TargetAbility() == ability.Effect_YamatoGun {
+			yamaFiring[bc.TargetTag()]++
+		}
+	}
+
+	for _, bc := range bcs {
+		/*if bc.TargetAbility() == ability.Effect_YamatoGun || bc.TargetAbility() == ability.Effect_TacticalJump {
+			continue
+		}*/
+
+		if (bc.HasAbility(ability.Effect_TacticalJump) && bc.Hits < 100) ||
+			(!bc.HasAbility(ability.Effect_TacticalJump) && bc.Hits < 200) {
+			cc := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Max(func(unit *scl.Unit) float64 {
+				return float64(unit.AssignedHarvesters)
+			})
+			if cc != nil {
+				b.Groups.Add(MechRetreat, bc)
+				continue
+			}
+		}
+
+		if yamaTargets.Exists() && bc.HasAbility(ability.Effect_YamatoGun) {
+			targets := yamaTargets.InRangeOf(bc, 4).Filter(func(unit *scl.Unit) bool {
+				return unit.Hits-float64(yamaFiring[unit.Tag]*240) > 0
+			})
+			if targets.Exists() {
+				target := targets.Filter(func(unit *scl.Unit) bool {
+					return unit.Hits-float64(yamaFiring[unit.Tag]*240) <= 240
+				}).Max(scl.CmpHits)
+				if target == nil {
+					target = targets.Max(scl.CmpHits)
+				}
+				bc.CommandTag(ability.Effect_YamatoGun, target.Tag)
+				yamaFiring[target.Tag]++
+				continue
+			}
+		}
+
+		// retreat is needed?
+
+		if goodTargets.Exists() || okTargets.Exists() {
+			bc.Attack(goodTargets, okTargets)
+		} else {
+			b.Explore(bc)
 		}
 	}
 }
@@ -539,7 +664,12 @@ func (b *bot) MechRetreat() {
 				dist = newDist
 			}
 		}
+		if u.UnitType == terran.Battlecruiser && u.HasAbility(ability.Effect_TacticalJump) {
+			u.CommandPos(ability.Effect_TacticalJump, healingPoint)
+			continue
+		}
 		if u.Point().IsCloserThan(4, healingPoint) {
+			u.CommandPos(ability.Move, healingPoint) // For battlecruisers
 			b.Groups.Add(MechHealing, u)
 			continue
 		}
@@ -558,91 +688,22 @@ func (b *bot) MechRetreat() {
 			}
 		}
 
+		if u.Point().IsCloserThan(8, healingPoint) {
+			u.CommandPos(ability.Move, healingPoint)
+			continue
+		}
 		u.GroundFallback(enemies, 2, b.ExpPaths[healingExp])
-	}
-}
-
-func (b *bot) Battlecruisers() {
-	bcs := b.Groups.Get(Battlecruisers).Units
-	if bcs.Empty() {
-		return
-	}
-
-	okTargets := scl.Units{}
-	goodTargets := scl.Units{}
-	yamaTargets := scl.Units{}
-	yamaFiring := map[api.UnitTag]int{}
-	allEnemies := b.AllEnemyUnits.Units()
-	// allEnemiesReady := allEnemies.Filter(scl.Ready)
-
-	for _, enemy := range allEnemies {
-		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
-			continue
-		}
-		okTargets.Add(enemy)
-		if enemy.IsStructure() && !enemy.IsDefensive() {
-			continue
-		}
-		goodTargets.Add(enemy)
-		if enemy.AirDamage() > 0 && enemy.Hits > 120 { // Carrier?
-			yamaTargets.Add(enemy)
-		}
-	}
-
-	for _, bc := range bcs {
-		if bc.TargetAbility() == ability.Effect_YamatoGun {
-			yamaFiring[bc.TargetTag()]++
-		}
-	}
-
-	for _, bc := range bcs {
-		if (bc.HasAbility(ability.Effect_TacticalJump) && (bc.Hits <= bc.HPS || bc.Hits < 50)) ||
-			(!bc.HasAbility(ability.Effect_TacticalJump) && (bc.Hits <= bc.HPS*4 || bc.Hits < 100)) {
-			cc := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Max(func(unit *scl.Unit) float64 {
-				return float64(unit.AssignedHarvesters)
-			})
-			if cc != nil {
-				pos := cc.Point() - b.StartMinVec*3
-				bc.CommandPos(ability.Effect_TacticalJump, pos)
-				b.Groups.Add(MechRetreat, bc)
-				continue
-			}
-		}
-
-		if yamaTargets.Exists() && bc.HasAbility(ability.Effect_YamatoGun) {
-			targets := yamaTargets.InRangeOf(bc, 4).Filter(func(unit *scl.Unit) bool {
-				return unit.Hits - float64(yamaFiring[unit.Tag] * 240) > 0
-			})
-			if targets.Exists() {
-				target := targets.Filter(func(unit *scl.Unit) bool {
-					return unit.Hits - float64(yamaFiring[unit.Tag] * 240) <= 240
-				}).Max(scl.CmpHits)
-				if target == nil {
-					target = targets.Max(scl.CmpHits)
-				}
-				bc.CommandTag(ability.Effect_YamatoGun, target.Tag)
-				yamaFiring[target.Tag]++
-				continue
-			}
-		}
-
-		// retreat is needed?
-
-		if goodTargets.Exists() || okTargets.Exists() {
-			bc.Attack(goodTargets, okTargets)
-		} else {
-			b.Explore(bc)
-		}
 	}
 }
 
 func (b *bot) Micro() {
 	b.WorkerRushDefence()
+	b.Marines()
 	b.Reapers()
 	b.Cyclones()
 	b.Mines()
 	b.Tanks()
 	b.Ravens()
-	b.MechRetreat()
 	b.Battlecruisers()
+	b.MechRetreat()
 }

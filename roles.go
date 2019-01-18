@@ -3,13 +3,19 @@ package main
 import (
 	"bitbucket.org/aisee/sc2lib"
 	"github.com/chippydip/go-sc2ai/enums/ability"
+	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
+	"github.com/chippydip/go-sc2ai/enums/zerg"
 	"math"
 )
 
 func (b *bot) OnUnitCreated(unit *scl.Unit) {
 	if unit.UnitType == terran.SCV {
 		b.Groups.Add(Miners, unit)
+		return
+	}
+	if unit.UnitType == terran.Marine {
+		b.Groups.Add(Marines, unit)
 		return
 	}
 	if unit.UnitType == terran.Reaper {
@@ -21,7 +27,7 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 		return
 	}
 	if unit.UnitType == terran.WidowMine {
-		b.Groups.Add(Mines, unit)
+		b.Groups.Add(WidowMines, unit)
 		return
 	}
 	if unit.UnitType == terran.SiegeTank || unit.UnitType == terran.SiegeTankSieged {
@@ -61,7 +67,7 @@ func (b *bot) Builders() {
 
 	// Move idle or misused builders into miners
 	idleBuilder := b.Groups.Get(Builders).Units.First(func(unit *scl.Unit) bool {
-		return unit.IsIdle() || unit.IsGathering() || unit.IsReturning()
+		return unit.IsIdle() || unit.IsGathering() || unit.IsReturning() || (unit.IsMoving() && unit.TargetTag() != 0)
 	})
 	if idleBuilder != nil {
 		b.Groups.Add(Miners, idleBuilder)
@@ -71,12 +77,12 @@ func (b *bot) Builders() {
 func (b *bot) Repair() {
 	reps := append(b.Groups.Get(Repairers).Units, b.Groups.Get(UnitHealers).Units...)
 	for _, u := range reps {
-		if u.Hits < 25 || u.IsIdle() {
+		if u.Hits < 25 || u.IsIdle() || u.IsGathering() || u.IsReturning() || (u.IsMoving() && u.TargetTag() != 0) {
 			b.Groups.Add(Miners, u)
 		}
 	}
 
-	if b.Minerals == 0 {
+	if b.Minerals == 0 || workerRush {
 		return
 	}
 
@@ -144,6 +150,12 @@ func (b *bot) Scout() {
 	}
 
 	if scv != nil {
+		// Workers rush
+		if b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).FurtherThan(40, b.EnemyStartLoc).Len() > 3 {
+			b.Groups.Add(Miners, scv)
+			return
+		}
+
 		if scv.IsIdle() {
 			// Check N-1 positions
 			for _, p := range b.EnemyStartLocs[:b.EnemyStartLocs.Len()-1] {
@@ -184,6 +196,12 @@ func (b *bot) ScoutBase() {
 		}
 	}
 	if scv == nil {
+		return
+	}
+
+	// Workers rush
+	if b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).FurtherThan(40, b.EnemyStartLoc).Len() > 3 {
+		b.Groups.Add(Miners, scv)
 		return
 	}
 
