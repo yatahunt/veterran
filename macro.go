@@ -303,6 +303,11 @@ func (b *bot) Build(aid api.AbilityID) bool {
 		return false // Not available because of tech reqs, like: supply is needed for barracks
 	}
 
+	buildersTargets := map[scl.Point]bool{}
+	for _, builder := range b.Groups.Get(Builders).Units {
+		buildersTargets[builder.TargetPos()] = true
+	}
+
 	enemies := b.AllEnemyUnits.Units()
 	positions := buildPos[size]
 	if size == scl.S3x3 {
@@ -313,10 +318,12 @@ func (b *bot) Build(aid api.AbilityID) bool {
 		positions = turretsPos
 	}
 	for _, pos := range positions {
+		if buildersTargets[pos] {
+			continue // Someone already constructing there
+		}
 		if !b.IsPosOk(pos, size, 0, scl.IsBuildable, scl.IsNoCreep) {
 			continue
 		}
-
 		if enemies.CloserThan(safeBuildRange, pos).Exists() {
 			continue
 		}
@@ -386,8 +393,10 @@ func (b *bot) BuildFirstBarrack() {
 
 func (b *bot) BuildRefinery(cc *scl.Unit) {
 	// Find first geyser that is close to selected cc, but it doesn't have Refinery on top of it
+	builders := b.Groups.Get(Builders).Units
 	geyser := b.VespeneGeysers.Units().CloserThan(10, cc.Point()).First(func(unit *scl.Unit) bool {
-		return b.Units[terran.Refinery].CloserThan(1, unit.Point()).Len() == 0
+		return b.Units[terran.Refinery].CloserThan(1, unit.Point()).Len() == 0 &&
+			unit.FindAssignedBuilder(builders) == nil
 	})
 	if geyser != nil {
 		scv := b.GetSCV(geyser.Point(), Builders, 45)
@@ -422,8 +431,7 @@ func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 	}
 }
 
-func (b *bot) Upgrades() {
-	// todo: done upgrages list to skip checks
+func (b *bot) OrderUpgrades() {
 	/*if eng := b.Units[terran.EngineeringBay].First(scl.Ready, scl.Idle); eng != nil {
 		b.RequestAvailableAbilities(true, eng) // request abilities again because we want to ignore resource reqs
 		for _, a := range []api.AbilityID{
@@ -431,6 +439,9 @@ func (b *bot) Upgrades() {
 			ability.Research_TerranInfantryWeaponsLevel2, ability.Research_TerranInfantryArmorLevel2,
 			ability.Research_TerranInfantryWeaponsLevel3, ability.Research_TerranInfantryArmorLevel3,
 		} {
+			if b.Upgrades[a] {
+				continue
+			}
 			if eng.HasAbility(a) {
 				if b.CanBuy(a) {
 					eng.Command(a)
@@ -459,6 +470,9 @@ func (b *bot) Upgrades() {
 			}, upgrades...)
 		}
 		for _, a := range upgrades {
+			if b.Upgrades[a] {
+				continue
+			}
 			if arm.HasAbility(a) {
 				if b.CanBuy(a) {
 					arm.Command(a)
@@ -488,7 +502,8 @@ func (b *bot) Upgrades() {
 	}
 
 	fc := b.Units[terran.FusionCore].First(scl.Ready, scl.Idle)
-	if fc != nil && b.Pending(ability.Train_Battlecruiser) > 0 {
+	if fc != nil && b.Pending(ability.Train_Battlecruiser) > 0 &&
+		!b.Upgrades[ability.Research_BattlecruiserWeaponRefit] {
 		b.RequestAvailableAbilities(true, fc)
 		if fc.HasAbility(ability.Research_BattlecruiserWeaponRefit) &&
 			b.CanBuy(ability.Research_BattlecruiserWeaponRefit) {
@@ -681,6 +696,18 @@ func (b *bot) OrderUnits() {
 	}
 }
 
+func (b *bot) ReserveSCVs() {
+	// Fast first supply
+	if b.Units.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).Empty() {
+		pos := buildPos[scl.S2x2][0]
+		scv := b.GetSCV(pos, 0, 45) // Get SCV but don't change its group
+		if scv != nil && scv.FramesToPos(pos) * b.MineralsPerFrame + float64(b.Minerals) >= 100 {
+			b.Groups.Add(ScvReserve, scv)
+			scv.CommandPos(ability.Move, pos)
+		}
+	}
+}
+
 func (b *bot) Macro() {
 	if !buildTurrets && b.EnemyUnits.OfType(terran.Banshee, terran.Ghost, terran.WidowMine, terran.Medivac,
 		terran.VikingFighter, terran.Liberator, terran.Battlecruiser, terran.Starport, zerg.Mutalisk, zerg.LurkerMP,
@@ -695,9 +722,13 @@ func (b *bot) Macro() {
 	}
 
 	b.BuildingsCheck()
-	b.Upgrades()
-	b.ProcessBuildOrder(RootBuildOrder)
-	b.Morph()
+	if lastBuildLoop + b.FramesPerOrder < b.Loop {
+		b.OrderUpgrades()
+		b.ProcessBuildOrder(RootBuildOrder)
+		b.Morph()
+		b.OrderUnits()
+		lastBuildLoop = b.Loop
+	}
 	b.Cast()
-	b.OrderUnits()
+	b.ReserveSCVs()
 }

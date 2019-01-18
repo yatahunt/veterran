@@ -189,7 +189,7 @@ func (b *bot) ScoutBase() {
 	}
 
 	scv := b.Groups.Get(ScoutBase).Units.First()
-	if b.EnemyStartLocs.Len() <= 1 && scv == nil && b.Loop < 60 {
+	if b.EnemyStartLocs.Len() <= 1 && scv == nil && !workerRush && b.Loop > 1120 && b.Loop < 1130 { // 0:50
 		scv = b.GetSCV(b.EnemyStartLoc, Scout, 45)
 		if scv != nil {
 			b.Groups.Add(ScoutBase, scv)
@@ -248,7 +248,7 @@ func (b *bot) Miners() {
 
 	// If there is ready unsaturated refinery and an scv gathering, send it there
 	refs := b.Units[terran.Refinery]
-	if b.Minerals / 2 > b.Vespene {
+	if b.Minerals > 100 && b.Minerals / 2 > b.Vespene {
 		ref := refs.First(func(unit *scl.Unit) bool { return unit.IsReady() && unit.AssignedHarvesters < 3 })
 		if ref != nil {
 			// Get scv gathering minerals
@@ -261,7 +261,7 @@ func (b *bot) Miners() {
 				scv.CommandTag(ability.Smart, ref.Tag)
 			}
 		}
-	} else if b.Minerals < b.Vespene && refs.Exists() {
+	} else if b.Vespene > 100 && b.Minerals < b.Vespene && refs.Exists() {
 		mfs := b.MineralFields.Units()
 		scv := b.Groups.Get(Miners).Units.First(func(unit *scl.Unit) bool {
 			tag := unit.TargetTag()

@@ -2,24 +2,21 @@ package main
 
 import (
 	"bitbucket.org/aisee/sc2lib"
-	"github.com/chippydip/go-sc2ai/api"
 )
 
-// todo: не балансировать минералы если ресурсов мало
-// todo: что могут батлы против викингов кроме яматы?
-// todo: ? иногда CC сканят дважды
-// todo: минки должны выкапываться под плохими эффектами
-// todo: батлы должны отступать на лечение по прямой и рейвены тоже
+// todo: + не балансировать минералы если ресурсов мало
+// todo: + минки должны выкапываться под плохими эффектами
+// todo: + батлы должны отступать на лечение по прямой и рейвены тоже
 // todo: + надо раньше выходить на вторую базу
 // todo: + минка от одного линга будет тупо отступать в сторону противоположную лингу
-// todo: ? мины закапываются, но не стреляют, а сразу выкапываются
+// todo: + мины закапываются, но не стреляют, а сразу выкапываются
 // todo: ? юниты не очень эффективно избегают штормов
-// todo: ? не бояться больших групп врагов с радиусом атаки меньше, чем у юнита
+// todo: + не бояться больших групп врагов с радиусом атаки меньше, чем у юнита
 // todo: + враги рядом с экспом не стёрлись и рабочий так и не пошёл достраивать CC
 // todo: ? что-то придумать с самоубийственной атакой юнитов малого радиуса, когда накопились танки и мины
-// todo: рабы всё ещё творят херню когда их больше, чем нужно
-// todo: рабочие пытаются поставить все здания на одной точке
-// todo: орбиталки без минералов не кидают мулов
+// todo: ? рабы всё ещё творят херню когда их больше, чем нужно
+// todo: ? рабочие пытаются поставить все здания на одной точке -> возможно, нужно строить на %3 кадрах (ошибки отсутствия ресурсов?)
+// todo: орбиталки без минералов не кидают мулов -> резерв для сканов?
 // todo: use dead units events
 // todo: анализировать неуспешные попытки строительства
 
@@ -29,9 +26,10 @@ var firstBarrackBuildPos = scl.Points{}
 var buildTurrets = false
 var turretsPos = scl.Points{}
 var findTurretPositionFor *scl.Unit
+var lastBuildLoop = 0
 
 const (
-	Miners scl.GroupID = iota + 1
+	Miners              scl.GroupID = iota + 1
 	MinersRetreat
 	Builders
 	Repairers
@@ -40,6 +38,7 @@ const (
 	WorkerRushDefenders
 	Scout
 	ScoutBase
+	ScvReserve
 	Marines
 	Reapers
 	ReapersRetreat
@@ -151,15 +150,16 @@ func (b *bot) FindBuildingsPositions() {
 	pf5x3.OrderByDistanceTo(b.StartLoc, false)
 
 	// Don't build fast wall against protoss, but be ready for worker rush
-	if b.EnemyRace == api.Race_Protoss {
+	// I'll try to defend it other way
+	/*if b.EnemyRace == api.Race_Protoss {
 		// Insert supplies for wall after pos that is closest to base
 		pos := pf2x2.FurthestTo(b.MainRamp.Top)
 		pf2x2 = append(scl.Points{pos}, append(rp2x2, pf2x2...)...)
 		// Use closest 5x3 position for first barracks
 		firstBarrackBuildPos[0] = pf5x3.FurthestTo(b.MainRamp.Top)
-	} else {
-		pf2x2 = append(rp2x2, pf2x2...)
-	}
+	} else {*/
+	pf2x2 = append(rp2x2, pf2x2...)
+	//}
 
 	// Positions for buildings on expansions
 	pf2x2a, pf3x3a, pf5x3a := b.FindMainBuildingTypesPositions(b.ExpLocs[0])

@@ -9,29 +9,30 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/zerg"
 	"math"
 	"math/rand"
+	"github.com/chippydip/go-sc2ai/enums/effect"
 )
 
 func (b *bot) WorkerRushDefence() {
 	enemiesRange := 12.0
 	workersRange := 10.0
-	if building := b.Units.Units().Filter(scl.Structure).ClosestTo(b.MainRamp.Top); building != nil {
-		workersRange = math.Max(workersRange, building.Point().Dist(b.StartLoc)+6)
-	}
+	enemyWorkers := b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe)
 	if workerRush {
 		workersRange = 70.0
+	} else if building := b.Units.Units().Filter(scl.Structure).ClosestTo(b.MainRamp.Top); building != nil {
+		workersRange = math.Max(workersRange, building.Point().Dist(b.StartLoc)+6)
 	}
 
 	workers := b.Units.OfType(terran.SCV).CloserThan(scl.ResourceSpreadDistance, b.StartLoc)
 	enemies := b.EnemyUnits.Units().Filter(scl.NotFlying).CloserThan(enemiesRange, b.StartLoc)
 	alert := enemies.CloserThan(enemiesRange-4, b.StartLoc).Exists()
 	if enemies.Empty() || enemies.Sum(scl.CmpGroundScore) > workers.Sum(scl.CmpGroundScore)*2 || workerRush {
-		enemies = b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).CloserThan(workersRange, b.StartLoc)
+		enemies = enemyWorkers.CloserThan(workersRange, b.StartLoc)
 		alert = enemies.CloserThan(workersRange-4, b.StartLoc).Exists()
 		if alert && enemies.Len() >= 10 {
 			workerRush = true
 		}
 	}
-	if workerRush && b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).CloserThan(70, b.StartLoc).Empty() {
+	if workerRush && enemyWorkers.CloserThan(70, b.StartLoc).Empty() {
 		workerRush = false
 	}
 
@@ -335,10 +336,6 @@ func (b *bot) Mines() {
 
 	for _, mine := range mines {
 		attackers := allEnemies.CanAttack(mine, 2)
-		// Something that could detect mine is close, ex: photon cannon
-		/*detectorIsNear := detectors.First(func(unit *scl.Unit) bool {
-			return unit.Point().IsCloserThan(float64(unit.DetectRange)+1, mine.Point())
-		}) != nil*/
 		// Someone is attacking mine, but it can't attack anyone
 		detected := false
 		if mine.HPS > 0 {
@@ -347,17 +344,15 @@ func (b *bot) Mines() {
 				return mine.Point().Dist(unit.Point()) <= float64(mine.Radius+unit.Radius+5)
 			}) == nil
 		}
-		/*if !detected && detectorIsNear {
-			// In range of known detector
-			detected = detectors.First(func(unit *scl.Unit) bool {
-				return unit.Point().IsCloserThan(float64(unit.DetectRange), mine.Point())
-			}) != nil
-		}*/
+		safePos, safe := mine.EvadeEffectsPos(mine.Point(), false, effect.PsiStorm, effect.CorrosiveBile)
+		if !safe {
+			detected = true
+		}
 
 		if mine.IsBurrowed && (detected ||
 			!mine.HasAbility(ability.Smart) || // Reloading
-			targets.CloserThan(10, mine.Point()).Empty() /*&& !detectorIsNear*/ && attackers.Empty()) {
-			// No targets, enemies or close detectors around
+			targets.CloserThan(10, mine.Point()).Empty() && attackers.Empty()) {
+			// No targets or enemies around
 			if mine.Hits < mine.HitsMax/2 {
 				b.Groups.Add(MechRetreat, mine)
 			} else {
@@ -367,8 +362,13 @@ func (b *bot) Mines() {
 			continue
 		}
 
+		if !safe {
+			mine.CommandPos(ability.Move, safePos)
+			continue
+		}
+
 		targetIsClose := targets.CloserThan(4, mine.Point()).Exists() // For enemies that can't attack ground
-		if !mine.IsBurrowed && !detected && (attackers.Exists() /*|| detectorIsNear*/ || targetIsClose) {
+		if !mine.IsBurrowed && !detected && (attackers.Exists() || targetIsClose) {
 			mine.Command(ability.BurrowDown_WidowMine)
 			continue
 		}
@@ -576,7 +576,8 @@ func (b *bot) Battlecruisers() {
 			continue
 		}
 		goodTargets.Add(enemy)
-		if enemy.AirDamage() > 0 && enemy.Hits > 120 { // Carrier?
+		if enemy.AirDamage() > 0 && (enemy.Hits > 120 || enemy.UnitType == protoss.Carrier ||
+			enemy.UnitType == zerg.Ultralisk || enemy.UnitType == zerg.Viper || enemy.UnitType == zerg.Infestor) {
 			yamaTargets.Add(enemy)
 		}
 	}
@@ -619,8 +620,6 @@ func (b *bot) Battlecruisers() {
 				continue
 			}
 		}
-
-		// retreat is needed?
 
 		if goodTargets.Exists() || okTargets.Exists() {
 			bc.Attack(goodTargets, okTargets)
@@ -692,7 +691,12 @@ func (b *bot) MechRetreat() {
 			u.CommandPos(ability.Move, healingPoint)
 			continue
 		}
-		u.GroundFallback(enemies, 2, b.ExpPaths[healingExp])
+		if u.IsFlying {
+			pos, _ := u.AirEvade(enemies, 2, healingPoint)
+			u.CommandPos(ability.Move, pos)
+		} else {
+			u.GroundFallback(enemies, 2, b.ExpPaths[healingExp])
+		}
 	}
 }
 
