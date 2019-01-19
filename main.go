@@ -19,6 +19,7 @@ func runAgent(info client.AgentInfo) {
 	b := bot{}
 	b.Info = info
 	b.FramesPerOrder = 3
+	b.MaxGroup = MaxGroup
 	if b.Info.IsRealtime() {
 		b.FramesPerOrder = 6
 	}
@@ -43,7 +44,7 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 	runner.Set("map", maps[rand.Intn(len(maps))]+".SC2Map")
-	// runner.Set("map", "DarknessSanctuaryLE.SC2Map")
+	// runner.Set("map", "KairosJunctionLE.SC2Map")
 	runner.Set("ComputerOpponent", "true")
 	runner.Set("ComputerRace", "random")           // terran zerg protoss random
 	runner.Set("ComputerDifficulty", "CheatMoney") // CheatInsane CheatMoney VeryHard

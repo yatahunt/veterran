@@ -69,7 +69,7 @@ var RootBuildOrder = BuildNodes{
 	{
 		Name:    "Supplies",
 		Ability: ability.Build_SupplyDepot,
-		Premise: func(b *bot) bool { return b.FoodLeft < 6+b.FoodUsed/20 && b.FoodCap < 200 },
+		Premise: func(b *bot) bool { return b.FoodLeft < 4+b.FoodUsed/20 && b.FoodCap < 200 },
 		Limit:   func(b *bot) int { return 30 },
 		Active:  func(b *bot) int { return 1 + b.FoodUsed/50 },
 	},
@@ -91,10 +91,22 @@ var RootBuildOrder = BuildNodes{
 			if workerRush {
 				return false
 			}
-			raxPending := b.Pending(ability.Build_Barracks)
-			refPending := b.Pending(ability.Build_Refinery)
-			return b.Vespene < b.Minerals*2 &&
-				(raxPending > 0 && refPending == 0 || raxPending >= 1 && refPending >= 1)
+			if b.Vespene < b.Minerals*2 {
+				raxPending := b.Pending(ability.Build_Barracks)
+				refPending := b.Pending(ability.Build_Refinery)
+				ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+				if raxPending == 0 {
+					return false
+				}
+				if b.Minerals > 500 {
+					return true
+				}
+				if ccs.Len() < 3 {
+					return refPending < ccs.Len()
+				}
+				return true
+			}
+			return false
 		},
 		Limit:  func(b *bot) int { return 20 },
 		Active: func(b *bot) int { return 2 },
@@ -113,7 +125,7 @@ var RootBuildOrder = BuildNodes{
 			return b.Units[terran.Factory].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func(b *bot) int {
-			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
 			return scl.MinInt(4, ccs.Len())
 		},
 		Active:  BuildOne,
@@ -127,7 +139,7 @@ var RootBuildOrder = BuildNodes{
 		},
 		Limit: func(b *bot) int {
 			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
-			if ccs.Len() < 2 {
+			if ccs.Len() < 3 && b.Minerals < 500 {
 				return 0
 			}
 			if b.Units[terran.FusionCore].First(scl.Ready) == nil {
@@ -363,6 +375,7 @@ func (b *bot) BuildingsCheck() {
 		// Cancel building if it will be destroyed soon
 		if building.HPS*2.5 > building.Hits {
 			building.Command(ability.Cancel)
+			continue
 		}
 
 		// Find SCV to continue work if disrupted
@@ -432,28 +445,35 @@ func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 }
 
 func (b *bot) OrderUpgrades() {
-	/*if eng := b.Units[terran.EngineeringBay].First(scl.Ready, scl.Idle); eng != nil {
+	if eng := b.Units[terran.EngineeringBay].First(scl.Ready, scl.Idle); eng != nil {
 		b.RequestAvailableAbilities(true, eng) // request abilities again because we want to ignore resource reqs
-		for _, a := range []api.AbilityID{
-			ability.Research_TerranInfantryWeaponsLevel1, ability.Research_TerranInfantryArmorLevel1,
-			ability.Research_TerranInfantryWeaponsLevel2, ability.Research_TerranInfantryArmorLevel2,
-			ability.Research_TerranInfantryWeaponsLevel3, ability.Research_TerranInfantryArmorLevel3,
-		} {
-			if b.Upgrades[a] {
-				continue
-			}
-			if eng.HasAbility(a) {
-				if b.CanBuy(a) {
-					eng.Command(a)
-					return
-				} else {
-					// reserve money for upgrade
-					b.DeductResources(a)
+		if b.Units[terran.Reaper].Len() > 4 {
+			for _, a := range []api.AbilityID{
+				ability.Research_TerranInfantryWeaponsLevel1,
+				ability.Research_TerranInfantryWeaponsLevel2,
+				ability.Research_TerranInfantryWeaponsLevel3,
+			} {
+				if b.Upgrades[a] {
+					continue
 				}
-				break
+				if eng.HasAbility(a) {
+					if b.CanBuy(a) {
+						eng.Command(a)
+						return
+					} else {
+						// reserve money for upgrade
+						b.DeductResources(a)
+					}
+					break
+				}
 			}
 		}
-	}*/
+		if !b.Upgrades[ability.Research_HiSecAutoTracking] && b.AllEnemyUnits[terran.Banshee].Exists() &&
+			eng.HasAbility(ability.Research_HiSecAutoTracking) && b.CanBuy(ability.Research_HiSecAutoTracking) {
+			eng.Command(ability.Research_HiSecAutoTracking)
+			return
+		}
+	}
 
 	if arm := b.Units[terran.Armory].First(scl.Ready, scl.Idle); arm != nil {
 		b.RequestAvailableAbilities(true, arm) // request abilities again because we want to ignore resource reqs
@@ -552,7 +572,7 @@ func (b *bot) Cast() {
 						if !b.IsVisible(enemy.Point()) && b.HeightAt(enemy.Point()) > b.HeightAt(reaper.Point()) {
 							pos := enemy.Point().Towards(b.EnemyStartLoc, 8)
 							cc.CommandPos(ability.Effect_Scan, pos)
-							log.Info("Reaper sight scan")
+							log.Debug("Reaper sight scan")
 							return
 						}
 					}
@@ -569,7 +589,7 @@ func (b *bot) Cast() {
 				if targets.Exists() && visibleEnemies.InRangeOf(tank, 0).Empty() {
 					pos := targets.ClosestTo(b.EnemyStartLoc).Point()
 					cc.CommandPos(ability.Effect_Scan, pos)
-					log.Info("Tank sight scan")
+					log.Debug("Tank sight scan")
 				}
 			}
 
@@ -577,7 +597,7 @@ func (b *bot) Cast() {
 			if eps := b.EffectPoints(effect.LurkerSpines); eps.Exists() {
 				// todo: check if bot already sees the lurker using his position approximation
 				cc.CommandPos(ability.Effect_Scan, eps.ClosestTo(b.EnemyStartLoc))
-				log.Info("Lurker scan")
+				log.Debug("Lurker scan")
 				return
 			}
 
@@ -589,7 +609,7 @@ func (b *bot) Cast() {
 				})
 				if hitByDT != nil {
 					cc.CommandPos(ability.Effect_Scan, hitByDT.Point())
-					log.Info("DT scan")
+					log.Debug("DT scan")
 					return
 				}
 			}
@@ -599,7 +619,7 @@ func (b *bot) Cast() {
 				for _, u := range units {
 					if u.HitsLost == 12 && allEnemies.CanAttack(u, 2).Empty() {
 						cc.CommandPos(ability.Effect_Scan, u.Point())
-						log.Info("Banshee scan")
+						log.Debug("Banshee scan")
 						return
 					}
 				}
@@ -620,6 +640,12 @@ func (b *bot) Cast() {
 }
 
 func (b *bot) OrderUnits() {
+	if workerRush && b.CanBuy(ability.Train_Marine) {
+		if rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused); rax != nil {
+			b.OrderTrain(rax, ability.Train_Marine)
+		}
+	}
+
 	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	cc := ccs.First(scl.Ready, scl.Idle)
 	refs := b.Units[terran.Refinery].Filter(func(unit *scl.Unit) bool {
@@ -670,7 +696,7 @@ func (b *bot) OrderUnits() {
 	factory = b.Units[terran.Factory].First(func(unit *scl.Unit) bool {
 		return unit.IsReady() && unit.IsUnused() && !unit.HasTechlab()
 	})
-	if factory != nil && b.CanBuy(ability.Train_WidowMine) {
+	if factory != nil && b.CanBuy(ability.Train_WidowMine) && b.PendingAliases(ability.Train_WidowMine) < 8 {
 		if scl.UnitsOrders[factory.Tag].Loop+b.FramesPerOrder <= b.Loop {
 			// I need to pass this param because else duplicate order will be ignored
 			// But I need to be sure that there was no previous order recently
@@ -681,13 +707,13 @@ func (b *bot) OrderUnits() {
 
 	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused)
 	if rax != nil {
-		if b.Pending(ability.Train_Reaper) < 4 && b.CanBuy(ability.Train_Reaper) {
+		if (b.Pending(ability.Train_Reaper) < 4 || b.EnemyRace == api.Race_Zerg) && b.CanBuy(ability.Train_Reaper) {
 			if scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 				rax.SpamCmds = true
 			}
 			b.OrderTrain(rax, ability.Train_Reaper)
 		}
-		if (workerRush || b.Minerals > 600) && b.CanBuy(ability.Train_Marine) {
+		if b.Minerals > 600 && b.CanBuy(ability.Train_Marine) {
 			if scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 				rax.SpamCmds = true
 			}
@@ -698,10 +724,10 @@ func (b *bot) OrderUnits() {
 
 func (b *bot) ReserveSCVs() {
 	// Fast first supply
-	if b.Units.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).Empty() {
+	if b.Units.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).Empty() && b.Groups.Get(ScvReserve).Tags.Empty() {
 		pos := buildPos[scl.S2x2][0]
 		scv := b.GetSCV(pos, 0, 45) // Get SCV but don't change its group
-		if scv != nil && scv.FramesToPos(pos) * b.MineralsPerFrame + float64(b.Minerals) >= 100 {
+		if scv != nil && scv.FramesToPos(pos)*b.MineralsPerFrame+float64(b.Minerals)+20 >= 100 {
 			b.Groups.Add(ScvReserve, scv)
 			scv.CommandPos(ability.Move, pos)
 		}
@@ -722,13 +748,13 @@ func (b *bot) Macro() {
 	}
 
 	b.BuildingsCheck()
-	if lastBuildLoop + b.FramesPerOrder < b.Loop {
+	if lastBuildLoop+b.FramesPerOrder < b.Loop {
 		b.OrderUpgrades()
 		b.ProcessBuildOrder(RootBuildOrder)
 		b.Morph()
 		b.OrderUnits()
+		b.ReserveSCVs()
 		lastBuildLoop = b.Loop
 	}
 	b.Cast()
-	b.ReserveSCVs()
 }

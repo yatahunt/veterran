@@ -139,6 +139,22 @@ func (b *bot) Repair() {
 	}
 }
 
+func (b *bot) DoubleHeal() {
+	for key, group := range doubleHealers {
+		scvs := b.Groups.Get(group).Units
+		if scvs.Len() < 2 || (scvs[0].Hits == 45 && scvs[1].Hits == 45) ||
+			scvs[0].TargetAbility() != ability.Effect_Repair_SCV ||
+			scvs[1].TargetAbility() != ability.Effect_Repair_SCV {
+			b.Groups.Add(Miners, scvs...)
+			if len(doubleHealers) > key+1 {
+				doubleHealers = append(doubleHealers[:key], doubleHealers[key+1:]...)
+			} else {
+				doubleHealers = doubleHealers[:key]
+			}
+		}
+	}
+}
+
 func (b *bot) Scout() {
 	scv := b.Groups.Get(Scout).Units.First()
 	if b.EnemyStartLocs.Len() > 1 && scv == nil && b.Loop < 60 {
@@ -189,7 +205,7 @@ func (b *bot) ScoutBase() {
 	}
 
 	scv := b.Groups.Get(ScoutBase).Units.First()
-	if b.EnemyStartLocs.Len() <= 1 && scv == nil && !workerRush && b.Loop > 1120 && b.Loop < 1130 { // 0:50
+	if b.EnemyStartLocs.Len() <= 1 && scv == nil && !workerRush && b.Loop > 896 && b.Loop < 906 { // 0:50
 		scv = b.GetSCV(b.EnemyStartLoc, Scout, 45)
 		if scv != nil {
 			b.Groups.Add(ScoutBase, scv)
@@ -206,7 +222,7 @@ func (b *bot) ScoutBase() {
 	}
 
 	enemies := b.AllEnemyUnits.Units().Filter(scl.DpsGt5)
-	if enemies.Exists() || b.Loop > 2016 { // 1:30
+	if enemies.Exists() || b.Loop > 2240 { // 1:40
 		b.Groups.Add(Miners, scv) // dismiss scout
 	}
 
@@ -248,7 +264,7 @@ func (b *bot) Miners() {
 
 	// If there is ready unsaturated refinery and an scv gathering, send it there
 	refs := b.Units[terran.Refinery]
-	if b.Minerals > 100 && b.Minerals / 2 > b.Vespene {
+	if b.Minerals > 200 && b.Minerals/2 > b.Vespene {
 		ref := refs.First(func(unit *scl.Unit) bool { return unit.IsReady() && unit.AssignedHarvesters < 3 })
 		if ref != nil {
 			// Get scv gathering minerals
@@ -261,7 +277,7 @@ func (b *bot) Miners() {
 				scv.CommandTag(ability.Smart, ref.Tag)
 			}
 		}
-	} else if b.Vespene > 100 && b.Minerals < b.Vespene && refs.Exists() {
+	} else if b.Vespene > 200 && b.Minerals < b.Vespene && refs.Exists() {
 		mfs := b.MineralFields.Units()
 		scv := b.Groups.Get(Miners).Units.First(func(unit *scl.Unit) bool {
 			tag := unit.TargetTag()
@@ -276,6 +292,7 @@ func (b *bot) Miners() {
 func (b *bot) Roles() {
 	b.Builders()
 	b.Repair()
+	b.DoubleHeal()
 	b.Scout()
 	b.ScoutBase()
 	b.Miners()

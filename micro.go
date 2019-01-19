@@ -4,20 +4,29 @@ import (
 	"bitbucket.org/aisee/sc2lib"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
+	"github.com/chippydip/go-sc2ai/enums/effect"
 	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 	"github.com/chippydip/go-sc2ai/enums/zerg"
 	"math"
 	"math/rand"
-	"github.com/chippydip/go-sc2ai/enums/effect"
 )
+
+func WorkerMoveFunc(u *scl.Unit, target *scl.Unit) {
+	if !u.InRange(target, 0) || !target.IsVisible() {
+		if u.WeaponCooldown > 0 {
+			u.SpamCmds = true
+		}
+		u.CommandPos(ability.Move, target.Point())
+	}
+}
 
 func (b *bot) WorkerRushDefence() {
 	enemiesRange := 12.0
 	workersRange := 10.0
 	enemyWorkers := b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe)
 	if workerRush {
-		workersRange = 70.0
+		workersRange = 50.0
 	} else if building := b.Units.Units().Filter(scl.Structure).ClosestTo(b.MainRamp.Top); building != nil {
 		workersRange = math.Max(workersRange, building.Point().Dist(b.StartLoc)+6)
 	}
@@ -56,14 +65,27 @@ func (b *bot) WorkerRushDefence() {
 			b.Groups.Add(Miners, unit)
 			continue
 		}
+
 		if scl.AttackDelay.UnitIsCool(unit) {
-			unit.Attack(enemies)
+			unit.AttackCustom(scl.DefaultAttackFunc, WorkerMoveFunc, enemies)
 		} else {
 			friends := army.InRangeOf(unit, 0)
 			friend := friends.Min(scl.CmpHits)
 			if friend != nil && friend.Hits < 45 && b.Minerals > 0 {
 				unit.CommandTag(ability.Effect_Repair_SCV, friend.Tag)
 			}
+		}
+	}
+
+	if workerRush && b.Minerals >= 75 {
+		workers := b.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
+			return unit.Hits < 11 && unit.IsGathering()
+		})
+		if workers.Len() >= 2 {
+			workers[0].CommandTag(ability.Effect_Repair_SCV, workers[1].Tag)
+			workers[1].CommandTag(ability.Effect_Repair_SCV, workers[0].Tag)
+			newGroup := b.Groups.New(workers[0], workers[1])
+			doubleHealers = append(doubleHealers, newGroup)
 		}
 	}
 }
@@ -272,7 +294,7 @@ func (b *bot) Cyclones() {
 			continue
 		}
 		goodTargets.Add(enemy)
-		if !enemy.IsFlying {
+		if !enemy.IsFlying || enemy.UnitType == zerg.Overlord || enemy.UnitType == zerg.LocustMP {
 			continue
 		}
 		airTargets.Add(enemy)
@@ -420,7 +442,7 @@ func (b *bot) Tanks() {
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	tanks := b.Groups.Get(Tanks).Units
 	for _, enemy := range allEnemies {
-		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
+		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue
 		}
 		okTargets.Add(enemy)
@@ -594,14 +616,9 @@ func (b *bot) Battlecruisers() {
 		}*/
 
 		if (bc.HasAbility(ability.Effect_TacticalJump) && bc.Hits < 100) ||
-			(!bc.HasAbility(ability.Effect_TacticalJump) && bc.Hits < 200) {
-			cc := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Max(func(unit *scl.Unit) float64 {
-				return float64(unit.AssignedHarvesters)
-			})
-			if cc != nil {
-				b.Groups.Add(MechRetreat, bc)
-				continue
-			}
+			(!bc.HasAbility(ability.Effect_TacticalJump) && bc.Hits < 250) {
+			b.Groups.Add(MechRetreat, bc)
+			continue
 		}
 
 		if yamaTargets.Exists() && bc.HasAbility(ability.Effect_YamatoGun) {
@@ -664,6 +681,14 @@ func (b *bot) MechRetreat() {
 			}
 		}
 		if u.UnitType == terran.Battlecruiser && u.HasAbility(ability.Effect_TacticalJump) {
+			/*cc := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Max(func(unit *scl.Unit) float64 {
+				return float64(unit.AssignedHarvesters)
+			})
+			if cc != nil {
+				u.CommandPos(ability.Effect_TacticalJump, cc.Point() - b.StartMinVec * 3)
+			} else {
+				u.CommandPos(ability.Effect_TacticalJump, healingPoint)
+			}*/
 			u.CommandPos(ability.Effect_TacticalJump, healingPoint)
 			continue
 		}
