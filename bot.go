@@ -56,6 +56,11 @@ func (b *bot) Step() {
 	b.Cmds = &scl.CommandsStack{}
 	b.Obs = b.Info.Observation().Observation
 	b.ParseObservation()
+	if b.Loop != 0 && b.Loop - b.LastLoop != 1 && !isRealtime {
+		b.FramesPerOrder = 6
+		isRealtime = true
+		b.ChatSend("Realtime mode detected")
+	}
 	if b.Loop != 0 && b.Loop == b.LastLoop {
 		return // Skip frame repeat
 	} else {
@@ -68,6 +73,8 @@ func (b *bot) Step() {
 
 	if b.ExpLocs.Len() == 0 {
 		b.InitBot()
+	}
+	if b.Loop == 8 {
 		b.ChatSend("VeTerran v1.1.0 (glhf)")
 	}
 

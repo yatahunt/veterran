@@ -35,6 +35,7 @@ import (
 // todo: use dead units events
 // todo: анализировать неуспешные попытки строительства, зарытые линги мешают поставить СС -> ставить башню рядом?
 
+var isRealtime = false
 var workerRush = false
 var buildTurrets = false
 var playDefensive = false
