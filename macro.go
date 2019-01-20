@@ -36,6 +36,7 @@ var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
 	ability.Build_Refinery:       scl.S3x3,
 	ability.Build_EngineeringBay: scl.S3x3,
 	ability.Build_MissileTurret:  scl.S2x2,
+	ability.Build_Bunker:         scl.S3x3,
 	ability.Build_Armory:         scl.S3x3,
 	ability.Build_Factory:        scl.S5x3,
 	ability.Build_Starport:       scl.S5x3,
@@ -43,12 +44,6 @@ var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
 }
 
 var RootBuildOrder = BuildNodes{
-	{
-		Name:    "First CC",
-		Ability: ability.Build_CommandCenter,
-		Limit:   BuildOne,
-		Active:  BuildOne,
-	},
 	{
 		Name:    "Expansion CCs",
 		Ability: ability.Build_CommandCenter,
@@ -64,6 +59,12 @@ var RootBuildOrder = BuildNodes{
 				return true
 			}
 			return false
+		},
+		Method: func(b *bot) {
+			pos := b.Build(ability.Build_CommandCenter)
+			if pos != 0 && playDefensive {
+				b.FindBunkerPosition(pos)
+			}
 		},
 	},
 	{
@@ -153,6 +154,13 @@ var RootBuildOrder = BuildNodes{
 }
 
 var RaxBuildOrder = BuildNodes{
+	{
+		Name:    "Bunkers",
+		Ability: ability.Build_Bunker,
+		Limit:   func(b *bot) int { return bunkersPos.Len() },
+		Active:  func(b *bot) int { return bunkersPos.Len() },
+		WaitRes: Yes,
+	},
 	{
 		Name:    "Armory",
 		Ability: ability.Build_Armory,
@@ -303,16 +311,16 @@ func (b *bot) OrderTrain(factory *scl.Unit, aid api.AbilityID) {
 	log.Debugf("%d: Training %v", b.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
 }
 
-func (b *bot) Build(aid api.AbilityID) bool {
+func (b *bot) Build(aid api.AbilityID) scl.Point {
 	size, ok := BuildingsSizes[aid]
 	if !ok {
 		log.Alertf("Can't find size for %v", scl.Types[scl.AbilityUnit[aid]].Name)
-		return false
+		return 0
 	}
 
 	techReq := scl.Types[scl.AbilityUnit[aid]].TechRequirement
 	if techReq != 0 && b.Units.OfType(scl.UnitAliases.For(techReq)...).Empty() {
-		return false // Not available because of tech reqs, like: supply is needed for barracks
+		return 0 // Not available because of tech reqs, like: supply is needed for barracks
 	}
 
 	buildersTargets := map[scl.Point]bool{}
@@ -329,6 +337,9 @@ func (b *bot) Build(aid api.AbilityID) bool {
 	if aid == ability.Build_MissileTurret {
 		positions = turretsPos
 	}
+	if aid == ability.Build_Bunker {
+		positions = bunkersPos
+	}
 	for _, pos := range positions {
 		if buildersTargets[pos] {
 			continue // Someone already constructing there
@@ -343,56 +354,13 @@ func (b *bot) Build(aid api.AbilityID) bool {
 		scv := b.GetSCV(pos, Builders, 45)
 		if scv != nil {
 			b.OrderBuild(scv, pos, aid)
-			return true
+			return pos
 		}
 		log.Debugf("%d: Failed to find SCV", b.Loop)
-		return false
+		return 0
 	}
 	log.Debugf("%d: Can't find position for %v", b.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
-	return false
-}
-
-func (b *bot) BuildingsCheck() {
-	builders := b.Groups.Get(Builders).Units
-	buildings := b.Groups.Get(UnderConstruction).Units
-	enemies := b.EnemyUnits.Units().Filter(scl.DpsGt5)
-	// This is const. Move somewhere else?
-	addonsTypes := append(scl.UnitAliases.For(terran.Reactor), scl.UnitAliases.For(terran.TechLab)...)
-	for _, building := range buildings {
-		if building.BuildProgress == 1 {
-			switch building.UnitType {
-			case terran.Barracks:
-				fallthrough
-			case terran.Factory:
-				building.CommandPos(ability.Rally_Building, b.MainRamp.Top+b.MainRamp.Vec*3)
-				b.Groups.Add(Buildings, building)
-			default:
-				b.Groups.Add(Buildings, building) // And remove from current group
-			}
-			continue
-		}
-
-		// Cancel building if it will be destroyed soon
-		if building.HPS*2.5 > building.Hits {
-			building.Command(ability.Cancel)
-			continue
-		}
-
-		// Find SCV to continue work if disrupted
-		if building.FindAssignedBuilder(builders) == nil &&
-			enemies.CanAttack(building, 0).Empty() &&
-			!addonsTypes.Contain(building.UnitType) {
-			scv := b.GetSCV(building.Point(), Builders, 45)
-			if scv != nil {
-				scv.CommandTag(ability.Smart, building.Tag)
-			}
-		}
-
-		// Cancel refinery if worker rush is detected and don't build new until enemy is gone
-		if workerRush && building.UnitType == terran.Refinery {
-			building.Command(ability.Cancel)
-		}
-	}
+	return 0
 }
 
 func (b *bot) BuildFirstBarrack() {
@@ -475,12 +443,17 @@ func (b *bot) OrderUpgrades() {
 		}
 	}
 
-	if arm := b.Units[terran.Armory].First(scl.Ready, scl.Idle); arm != nil {
+	// todo: aliases
+	if arm := b.Units[terran.Armory].First(scl.Ready, scl.Idle); arm != nil && b.Units.OfType(terran.WidowMine,
+		terran.Hellion, terran.Cyclone, terran.SiegeTank, terran.Raven, terran.Battlecruiser).Len() > 4 {
 		b.RequestAvailableAbilities(true, arm) // request abilities again because we want to ignore resource reqs
 		upgrades := []api.AbilityID{
 			ability.Research_TerranVehicleAndShipPlatingLevel1,
 			ability.Research_TerranVehicleAndShipPlatingLevel2,
 			ability.Research_TerranVehicleAndShipPlatingLevel3,
+			ability.Research_TerranVehicleWeaponsLevel1,
+			ability.Research_TerranVehicleWeaponsLevel2,
+			ability.Research_TerranVehicleWeaponsLevel3,
 		}
 		if b.Units[terran.Battlecruiser].Exists() {
 			upgrades = append([]api.AbilityID{
@@ -509,14 +482,19 @@ func (b *bot) OrderUpgrades() {
 	lab := b.Units[terran.FactoryTechLab].First(scl.Ready, scl.Idle)
 	if lab != nil && (b.Units[terran.Cyclone].Exists() || b.Units[terran.WidowMine].Exists()) {
 		b.RequestAvailableAbilities(true, lab)
-		if b.Units[terran.Cyclone].Exists() && lab.HasAbility(ability.Research_CycloneResearchLockOnDamageUpgrade) &&
+		if b.Units[terran.Cyclone].Len() > 1 && lab.HasAbility(ability.Research_CycloneResearchLockOnDamageUpgrade) &&
 			b.CanBuy(ability.Research_CycloneResearchLockOnDamageUpgrade) {
 			lab.Command(ability.Research_CycloneResearchLockOnDamageUpgrade)
 			return
 		}
-		if b.Units[terran.WidowMine].Exists() && lab.HasAbility(ability.Research_DrillingClaws) &&
+		if b.Units[terran.WidowMine].Len() > 1 && lab.HasAbility(ability.Research_DrillingClaws) &&
 			b.CanBuy(ability.Research_DrillingClaws) {
 			lab.Command(ability.Research_DrillingClaws)
+			return
+		}
+		if b.Units[terran.Hellion].Len() > 1 && lab.HasAbility(ability.Research_InfernalPreigniter) &&
+			b.CanBuy(ability.Research_InfernalPreigniter) {
+			lab.Command(ability.Research_InfernalPreigniter)
 			return
 		}
 	}
@@ -640,8 +618,12 @@ func (b *bot) Cast() {
 }
 
 func (b *bot) OrderUnits() {
-	if workerRush && b.CanBuy(ability.Train_Marine) {
+	// b.Units[terran.Bunker].Len() * 4 > b.Units[terran.Marine].Len()
+	if (workerRush || b.getEmptyBunker(0) != nil) && b.CanBuy(ability.Train_Marine) {
 		if rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused); rax != nil {
+			if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
+				rax.SpamCmds = true
+			}
 			b.OrderTrain(rax, ability.Train_Marine)
 		}
 	}
@@ -696,25 +678,32 @@ func (b *bot) OrderUnits() {
 	factory = b.Units[terran.Factory].First(func(unit *scl.Unit) bool {
 		return unit.IsReady() && unit.IsUnused() && !unit.HasTechlab()
 	})
-	if factory != nil && b.CanBuy(ability.Train_WidowMine) && b.PendingAliases(ability.Train_WidowMine) < 8 {
-		if scl.UnitsOrders[factory.Tag].Loop+b.FramesPerOrder <= b.Loop {
+	if factory != nil {
+		if factory.HasReactor() && scl.UnitsOrders[factory.Tag].Loop+b.FramesPerOrder <= b.Loop {
 			// I need to pass this param because else duplicate order will be ignored
 			// But I need to be sure that there was no previous order recently
 			factory.SpamCmds = true
 		}
-		b.OrderTrain(factory, ability.Train_WidowMine)
+		mines := b.PendingAliases(ability.Train_WidowMine)
+		hellions := b.PendingAliases(ability.Train_Hellion)
+		if b.CanBuy(ability.Train_WidowMine) && mines < 8 && mines <= hellions {
+			b.OrderTrain(factory, ability.Train_WidowMine)
+		}
+		if b.CanBuy(ability.Train_Hellion) && hellions < 8 && hellions <= mines {
+			b.OrderTrain(factory, ability.Train_Hellion)
+		}
 	}
 
 	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused)
 	if rax != nil {
 		if (b.Pending(ability.Train_Reaper) < 4 || b.EnemyRace == api.Race_Zerg) && b.CanBuy(ability.Train_Reaper) {
-			if scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
+			if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 				rax.SpamCmds = true
 			}
 			b.OrderTrain(rax, ability.Train_Reaper)
 		}
 		if b.Minerals > 600 && b.CanBuy(ability.Train_Marine) {
-			if scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
+			if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 				rax.SpamCmds = true
 			}
 			b.OrderTrain(rax, ability.Train_Marine)
@@ -747,7 +736,6 @@ func (b *bot) Macro() {
 		findTurretPositionFor = nil
 	}
 
-	b.BuildingsCheck()
 	if lastBuildLoop+b.FramesPerOrder < b.Loop {
 		b.OrderUpgrades()
 		b.ProcessBuildOrder(RootBuildOrder)

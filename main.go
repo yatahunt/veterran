@@ -22,6 +22,7 @@ func runAgent(info client.AgentInfo) {
 	b.MaxGroup = MaxGroup
 	if b.Info.IsRealtime() {
 		b.FramesPerOrder = 6
+		log.Info("Realtime mode")
 	}
 	b.UnitCreatedCallback = b.OnUnitCreated
 
@@ -44,7 +45,7 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 	runner.Set("map", maps[rand.Intn(len(maps))]+".SC2Map")
-	// runner.Set("map", "KairosJunctionLE.SC2Map")
+	// runner.Set("map", "ParaSiteLE.SC2Map")
 	runner.Set("ComputerOpponent", "true")
 	runner.Set("ComputerRace", "random")           // terran zerg protoss random
 	runner.Set("ComputerDifficulty", "CheatMoney") // CheatInsane CheatMoney VeryHard

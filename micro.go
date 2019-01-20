@@ -116,6 +116,17 @@ func ReaperMoveFunc(u *scl.Unit, target *scl.Unit) {
 }
 
 func (b *bot) Explore(u *scl.Unit) {
+	if playDefensive {
+		pos := b.MainRamp.Top
+		bunker := b.Units[terran.Bunker].ClosestTo(b.ExpLocs[0])
+		if bunker != nil {
+			pos = bunker.Point()
+		}
+		if u.IsFarFrom(pos) {
+			u.CommandPos(ability.Move, pos)
+		}
+		return
+	}
 	if !b.IsExplored(b.EnemyStartLoc) {
 		u.CommandPos(ability.Attack, b.EnemyStartLoc)
 	} else {
@@ -134,6 +145,9 @@ func (b *bot) Marines() {
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	marines := b.Groups.Get(Marines).Units
 	for _, enemy := range allEnemies {
+		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+			continue
+		}
 		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue
 		}
@@ -149,6 +163,19 @@ func (b *bot) Marines() {
 			closeTargets := goodTargets.InRangeOf(marine, -0.5)
 			if attackers.Exists() || closeTargets.Exists() {
 				marine.GroundFallback(attackers, 2, b.HomePaths)
+				continue
+			}
+		}
+
+		// Load into a bunker
+		if goodTargets.InRangeOf(marine, 0).Empty() {
+			bunker := b.getEmptyBunker(marine.Point())
+			if bunker != nil {
+				if bunker.IsReady() {
+					marine.CommandTag(ability.Smart, bunker.Tag)
+				} else if marine.IsFarFrom(bunker.Point()) {
+					marine.CommandPos(ability.Move, bunker.Point())
+				}
 				continue
 			}
 		}
@@ -169,6 +196,9 @@ func (b *bot) Reapers() {
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	reapers := b.Groups.Get(Reapers).Units
 	for _, enemy := range allEnemies {
+		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+			continue
+		}
 		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue
 		}
@@ -196,21 +226,21 @@ func (b *bot) Reapers() {
 			}
 
 			// There is an enemy
-			/*if closestEnemy := goodTargets.Filter(scl.Visible).ClosestTo(reaper.Point()); closestEnemy != nil {
+			if closestEnemy := goodTargets.Filter(scl.Visible).ClosestTo(reaper.Point()); closestEnemy != nil {
 				// And it is closer than shooting distance - 0.5
 				if reaper.InRange(closestEnemy, -0.5) {
 					// Retreat a little
 					reaper.GroundFallback(goodTargets, -0.5, b.HomeReaperPaths)
 					continue
 				}
-			}*/
+			}
 
-			attackers := allEnemiesReady.CanAttack(reaper, 2)
+			/*attackers := allEnemiesReady.CanAttack(reaper, 2)
 			closeTargets := goodTargets.InRangeOf(reaper, -0.5)
 			if attackers.Exists() || closeTargets.Exists() {
 				reaper.GroundFallback(attackers, 2, b.HomeReaperPaths)
 				continue
-			}
+			}*/
 		}
 
 		// Attack
@@ -286,6 +316,9 @@ func (b *bot) Cyclones() {
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	cyclones := b.Groups.Get(Cyclones).Units
 	for _, enemy := range allEnemies {
+		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+			continue
+		}
 		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue
 		}
@@ -347,9 +380,9 @@ func (b *bot) Mines() {
 	// allEnemiesReady := allEnemies.Filter(scl.Ready)
 	mines := b.Groups.Get(WidowMines).Units
 	for _, enemy := range allEnemies {
-		/*if enemy.DetectRange > 0 {
-			detectors.Add(enemy)
-		}*/
+		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+			continue
+		}
 		if enemy.IsStructure() || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue
 		}
@@ -435,6 +468,49 @@ func (b *bot) Mines() {
 	}
 }
 
+func (b *bot) Hellions() {
+	okTargets := scl.Units{}
+	goodTargets := scl.Units{}
+	allEnemies := b.AllEnemyUnits.Units()
+	allEnemiesReady := allEnemies.Filter(scl.Ready)
+	hellions := b.Groups.Get(Hellions).Units
+	for _, enemy := range allEnemies {
+		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+			continue
+		}
+		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
+			continue
+		}
+		okTargets.Add(enemy)
+		if !enemy.IsStructure() {
+			goodTargets.Add(enemy)
+		}
+	}
+
+	for _, hellion := range hellions {
+		if hellion.Hits < 31 {
+			b.Groups.Add(MechRetreat, hellion)
+			continue
+		}
+
+		if !scl.AttackDelay.UnitIsCool(hellion) {
+			attackers := allEnemiesReady.CanAttack(hellion, 2)
+			closeTargets := goodTargets.InRangeOf(hellion, -0.5)
+			if attackers.Exists() || closeTargets.Exists() {
+				hellion.GroundFallback(attackers, 2, b.HomePaths)
+				continue
+			}
+		}
+
+		// Attack
+		if goodTargets.Exists() || okTargets.Exists() {
+			hellion.Attack(goodTargets, okTargets)
+		} else {
+			b.Explore(hellion)
+		}
+	}
+}
+
 func (b *bot) Tanks() {
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
@@ -442,6 +518,9 @@ func (b *bot) Tanks() {
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	tanks := b.Groups.Get(Tanks).Units
 	for _, enemy := range allEnemies {
+		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+			continue
+		}
 		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue
 		}
@@ -590,6 +669,9 @@ func (b *bot) Battlecruisers() {
 	// allEnemiesReady := allEnemies.Filter(scl.Ready)
 
 	for _, enemy := range allEnemies {
+		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+			continue
+		}
 		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue
 		}
@@ -598,8 +680,8 @@ func (b *bot) Battlecruisers() {
 			continue
 		}
 		goodTargets.Add(enemy)
-		if enemy.AirDamage() > 0 && (enemy.Hits > 120 || enemy.UnitType == protoss.Carrier ||
-			enemy.UnitType == zerg.Ultralisk || enemy.UnitType == zerg.Viper || enemy.UnitType == zerg.Infestor) {
+		if enemy.AirDamage() > 0 && enemy.Hits > 120 || enemy.UnitType == protoss.Carrier ||
+			enemy.UnitType == zerg.Ultralisk || enemy.UnitType == zerg.Viper || enemy.UnitType == zerg.Infestor {
 			yamaTargets.Add(enemy)
 		}
 	}
@@ -726,11 +808,25 @@ func (b *bot) MechRetreat() {
 }
 
 func (b *bot) Micro() {
+	if b.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 {
+		playDefensive = false
+	} else if b.AllEnemyUnits[zerg.Zergling].Len() >= 20 || b.AllEnemyUnits[protoss.Carrier].Len() >= 3 {
+		playDefensive = true
+	}
+	if playDefensive {
+		buildings := append(b.Groups.Get(Buildings).Units, b.Groups.Get(UnderConstruction).Units...)
+		farBuilding := buildings.FurthestTo(b.StartLoc)
+		if farBuilding != nil {
+			defensiveRange = farBuilding.Point().Dist(b.StartLoc) + 10
+		}
+	}
+
 	b.WorkerRushDefence()
 	b.Marines()
 	b.Reapers()
 	b.Cyclones()
 	b.Mines()
+	b.Hellions()
 	b.Tanks()
 	b.Ravens()
 	b.Battlecruisers()

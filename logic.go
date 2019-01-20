@@ -2,8 +2,12 @@ package main
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"github.com/chippydip/go-sc2ai/enums/terran"
 )
 
+// todo: микро риперами против королев поломалось
+// todo: ? циклоны перестали стрелять отступая от лингов
+// todo: надо как-то определять какие здания не стоит чинить, т.к. рабочий будет убит (по числу ranged?)
 // todo: + ограничить число минок 8-ю штуками? Как и геллионы
 // todo: танку надо перераскладываться, если на границе его радиуса только здания
 // todo: строить первый CC на хайграунде?
@@ -32,16 +36,19 @@ import (
 // todo: анализировать неуспешные попытки строительства, зарытые линги мешают поставить СС -> ставить башню рядом?
 
 var workerRush = false
+var buildTurrets = false
+var playDefensive = false
+var defensiveRange = 0.0
 var buildPos = map[scl.BuildingSize]scl.Points{}
 var firstBarrackBuildPos = scl.Points{}
-var buildTurrets = false
 var turretsPos = scl.Points{}
+var bunkersPos = scl.Points{}
 var findTurretPositionFor *scl.Unit
 var lastBuildLoop = 0
 var doubleHealers []scl.GroupID
 
 const (
-	Miners              scl.GroupID = iota + 1
+	Miners scl.GroupID = iota + 1
 	MinersRetreat
 	Builders
 	Repairers
@@ -57,6 +64,7 @@ const (
 	Cyclones
 	WidowMines
 	WidowMinesRetreat
+	Hellions
 	Tanks
 	Ravens
 	Battlecruisers
@@ -210,7 +218,7 @@ func (b *bot) FindTurretPosition(cc *scl.Unit) {
 	vec := (mfs.Center() - cc.Point()).Norm()
 	for x := 3.0; x < 8; x++ {
 		pos = (cc.Point() + vec.Mul(x)).Floor()
-		if b.IsPosOk(pos, scl.S2x2, 0, scl.IsBuildable, scl.IsNoCreep) {
+		if b.IsPosOk(pos, scl.S2x2, 0, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep) {
 			break
 		}
 		pos = 0
@@ -224,6 +232,44 @@ func (b *bot) FindTurretPosition(cc *scl.Unit) {
 	}
 	/*b.Debug2x2Buildings(turretsPos...)
 	b.DebugSend()*/
+}
+
+func (b *bot) FindBunkerPosition(ccPos scl.Point) {
+	mfs := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, ccPos)
+	vesps := b.VespeneGeysers.Units().CloserThan(scl.ResourceSpreadDistance, ccPos)
+	mfs.Add(vesps...)
+	if mfs.Empty() {
+		return
+	}
+
+	for _, p := range b.GetBuildingPoints(ccPos, scl.S5x5) {
+		b.SetBuildable(p, false)
+	}
+
+	var pos scl.Point
+	vec := (mfs.Center() - ccPos).Norm()
+	for x := 3.0; x < 8; x++ {
+		pos = (ccPos - vec.Mul(x)).Floor()
+		if b.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep) {
+			break
+		}
+		pos = 0
+	}
+	if pos == 0 {
+		return
+	}
+	if !bunkersPos.Has(pos) {
+		bunkersPos.Add(pos)
+	}
+	/*b.Debug3x3Buildings(bunkersPos...)
+	b.DebugSend()*/
+}
+
+func (b *bot) getEmptyBunker(pos scl.Point) *scl.Unit {
+	bunkers := b.Units[terran.Bunker].Filter(func(unit *scl.Unit) bool {
+		return unit.CargoSpaceTaken < unit.CargoSpaceMax
+	})
+	return bunkers.Min(func(unit *scl.Unit) float64 { return unit.Point().Dist2(pos) })
 }
 
 func (b *bot) RecalcEnemyStartLoc(np scl.Point) {

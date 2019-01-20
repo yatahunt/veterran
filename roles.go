@@ -2,6 +2,7 @@ package main
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
@@ -22,12 +23,16 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 		b.Groups.Add(Reapers, unit)
 		return
 	}
-	if unit.UnitType == terran.Cyclone {
-		b.Groups.Add(Cyclones, unit)
-		return
-	}
 	if unit.UnitType == terran.WidowMine {
 		b.Groups.Add(WidowMines, unit)
+		return
+	}
+	if unit.UnitType == terran.Hellion {
+		b.Groups.Add(Hellions, unit)
+		return
+	}
+	if unit.UnitType == terran.Cyclone {
+		b.Groups.Add(Cyclones, unit)
 		return
 	}
 	if unit.UnitType == terran.SiegeTank || unit.UnitType == terran.SiegeTankSieged {
@@ -49,6 +54,49 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 	if unit.IsStructure() && unit.BuildProgress < 1 {
 		b.Groups.Add(UnderConstruction, unit)
 		return
+	}
+}
+
+func (b *bot) BuildingsCheck() {
+	builders := b.Groups.Get(Builders).Units
+	buildings := b.Groups.Get(UnderConstruction).Units
+	enemies := b.EnemyUnits.Units().Filter(scl.DpsGt5)
+	// This is const. Move somewhere else?
+	addonsTypes := append(scl.UnitAliases.For(terran.Reactor), scl.UnitAliases.For(terran.TechLab)...)
+	for _, building := range buildings {
+		if building.BuildProgress == 1 {
+			switch building.UnitType {
+			case terran.Barracks:
+				fallthrough
+			case terran.Factory:
+				building.CommandPos(ability.Rally_Building, b.MainRamp.Top+b.MainRamp.Vec*3)
+				b.Groups.Add(Buildings, building)
+			default:
+				b.Groups.Add(Buildings, building) // And remove from current group
+			}
+			continue
+		}
+
+		// Cancel building if it will be destroyed soon
+		if building.HPS*2.5 > building.Hits {
+			building.Command(ability.Cancel)
+			continue
+		}
+
+		// Find SCV to continue work if disrupted
+		if building.FindAssignedBuilder(builders) == nil &&
+			enemies.CanAttack(building, 0).Empty() &&
+			!addonsTypes.Contain(building.UnitType) {
+			scv := b.GetSCV(building.Point(), Builders, 45)
+			if scv != nil {
+				scv.CommandTag(ability.Smart, building.Tag)
+			}
+		}
+
+		// Cancel refinery if worker rush is detected and don't build new until enemy is gone
+		if workerRush && building.UnitType == terran.Refinery {
+			building.Command(ability.Cancel)
+		}
 	}
 }
 
@@ -184,6 +232,7 @@ func (b *bot) Scout() {
 			// If N-1 checked and not found, then N is EnemyStartLoc
 			b.RecalcEnemyStartLoc(b.EnemyStartLocs[b.EnemyStartLocs.Len()-1])
 			b.Groups.Add(ScoutBase, scv) // promote scout
+			playDefensive = true // we don't know what enemy is doing
 			return
 		}
 
@@ -224,6 +273,22 @@ func (b *bot) ScoutBase() {
 	enemies := b.AllEnemyUnits.Units().Filter(scl.DpsGt5)
 	if enemies.Exists() || b.Loop > 2240 { // 1:40
 		b.Groups.Add(Miners, scv) // dismiss scout
+
+		if b.EnemyRace == api.Race_Terran {
+			if b.AllEnemyUnits[terran.Barracks].Len() >= 3 {
+				playDefensive = true
+			}
+		}
+		if b.EnemyRace == api.Race_Zerg {
+			if b.AllEnemyUnits[zerg.SpawningPool].First(scl.Ready) != nil || b.AllEnemyUnits[zerg.Zergling].Exists() {
+				playDefensive = true
+			}
+		}
+		if b.EnemyRace == api.Race_Protoss {
+			if b.AllEnemyUnits[protoss.Gateway].Len() >= 2 {
+				playDefensive = true
+			}
+		}
 	}
 
 	vec := (scv.Point() - b.EnemyStartLoc).Norm().Rotate(math.Pi / 10)
@@ -296,4 +361,5 @@ func (b *bot) Roles() {
 	b.Scout()
 	b.ScoutBase()
 	b.Miners()
+	b.BuildingsCheck()
 }
