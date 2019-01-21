@@ -105,7 +105,7 @@ func (b *bot) Builders() {
 	enemies := b.EnemyUnits.Units()
 	for _, u := range builders {
 		enemy := enemies.First(func(unit *scl.Unit) bool {
-			return unit.GroundDPS() > 5 && unit.InRange(u, 0.5)
+			return unit.GroundDPS() > 5 && unit.InRange(u, 2)
 		})
 		if enemy != nil || u.Hits < 21 {
 			u.Command(ability.Halt_TerranBuild)
@@ -130,7 +130,7 @@ func (b *bot) Repair() {
 		}
 	}
 
-	if b.Minerals == 0 || workerRush {
+	if b.Minerals < 25 || workerRush {
 		return
 	}
 
@@ -329,7 +329,7 @@ func (b *bot) Miners() {
 
 	// If there is ready unsaturated refinery and an scv gathering, send it there
 	refs := b.Units[terran.Refinery]
-	if b.Minerals > 200 && b.Minerals/2 > b.Vespene || ccs.Len() >= 3 {
+	if b.Minerals > ccs.Len() * 100 && b.Minerals/2 > b.Vespene {
 		ref := refs.First(func(unit *scl.Unit) bool { return unit.IsReady() && unit.AssignedHarvesters < 3 })
 		if ref != nil {
 			// Get scv gathering minerals
@@ -342,7 +342,7 @@ func (b *bot) Miners() {
 				scv.CommandTag(ability.Smart, ref.Tag)
 			}
 		}
-	} else if b.Vespene > 200 && b.Minerals < b.Vespene && refs.Exists() && ccs.Len() < 3 {
+	} else if b.Vespene > ccs.Len() * 200 && b.Minerals < b.Vespene && refs.Exists() {
 		mfs := b.MineralFields.Units()
 		scv := b.Groups.Get(Miners).Units.First(func(unit *scl.Unit) bool {
 			tag := unit.TargetTag()
@@ -364,6 +364,9 @@ func (b *bot) TanksOnExps() {
 			b.Groups.Add(Tanks, tank)
 		}
 		return
+	}
+	if b.AllEnemyUnits.Units().Filter(scl.DpsGt5).CloserThan(defensiveRange, b.StartLoc).Exists() {
+		return // Enemies are too close already
 	}
 
 	bunkers := b.Units[terran.Bunker]

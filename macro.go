@@ -48,6 +48,9 @@ var RootBuildOrder = BuildNodes{
 	{
 		Name:    "Expansion CCs",
 		Ability: ability.Build_CommandCenter,
+		Premise: func(b *bot) bool {
+			return b.AllEnemyUnits.Units().Filter(scl.DpsGt5).CloserThan(defensiveRange, b.StartLoc).Empty()
+		},
 		Limit:   func(b *bot) int { return buildPos[scl.S5x5].Len() },
 		Active:  BuildOne,
 		WaitRes: func(b *bot) bool {
@@ -77,7 +80,7 @@ var RootBuildOrder = BuildNodes{
 				b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Len() == 1 {
 				return false // Wait for a second cc
 			}
-			return b.FoodLeft < 4+b.FoodUsed/20 && b.FoodCap < 200
+			return b.FoodLeft < 6+b.FoodUsed/20 && b.FoodCap < 200
 		},
 		Limit:  func(b *bot) int { return 30 },
 		Active: func(b *bot) int { return 1 + b.FoodUsed/50 },
@@ -336,7 +339,7 @@ func (b *bot) Build(aid api.AbilityID) scl.Point {
 		buildersTargets.Add(builder.TargetPos())
 	}
 
-	enemies := b.AllEnemyUnits.Units()
+	enemies := b.AllEnemyUnits.Units().Filter(scl.DpsGt5)
 	positions := buildPos[size]
 	if size == scl.S3x3 {
 		// Add larger building positions if there is not enough S3x3 positions
@@ -616,8 +619,8 @@ func (b *bot) Cast() {
 			homeMineral := b.MineralFields.Units().
 				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 				Max(func(unit *scl.Unit) float64 {
-				return float64(unit.MineralContents)
-			})
+					return float64(unit.MineralContents)
+				})
 			if homeMineral != nil {
 				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 			}
@@ -669,7 +672,7 @@ func (b *bot) OrderUnits() {
 	if factory != nil {
 		cyclones := b.Groups.Get(Cyclones).Units.Len() // b.Units[terran.Cyclone].Len()
 		tanks := b.Groups.Get(Tanks).Units.Len()       // b.Units.OfType(scl.UnitAliases.For(terran.SiegeTank)...).Len()
-		if cyclones <= tanks {
+		if cyclones <= tanks && (!playDefensive || tanks > 0) {
 			if b.CanBuy(ability.Train_Cyclone) {
 				b.OrderTrain(factory, ability.Train_Cyclone)
 			} else if cyclones == 0 {
@@ -704,7 +707,9 @@ func (b *bot) OrderUnits() {
 
 	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused)
 	if rax != nil {
-		if (b.Pending(ability.Train_Reaper) < 4 || b.EnemyRace == api.Race_Zerg) && b.CanBuy(ability.Train_Reaper) {
+		// Until 4:00
+		if b.Loop < 5376 && (b.Pending(ability.Train_Reaper) < 2 || b.EnemyRace == api.Race_Zerg) &&
+			b.CanBuy(ability.Train_Reaper) {
 			if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 				rax.SpamCmds = true
 			}
@@ -726,6 +731,14 @@ func (b *bot) ReserveSCVs() {
 		scv := b.GetSCV(pos, 0, 45) // Get SCV but don't change its group
 		if scv != nil && scv.FramesToPos(pos)*b.MineralsPerFrame+float64(b.Minerals)+20 >= 100 {
 			b.Groups.Add(ScvReserve, scv)
+			scv.CommandPos(ability.Move, pos)
+		}
+	}
+	// Fast expansion
+	if b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).Len() == 1 &&
+		b.Minerals >= 350 && b.Groups.Get(ScvReserve).Tags.Empty() && !playDefensive && !workerRush {
+		pos := b.ExpLocs[0]
+		if scv := b.GetSCV(pos, ScvReserve, 45); scv != nil {
 			scv.CommandPos(ability.Move, pos)
 		}
 	}

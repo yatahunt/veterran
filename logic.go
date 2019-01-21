@@ -2,12 +2,14 @@ package main
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"github.com/chippydip/go-sc2ai/enums/ability"
+	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 	"github.com/chippydip/go-sc2ai/enums/zerg"
-	"github.com/chippydip/go-sc2ai/enums/protoss"
-	"github.com/chippydip/go-sc2ai/enums/ability"
 )
 
+// todo: юниты в углах карты могут отвлекать минки
+// todo: строители умирают от большой армии не пытаясь отступать. Просто отменить не достаточно, приказ будет дан снова
 // todo: + проверка на отсутсвие экспа первым рипером -> playDefensive if true
 // todo: + отмена бункеров и танков когда всё уже хорошо (лимит юнитов >= 100)
 // todo: + микро риперами против королев поломалось
@@ -16,7 +18,7 @@ import (
 // todo: + надо раньше выходить на вторую базу
 // todo: ? циклоны перестали стрелять отступая от лингов
 // todo: ? юниты не очень эффективно избегают штормов
-// todo: ? рабы всё ещё творят херню (когда их больше, чем нужно?)
+// todo: ? рабы всё ещё творят херню (когда их больше, чем нужно?) - видимо, связано с починкой и недостатком ревурсов
 // todo: ? рабочие пытаются поставить все здания на одной точке -> возможно, нужно строить на %3 кадрах (ошибки отсутствия ресурсов?)
 // todo: нужно что-то придумать с SCV и miners под атакой. Сейчас они реагируют слишком сильно и пугливо
 // todo: надо как-то определять какие здания не стоит чинить, т.к. рабочий будет убит (по числу ranged?)
@@ -254,12 +256,9 @@ func (b *bot) FindBunkerPosition(ccPos scl.Point) {
 			return // There is already position for one bunker
 		}
 		if b.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep) {
+			bunkersPos.Add(pos)
 			break
 		}
-		pos = 0
-	}
-	if pos == 0 {
-		return
 	}
 	/*b.Debug3x3Buildings(bunkersPos...)
 	b.DebugSend()*/
@@ -280,7 +279,7 @@ func (b *bot) RecalcEnemyStartLoc(np scl.Point) {
 
 func (b *bot) EnableDefensivePlay() {
 	playDefensive = true
-	for _, cc := range b.Units[terran.CommandCenter] {
+	for _, cc := range b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress) {
 		if cc.Point().IsCloserThan(1, b.StartLoc) {
 			continue
 		}
@@ -289,26 +288,38 @@ func (b *bot) EnableDefensivePlay() {
 }
 
 func (b *bot) DefensivePlayCheck() {
-	if b.Obs.Score.ScoreDetails.FoodUsed.Army >= 100 {
+	armyScore := b.Units.Units().Filter(scl.DpsGt5).Sum(scl.CmpGroundScore)
+	enemyScore := b.AllEnemyUnits.Units().Filter(scl.DpsGt5).Sum(scl.CmpGroundScore)
+	if armyScore > enemyScore && b.Obs.Score.ScoreDetails.FoodUsed.Army >= 75 {
 		playDefensive = false
+		bunkersPos = nil
 		if bunkers := b.Units[terran.Bunker]; bunkers.Exists() {
-			bunkers.Command(ability.Effect_Salvage)
+			bunkers.Command(ability.UnloadAll_Bunker)
+			bunkers.CommandQueue(ability.Effect_Salvage)
 		}
 		if tanks := b.Groups.Get(TanksOnExps).Units; tanks.Exists() {
 			b.Groups.Add(Tanks, tanks...)
 		}
-	} else if b.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 {
+	}
+	if armyScore > enemyScore && b.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 {
 		playDefensive = false
-	} else if b.AllEnemyUnits[zerg.Zergling].Len() >= 20 || b.AllEnemyUnits[protoss.Carrier].Len() >= 3 {
+	}
+	if armyScore * 2 < enemyScore {
 		b.EnableDefensivePlay()
 	}
-	if b.Loop >= 3360 && b.Loop < 3370 { // 2:30
+	/*if b.AllEnemyUnits[zerg.Zergling].Len() >= 20 || b.AllEnemyUnits[protoss.Carrier].Len() >= 3 {
+		b.EnableDefensivePlay()
+	}*/
+	if b.Loop >= 3584 && b.Loop < 3594 { // 2:40
 		townHalls := append(scl.UnitAliases.For(terran.CommandCenter), scl.UnitAliases.For(zerg.Hatchery)...)
 		townHalls = append(townHalls, protoss.Nexus)
 		if b.AllEnemyUnits.OfType(townHalls...).Len() < 2 {
 			b.EnableDefensivePlay()
 		}
 	}
+	/*if b.Loop < 4480 && b.AllEnemyUnits[protoss.Stalker].Len() > 2 { // 3:20
+		b.EnableDefensivePlay()
+	}*/
 	if playDefensive {
 		buildings := append(b.Groups.Get(Buildings).Units, b.Groups.Get(UnderConstruction).Units...)
 		farBuilding := buildings.FurthestTo(b.StartLoc)

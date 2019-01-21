@@ -191,7 +191,7 @@ func (b *bot) Marines() {
 
 func (b *bot) Reapers() {
 	var mfsPos scl.Point
-	if b.Loop < 3360 { // For exp recon before 2:30
+	if !playDefensive && b.Loop < 3584 { // For exp recon before 2:40
 		mfsPos = b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, b.EnemyExpLocs[0]).Center()
 	}
 	okTargets := scl.Units{}
@@ -792,13 +792,14 @@ func (b *bot) MechRetreat() {
 				continue
 			}
 		}
-		if u.UnitType == terran.SiegeTank {
+		// It can't retreat then
+		/*if u.UnitType == terran.SiegeTank {
 			targets := enemies.Filter(scl.Visible).InRangeOf(u, 0)
 			if targets.Exists() {
 				u.Attack(targets)
 				continue
 			}
-		}
+		}*/
 
 		if u.Point().IsCloserThan(8, healingPoint) {
 			u.CommandPos(ability.Move, healingPoint)
