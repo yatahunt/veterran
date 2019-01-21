@@ -3,34 +3,31 @@ package main
 import (
 	"bitbucket.org/aisee/sc2lib"
 	"github.com/chippydip/go-sc2ai/enums/terran"
+	"github.com/chippydip/go-sc2ai/enums/zerg"
+	"github.com/chippydip/go-sc2ai/enums/protoss"
+	"github.com/chippydip/go-sc2ai/enums/ability"
 )
 
-// todo: микро риперами против королев поломалось
+// todo: + проверка на отсутсвие экспа первым рипером -> playDefensive if true
+// todo: + отмена бункеров и танков когда всё уже хорошо (лимит юнитов >= 100)
+// todo: + микро риперами против королев поломалось
+// todo: + до геллионов - больше риперов против зерга (пока нет спидлингов) + грейд на атаку пехоте если > 4
+// todo: + минки должны выкапываться под плохими эффектами
+// todo: + надо раньше выходить на вторую базу
 // todo: ? циклоны перестали стрелять отступая от лингов
+// todo: ? юниты не очень эффективно избегают штормов
+// todo: ? рабы всё ещё творят херню (когда их больше, чем нужно?)
+// todo: ? рабочие пытаются поставить все здания на одной точке -> возможно, нужно строить на %3 кадрах (ошибки отсутствия ресурсов?)
+// todo: нужно что-то придумать с SCV и miners под атакой. Сейчас они реагируют слишком сильно и пугливо
 // todo: надо как-то определять какие здания не стоит чинить, т.к. рабочий будет убит (по числу ranged?)
-// todo: + ограничить число минок 8-ю штуками? Как и геллионы
 // todo: танку надо перераскладываться, если на границе его радиуса только здания
-// todo: строить первый CC на хайграунде?
+// todo: строить первый CC на хайграунде если опасно?
 // todo: детектить однобазовый оллин и переходить на вторую только после определённого лимита
 // todo: поднимать и спасать CC, но забить на починку рефов, если рядом враги
 // todo: хрень с хайграундом на автоматоне, юниты идут не туда и дохнут
-// todo: + циклоны - понизить приоритет оверов и прочей летающей хрени (не медиваков и т.п.)
-// todo: + до геллионов - больше риперов против зерга (пока нет спидлингов) + грейд на атаку пехоте если > 4
-// todo: минки боятся рабочих, забегают в угол и тупят -> отслеживать время взрыва и закапывать если по пути к лечению
-// todo: детект спидлингов + крип
 // todo: если есть апгрейд для минок, закапывать их, если за ними гонится кто-то быстрее их
-// todo: + не балансировать минералы если ресурсов мало
-// todo: + минки должны выкапываться под плохими эффектами
-// todo: + батлы должны отступать на лечение по прямой и рейвены тоже
-// todo: + надо раньше выходить на вторую базу
-// todo: + минка от одного линга будет тупо отступать в сторону противоположную лингу
-// todo: + мины закапываются, но не стреляют, а сразу выкапываются
-// todo: ? юниты не очень эффективно избегают штормов
-// todo: + не бояться больших групп врагов с радиусом атаки меньше, чем у юнита
-// todo: + враги рядом с экспом не стёрлись и рабочий так и не пошёл достраивать CC
-// todo: ? что-то придумать с самоубийственной атакой юнитов малого радиуса, когда накопились танки и мины
-// todo: ? рабы всё ещё творят херню когда их больше, чем нужно
-// todo: - рабочие пытаются поставить все здания на одной точке -> возможно, нужно строить на %3 кадрах (ошибки отсутствия ресурсов?)
+// todo: детект спидлингов + крип
+// todo: минки боятся рабочих, забегают в угол и тупят -> отслеживать время взрыва и закапывать если по пути к лечению
 // todo: орбиталки без минералов не кидают мулов -> резерв для сканов?
 // todo: use dead units events
 // todo: анализировать неуспешные попытки строительства, зарытые линги мешают поставить СС -> ставить башню рядом?
@@ -67,6 +64,7 @@ const (
 	WidowMinesRetreat
 	Hellions
 	Tanks
+	TanksOnExps
 	Ravens
 	Battlecruisers
 	MechRetreat
@@ -236,6 +234,7 @@ func (b *bot) FindTurretPosition(cc *scl.Unit) {
 }
 
 func (b *bot) FindBunkerPosition(ccPos scl.Point) {
+	ccPos = ccPos.Floor()
 	mfs := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, ccPos)
 	vesps := b.VespeneGeysers.Units().CloserThan(scl.ResourceSpreadDistance, ccPos)
 	mfs.Add(vesps...)
@@ -251,6 +250,9 @@ func (b *bot) FindBunkerPosition(ccPos scl.Point) {
 	vec := (mfs.Center() - ccPos).Norm()
 	for x := 3.0; x < 8; x++ {
 		pos = (ccPos - vec.Mul(x)).Floor()
+		if bunkersPos.Has(pos) {
+			return // There is already position for one bunker
+		}
 		if b.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep) {
 			break
 		}
@@ -258,9 +260,6 @@ func (b *bot) FindBunkerPosition(ccPos scl.Point) {
 	}
 	if pos == 0 {
 		return
-	}
-	if !bunkersPos.Has(pos) {
-		bunkersPos.Add(pos)
 	}
 	/*b.Debug3x3Buildings(bunkersPos...)
 	b.DebugSend()*/
@@ -279,8 +278,49 @@ func (b *bot) RecalcEnemyStartLoc(np scl.Point) {
 	b.InitRamps()
 }
 
+func (b *bot) EnableDefensivePlay() {
+	playDefensive = true
+	for _, cc := range b.Units[terran.CommandCenter] {
+		if cc.Point().IsCloserThan(1, b.StartLoc) {
+			continue
+		}
+		b.FindBunkerPosition(cc.Point())
+	}
+}
+
+func (b *bot) DefensivePlayCheck() {
+	if b.Obs.Score.ScoreDetails.FoodUsed.Army >= 100 {
+		playDefensive = false
+		if bunkers := b.Units[terran.Bunker]; bunkers.Exists() {
+			bunkers.Command(ability.Effect_Salvage)
+		}
+		if tanks := b.Groups.Get(TanksOnExps).Units; tanks.Exists() {
+			b.Groups.Add(Tanks, tanks...)
+		}
+	} else if b.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 {
+		playDefensive = false
+	} else if b.AllEnemyUnits[zerg.Zergling].Len() >= 20 || b.AllEnemyUnits[protoss.Carrier].Len() >= 3 {
+		b.EnableDefensivePlay()
+	}
+	if b.Loop >= 3360 && b.Loop < 3370 { // 2:30
+		townHalls := append(scl.UnitAliases.For(terran.CommandCenter), scl.UnitAliases.For(zerg.Hatchery)...)
+		townHalls = append(townHalls, protoss.Nexus)
+		if b.AllEnemyUnits.OfType(townHalls...).Len() < 2 {
+			b.EnableDefensivePlay()
+		}
+	}
+	if playDefensive {
+		buildings := append(b.Groups.Get(Buildings).Units, b.Groups.Get(UnderConstruction).Units...)
+		farBuilding := buildings.FurthestTo(b.StartLoc)
+		if farBuilding != nil {
+			defensiveRange = farBuilding.Point().Dist(b.StartLoc) + 10
+		}
+	}
+}
+
 func (b *bot) Logic() {
 	// time.Sleep(time.Millisecond * 10)
+	b.DefensivePlayCheck()
 	b.Roles()
 	b.Macro()
 	b.Micro()

@@ -9,6 +9,7 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 	"github.com/chippydip/go-sc2ai/enums/zerg"
+	"math"
 )
 
 type Booler func(b *bot) bool
@@ -70,9 +71,16 @@ var RootBuildOrder = BuildNodes{
 	{
 		Name:    "Supplies",
 		Ability: ability.Build_SupplyDepot,
-		Premise: func(b *bot) bool { return b.FoodLeft < 4+b.FoodUsed/20 && b.FoodCap < 200 },
-		Limit:   func(b *bot) int { return 30 },
-		Active:  func(b *bot) int { return 1 + b.FoodUsed/50 },
+		Premise: func(b *bot) bool {
+			// it's safe && 1 depo is placed && < 2:00 && only one cc
+			if !playDefensive && b.FoodCap > 20 && b.Loop < 2688 &&
+				b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Len() == 1 {
+				return false // Wait for a second cc
+			}
+			return b.FoodLeft < 4+b.FoodUsed/20 && b.FoodCap < 200
+		},
+		Limit:  func(b *bot) int { return 30 },
+		Active: func(b *bot) int { return 1 + b.FoodUsed/50 },
 	},
 	{
 		Name:    "Barrack",
@@ -323,9 +331,9 @@ func (b *bot) Build(aid api.AbilityID) scl.Point {
 		return 0 // Not available because of tech reqs, like: supply is needed for barracks
 	}
 
-	buildersTargets := map[scl.Point]bool{}
+	var buildersTargets scl.Points
 	for _, builder := range b.Groups.Get(Builders).Units {
-		buildersTargets[builder.TargetPos()] = true
+		buildersTargets.Add(builder.TargetPos())
 	}
 
 	enemies := b.AllEnemyUnits.Units()
@@ -341,7 +349,7 @@ func (b *bot) Build(aid api.AbilityID) scl.Point {
 		positions = bunkersPos
 	}
 	for _, pos := range positions {
-		if buildersTargets[pos] {
+		if buildersTargets.CloserThan(math.Sqrt2, pos).Exists() {
 			continue // Someone already constructing there
 		}
 		if !b.IsPosOk(pos, size, 0, scl.IsBuildable, scl.IsNoCreep) {
@@ -608,8 +616,8 @@ func (b *bot) Cast() {
 			homeMineral := b.MineralFields.Units().
 				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
 				Max(func(unit *scl.Unit) float64 {
-					return float64(unit.MineralContents)
-				})
+				return float64(unit.MineralContents)
+			})
 			if homeMineral != nil {
 				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
 			}
@@ -659,8 +667,8 @@ func (b *bot) OrderUnits() {
 
 	factory := b.Units[terran.Factory].First(scl.Ready, scl.Unused, scl.HasTechlab)
 	if factory != nil {
-		cyclones := b.Units[terran.Cyclone].Len()
-		tanks := b.Units.OfType(scl.UnitAliases.For(terran.SiegeTank)...).Len()
+		cyclones := b.Groups.Get(Cyclones).Units.Len() // b.Units[terran.Cyclone].Len()
+		tanks := b.Groups.Get(Tanks).Units.Len()       // b.Units.OfType(scl.UnitAliases.For(terran.SiegeTank)...).Len()
 		if cyclones <= tanks {
 			if b.CanBuy(ability.Train_Cyclone) {
 				b.OrderTrain(factory, ability.Train_Cyclone)

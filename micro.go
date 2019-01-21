@@ -190,10 +190,15 @@ func (b *bot) Marines() {
 }
 
 func (b *bot) Reapers() {
+	var mfsPos scl.Point
+	if b.Loop < 3360 { // For exp recon before 2:30
+		mfsPos = b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, b.EnemyExpLocs[0]).Center()
+	}
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
 	allEnemies := b.AllEnemyUnits.Units()
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
+
 	reapers := b.Groups.Get(Reapers).Units
 	for _, enemy := range allEnemies {
 		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
@@ -213,7 +218,7 @@ func (b *bot) Reapers() {
 
 	// Main army
 	for _, reaper := range reapers {
-		if reaper.Hits < 21 {
+		if reaper.Hits < 27 {
 			b.Groups.Add(ReapersRetreat, reaper)
 			continue
 		}
@@ -243,9 +248,10 @@ func (b *bot) Reapers() {
 			}*/
 		}
 
-		// Attack
-		if goodTargets.Exists() || okTargets.Exists() {
-			reaper.AttackCustom(scl.DefaultAttackFunc, ReaperMoveFunc, goodTargets, okTargets /*, hazards*/)
+		if mfsPos != 0 && !b.IsExplored(mfsPos) && goodTargets.InRangeOf(reaper, 0).Empty() {
+			reaper.CommandPos(ability.Move, mfsPos)
+		} else if goodTargets.Exists() || okTargets.Exists() {
+			reaper.AttackCustom(scl.DefaultAttackFunc, ReaperMoveFunc, goodTargets, okTargets)
 		} else {
 			b.Explore(reaper)
 		}
@@ -254,7 +260,7 @@ func (b *bot) Reapers() {
 	// Damaged reapers
 	reapers = b.Groups.Get(ReapersRetreat).Units
 	for _, reaper := range reapers {
-		if reaper.Health > 30 {
+		if reaper.Health > 36 {
 			b.Groups.Add(Reapers, reaper)
 			continue
 		}
@@ -808,19 +814,6 @@ func (b *bot) MechRetreat() {
 }
 
 func (b *bot) Micro() {
-	if b.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 {
-		playDefensive = false
-	} else if b.AllEnemyUnits[zerg.Zergling].Len() >= 20 || b.AllEnemyUnits[protoss.Carrier].Len() >= 3 {
-		playDefensive = true
-	}
-	if playDefensive {
-		buildings := append(b.Groups.Get(Buildings).Units, b.Groups.Get(UnderConstruction).Units...)
-		farBuilding := buildings.FurthestTo(b.StartLoc)
-		if farBuilding != nil {
-			defensiveRange = farBuilding.Point().Dist(b.StartLoc) + 10
-		}
-	}
-
 	b.WorkerRushDefence()
 	b.Marines()
 	b.Reapers()

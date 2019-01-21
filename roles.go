@@ -135,7 +135,7 @@ func (b *bot) Repair() {
 	}
 
 	// Repairers
-	buildings := b.Groups.Get(Buildings).Units
+	buildings := append(b.Groups.Get(Buildings).Units, b.Groups.Get(TanksOnExps).Units...)
 	for _, building := range buildings {
 		ars := building.FindAssignedRepairers(reps)
 		maxArs := int(building.Radius * 3)
@@ -232,7 +232,7 @@ func (b *bot) Scout() {
 			// If N-1 checked and not found, then N is EnemyStartLoc
 			b.RecalcEnemyStartLoc(b.EnemyStartLocs[b.EnemyStartLocs.Len()-1])
 			b.Groups.Add(ScoutBase, scv) // promote scout
-			playDefensive = true // we don't know what enemy is doing
+			b.EnableDefensivePlay()      // we don't know what enemy is doing
 			return
 		}
 
@@ -276,17 +276,17 @@ func (b *bot) ScoutBase() {
 
 		if b.EnemyRace == api.Race_Terran {
 			if b.AllEnemyUnits[terran.Barracks].Len() >= 3 {
-				playDefensive = true
+				b.EnableDefensivePlay()
 			}
 		}
 		if b.EnemyRace == api.Race_Zerg {
 			if b.AllEnemyUnits[zerg.SpawningPool].First(scl.Ready) != nil || b.AllEnemyUnits[zerg.Zergling].Exists() {
-				playDefensive = true
+				b.EnableDefensivePlay()
 			}
 		}
 		if b.EnemyRace == api.Race_Protoss {
 			if b.AllEnemyUnits[protoss.Gateway].Len() >= 2 {
-				playDefensive = true
+				b.EnableDefensivePlay()
 			}
 		}
 	}
@@ -323,13 +323,13 @@ func (b *bot) Miners() {
 	miners = b.Groups.Get(Miners).Units
 	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).
 		Filter(func(unit *scl.Unit) bool {
-			return unit.IsReady() && enemies.CanAttack(unit, 0).Empty()
-		})
+		return unit.IsReady() && enemies.CanAttack(unit, 0).Empty()
+	})
 	b.HandleMiners(miners, ccs, 1)
 
 	// If there is ready unsaturated refinery and an scv gathering, send it there
 	refs := b.Units[terran.Refinery]
-	if b.Minerals > 200 && b.Minerals/2 > b.Vespene {
+	if b.Minerals > 200 && b.Minerals/2 > b.Vespene || ccs.Len() >= 3 {
 		ref := refs.First(func(unit *scl.Unit) bool { return unit.IsReady() && unit.AssignedHarvesters < 3 })
 		if ref != nil {
 			// Get scv gathering minerals
@@ -342,7 +342,7 @@ func (b *bot) Miners() {
 				scv.CommandTag(ability.Smart, ref.Tag)
 			}
 		}
-	} else if b.Vespene > 200 && b.Minerals < b.Vespene && refs.Exists() {
+	} else if b.Vespene > 200 && b.Minerals < b.Vespene && refs.Exists() && ccs.Len() < 3 {
 		mfs := b.MineralFields.Units()
 		scv := b.Groups.Get(Miners).Units.First(func(unit *scl.Unit) bool {
 			tag := unit.TargetTag()
@@ -354,6 +354,44 @@ func (b *bot) Miners() {
 	}
 }
 
+func (b *bot) TanksOnExps() {
+	tanks := b.Groups.Get(TanksOnExps).Units
+	tanksSieged := tanks.Filter(func(unit *scl.Unit) bool { return unit.UnitType == terran.SiegeTankSieged })
+	tanksUnsieged := tanks.Filter(func(unit *scl.Unit) bool { return unit.UnitType == terran.SiegeTank })
+	if !playDefensive {
+		// Move all unsieged tanks back to army
+		for _, tank := range tanksUnsieged {
+			b.Groups.Add(Tanks, tank)
+		}
+		return
+	}
+
+	bunkers := b.Units[terran.Bunker]
+	bunker := bunkers.Filter(func(unit *scl.Unit) bool {
+		return tanksSieged.CloserThan(5, unit.Point()).Empty()
+	}).ClosestTo(b.StartLoc)
+	for _, tank := range tanksUnsieged {
+		if bunker == nil {
+			b.Groups.Add(Tanks, tank)
+			continue
+		}
+		ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+		cc := ccs.ClosestTo(bunker.Point())
+		pos := bunker.Point().Towards(cc.Point(), 1.5)
+		if tank.IsFarFrom(pos) {
+			tank.CommandPos(ability.Move, pos)
+		} else if tank.IsIdle() {
+			tank.Command(ability.Morph_SiegeMode)
+		}
+	}
+
+	candidates := b.Groups.Get(Tanks).Units
+	if tanks.Len() < bunkers.Len() && candidates.Exists() && bunker != nil {
+		tank := candidates.ClosestTo(bunker.Point())
+		b.Groups.Add(TanksOnExps, tank)
+	}
+}
+
 func (b *bot) Roles() {
 	b.Builders()
 	b.Repair()
@@ -361,5 +399,6 @@ func (b *bot) Roles() {
 	b.Scout()
 	b.ScoutBase()
 	b.Miners()
+	b.TanksOnExps()
 	b.BuildingsCheck()
 }
