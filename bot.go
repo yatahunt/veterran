@@ -2,7 +2,6 @@ package main
 
 import (
 	"bitbucket.org/aisee/sc2lib"
-	"bitbucket.org/aisee/minilog"
 )
 
 func (b *bot) InitBot() {
@@ -10,7 +9,6 @@ func (b *bot) InitBot() {
 	scl.InitUpgrades(b.Info.Data().Upgrades)
 	scl.InitEffects(b.Info.Data().Effects)
 	b.InitLocations()
-	log.Info(b.EnemyMainCenter)
 	b.FindExpansions()
 	b.InitMining()
 	b.FindRamps()

@@ -51,8 +51,8 @@ var RootBuildOrder = BuildNodes{
 		Premise: func(b *bot) bool {
 			return b.AllEnemyUnits.Units().Filter(scl.DpsGt5).CloserThan(defensiveRange, b.StartLoc).Empty()
 		},
-		Limit:   func(b *bot) int { return buildPos[scl.S5x5].Len() },
-		Active:  BuildOne,
+		Limit:  func(b *bot) int { return buildPos[scl.S5x5].Len() },
+		Active: BuildOne,
 		WaitRes: func(b *bot) bool {
 			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
 			// First orbital is morphing
@@ -76,7 +76,7 @@ var RootBuildOrder = BuildNodes{
 		Ability: ability.Build_SupplyDepot,
 		Premise: func(b *bot) bool {
 			// it's safe && 1 depo is placed && < 2:00 && only one cc
-			if !playDefensive && b.FoodCap > 20 && b.Loop < 2688 &&
+			if /*!playDefensive && */ b.FoodCap > 20 && b.Loop < 2688 &&
 				b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Len() == 1 {
 				return false // Wait for a second cc
 			}
@@ -168,6 +168,9 @@ var RaxBuildOrder = BuildNodes{
 	{
 		Name:    "Bunkers",
 		Ability: ability.Build_Bunker,
+		Premise: func(b *bot) bool {
+			return b.AllEnemyUnits.Units().Filter(scl.DpsGt5).CloserThan(defensiveRange, b.StartLoc).Empty()
+		},
 		Limit:   func(b *bot) int { return bunkersPos.Len() },
 		Active:  func(b *bot) int { return bunkersPos.Len() },
 		WaitRes: Yes,
@@ -359,6 +362,9 @@ func (b *bot) Build(aid api.AbilityID) scl.Point {
 			continue
 		}
 		if enemies.CloserThan(safeBuildRange, pos).Exists() {
+			continue
+		}
+		if playDefensive && aid == ability.Build_CommandCenter && pos.IsFurtherThan(defensiveRange, b.StartLoc) {
 			continue
 		}
 
@@ -614,22 +620,29 @@ func (b *bot) Cast() {
 				}
 			}
 
-			// Recon scan af 4:00
-			if b.Loop >= 5376 && !b.IsExplored(b.EnemyMainCenter) {
-				cc.CommandPos(ability.Effect_Scan, b.EnemyMainCenter)
+			// Recon scan at 4:00
+			pos := b.EnemyMainCenter
+			if b.EnemyRace == api.Race_Zerg {
+				pos = b.EnemyStartLoc
+			}
+			if b.Loop >= 5376 && !b.IsExplored(pos) {
+				cc.CommandPos(ability.Effect_Scan, pos)
 				log.Debug("Recon scan")
 				return
 			}
 		}
 		// Mule
-		if cc.Energy >= 75 || (b.Loop < 4704 && cc.Energy >= 50) { // 3:30
-			homeMineral := b.MineralFields.Units().
-				CloserThan(scl.ResourceSpreadDistance, cc).
-				Max(func(unit *scl.Unit) float64 {
-					return float64(unit.MineralContents)
-				})
-			if homeMineral != nil {
-				cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
+		if cc.Energy >= 75 || (b.Loop < 4928 && cc.Energy >= 50) { // 3:40
+			ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand,
+				terran.PlanetaryFortress).Filter(scl.Ready)
+			ccs.OrderByDistanceTo(cc, false)
+			for _, target := range ccs {
+				homeMineral := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, target).
+					Filter(func(unit *scl.Unit) bool { return unit.MineralContents > 400 }).
+					Max(func(unit *scl.Unit) float64 { return float64(unit.MineralContents) })
+				if homeMineral != nil {
+					cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
+				}
 			}
 		}
 	}
@@ -743,7 +756,7 @@ func (b *bot) ReserveSCVs() {
 	}
 	// Fast expansion
 	if b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).Len() == 1 &&
-		b.Minerals >= 350 && b.Groups.Get(ScvReserve).Tags.Empty() && !playDefensive && !workerRush {
+		b.Minerals >= 350 && b.Groups.Get(ScvReserve).Tags.Empty() /*&& !playDefensive*/ && !workerRush {
 		pos := b.ExpLocs[0]
 		if scv := b.GetSCV(pos, ScvReserve, 45); scv != nil {
 			scv.CommandPos(ability.Move, pos)

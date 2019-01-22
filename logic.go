@@ -8,6 +8,7 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/zerg"
 )
 
+// todo: торы против зергов вместо батлов
 // todo: + забить на разведку и всегда играть оборонительно?
 // todo: викинги против баньши? Или просто добавить туррелей?
 // todo: убрать лишний скан после того как снаряды от убитой баньши долетают до цели
@@ -309,7 +310,7 @@ func (b *bot) DefensivePlayCheck() {
 	if armyScore > enemyScore && b.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 {
 		playDefensive = false
 	}
-	if armyScore * 2 < enemyScore {
+	if armyScore * 1.5 < enemyScore {
 		b.EnableDefensivePlay()
 	}
 	/*if b.AllEnemyUnits[zerg.Zergling].Len() >= 20 || b.AllEnemyUnits[protoss.Carrier].Len() >= 3 {
@@ -329,7 +330,7 @@ func (b *bot) DefensivePlayCheck() {
 		buildings := append(b.Groups.Get(Buildings).Units, b.Groups.Get(UnderConstruction).Units...)
 		farBuilding := buildings.FurthestTo(b.StartLoc)
 		if farBuilding != nil {
-			defensiveRange = farBuilding.Dist(b.StartLoc) + 10
+			defensiveRange = farBuilding.Dist(b.StartLoc) + 20
 		}
 	}
 }

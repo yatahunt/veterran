@@ -344,13 +344,14 @@ func (b *bot) Miners() {
 			}
 		}
 	} else if b.Vespene > ccs.Len() * 200 && b.Minerals < b.Vespene && refs.Exists() {
-		mfs := b.MineralFields.Units()
+		// mfs := b.MineralFields.Units()
 		scv := b.Groups.Get(Miners).Units.First(func(unit *scl.Unit) bool {
 			tag := unit.TargetTag()
 			return unit.IsGathering() && refs.ByTag(tag) != nil
 		})
 		if scv != nil {
-			scv.CommandTag(ability.Smart, mfs.ClosestTo(scv).Tag)
+			// scv.CommandTag(ability.Smart, mfs.ClosestTo(scv).Tag)
+			scv.Command(ability.Stop_Stop_4)
 		}
 	}
 }

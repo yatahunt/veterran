@@ -494,7 +494,7 @@ func (b *bot) Hellions() {
 	}
 
 	for _, hellion := range hellions {
-		if hellion.Hits < 31 {
+		if hellion.Hits < 31 || (hellion.UnitType == terran.HellionTank && hellion.Hits < 41) {
 			b.Groups.Add(MechRetreat, hellion)
 			continue
 		}
@@ -797,14 +797,14 @@ func (b *bot) MechRetreat() {
 				continue
 			}
 		}
-		// It can't retreat then
-		/*if u.UnitType == terran.SiegeTank {
+		// Not for siegetank. It can't fire & retreat
+		if u.UnitType == terran.Hellion || u.UnitType == terran.HellionTank {
 			targets := enemies.Filter(scl.Visible).InRangeOf(u, 0)
 			if targets.Exists() {
 				u.Attack(targets)
 				continue
 			}
-		}*/
+		}
 
 		if u.IsCloserThan(8, healingPoint) {
 			u.CommandPos(ability.Move, healingPoint)
