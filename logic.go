@@ -8,10 +8,10 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/zerg"
 )
 
-// todo: забить на разведку и всегда играть оборонительно?
+// todo: + забить на разведку и всегда играть оборонительно?
 // todo: викинги против баньши? Или просто добавить туррелей?
 // todo: убрать лишний скан после того как снаряды от убитой баньши долетают до цели
-// todo: против агро-лингов надо что-то придумать. Бункер на хайграунде + хеллбаты?
+// todo: + против агро-лингов надо что-то придумать. Бункер на хайграунде + хеллбаты?
 // todo: юниты в углах карты могут отвлекать минки
 // todo: строители умирают от большой армии не пытаясь отступать. Просто отменить не достаточно, приказ будет дан снова
 // todo: + проверка на отсутсвие экспа первым рипером -> playDefensive if true
@@ -41,7 +41,7 @@ import (
 var isRealtime = false
 var workerRush = false
 var buildTurrets = false
-var playDefensive = false
+var playDefensive = true
 var defensiveRange = 0.0
 var buildPos = map[scl.BuildingSize]scl.Points{}
 var firstBarrackBuildPos = scl.Points{}
@@ -155,7 +155,7 @@ func (b *bot) FindBuildingsPositions() {
 					continue
 				}
 				pos := b.StartLoc + vec
-				if mfs.ClosestTo(pos).Point().Dist2(pos) >= 9 {
+				if mfs.ClosestTo(pos).Dist2(pos) >= 9 {
 					continue
 				}
 				if !b.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable, scl.IsPathable) {
@@ -208,14 +208,14 @@ func (b *bot) FindBuildingsPositions() {
 }
 
 func (b *bot) FindTurretPosition(cc *scl.Unit) {
-	mfs := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, cc.Point())
-	vesps := b.VespeneGeysers.Units().CloserThan(scl.ResourceSpreadDistance, cc.Point())
+	mfs := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, cc)
+	vesps := b.VespeneGeysers.Units().CloserThan(scl.ResourceSpreadDistance, cc)
 	mfs.Add(vesps...)
 	if mfs.Empty() {
 		return
 	}
 
-	for _, p := range b.GetBuildingPoints(cc.Point(), scl.S5x5) {
+	for _, p := range b.GetBuildingPoints(cc, scl.S5x5) {
 		b.SetBuildable(p, false)
 	}
 
@@ -239,8 +239,8 @@ func (b *bot) FindTurretPosition(cc *scl.Unit) {
 	b.DebugSend()*/
 }
 
-func (b *bot) FindBunkerPosition(ccPos scl.Point) {
-	ccPos = ccPos.Floor()
+func (b *bot) FindBunkerPosition(ptr scl.Pointer) {
+	ccPos := ptr.Point().Floor()
 	mfs := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, ccPos)
 	vesps := b.VespeneGeysers.Units().CloserThan(scl.ResourceSpreadDistance, ccPos)
 	mfs.Add(vesps...)
@@ -268,15 +268,16 @@ func (b *bot) FindBunkerPosition(ccPos scl.Point) {
 	b.DebugSend()*/
 }
 
-func (b *bot) getEmptyBunker(pos scl.Point) *scl.Unit {
+func (b *bot) getEmptyBunker(ptr scl.Pointer) *scl.Unit {
 	bunkers := b.Units[terran.Bunker].Filter(func(unit *scl.Unit) bool {
 		return unit.CargoSpaceTaken < unit.CargoSpaceMax
 	})
-	return bunkers.Min(func(unit *scl.Unit) float64 { return unit.Point().Dist2(pos) })
+	return bunkers.Min(func(unit *scl.Unit) float64 { return unit.Dist2(ptr) })
 }
 
 func (b *bot) RecalcEnemyStartLoc(np scl.Point) {
 	b.EnemyStartLoc = np
+	b.EnemyMainCenter = b.FindBaseCenter(b.EnemyStartLoc)
 	b.FindExpansions()
 	b.InitRamps()
 }
@@ -284,10 +285,10 @@ func (b *bot) RecalcEnemyStartLoc(np scl.Point) {
 func (b *bot) EnableDefensivePlay() {
 	playDefensive = true
 	for _, cc := range b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress) {
-		if cc.Point().IsCloserThan(1, b.StartLoc) {
+		if cc.IsCloserThan(1, b.StartLoc) {
 			continue
 		}
-		b.FindBunkerPosition(cc.Point())
+		b.FindBunkerPosition(cc)
 	}
 }
 
@@ -328,7 +329,7 @@ func (b *bot) DefensivePlayCheck() {
 		buildings := append(b.Groups.Get(Buildings).Units, b.Groups.Get(UnderConstruction).Units...)
 		farBuilding := buildings.FurthestTo(b.StartLoc)
 		if farBuilding != nil {
-			defensiveRange = farBuilding.Point().Dist(b.StartLoc) + 10
+			defensiveRange = farBuilding.Dist(b.StartLoc) + 10
 		}
 	}
 }

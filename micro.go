@@ -17,7 +17,7 @@ func WorkerMoveFunc(u *scl.Unit, target *scl.Unit) {
 		if u.WeaponCooldown > 0 {
 			u.SpamCmds = true
 		}
-		u.CommandPos(ability.Move, target.Point())
+		u.CommandPos(ability.Move, target)
 	}
 }
 
@@ -28,7 +28,7 @@ func (b *bot) WorkerRushDefence() {
 	if workerRush {
 		workersRange = 50.0
 	} else if building := b.Units.Units().Filter(scl.Structure).ClosestTo(b.MainRamp.Top); building != nil {
-		workersRange = math.Max(workersRange, building.Point().Dist(b.StartLoc)+6)
+		workersRange = math.Max(workersRange, building.Dist(b.StartLoc)+6)
 	}
 
 	workers := b.Units.OfType(terran.SCV).CloserThan(scl.ResourceSpreadDistance, b.StartLoc)
@@ -91,11 +91,11 @@ func (b *bot) WorkerRushDefence() {
 }
 
 func (b *bot) ThrowMine(reaper *scl.Unit, targets scl.Units) bool {
-	closestEnemy := targets.ClosestTo(reaper.Point())
+	closestEnemy := targets.ClosestTo(reaper)
 	if closestEnemy != nil && reaper.HasAbility(ability.Effect_KD8Charge) {
 		// pos := closestEnemy.EstimatePositionAfter(50)
 		pos := closestEnemy.Point()
-		if pos.IsCloserThan(float64(reaper.Radius)+reaper.GroundRange(), reaper.Point()) {
+		if pos.IsCloserThan(float64(reaper.Radius)+reaper.GroundRange(), reaper) {
 			reaper.CommandPos(ability.Effect_KD8Charge, pos)
 			return true
 		}
@@ -145,7 +145,7 @@ func (b *bot) Marines() {
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	marines := b.Groups.Get(Marines).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
 			continue
 		}
 		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -169,12 +169,12 @@ func (b *bot) Marines() {
 
 		// Load into a bunker
 		if goodTargets.InRangeOf(marine, 0).Empty() {
-			bunker := b.getEmptyBunker(marine.Point())
+			bunker := b.getEmptyBunker(marine)
 			if bunker != nil {
 				if bunker.IsReady() {
 					marine.CommandTag(ability.Smart, bunker.Tag)
-				} else if marine.IsFarFrom(bunker.Point()) {
-					marine.CommandPos(ability.Move, bunker.Point())
+				} else if marine.IsFarFrom(bunker) {
+					marine.CommandPos(ability.Move, bunker)
 				}
 				continue
 			}
@@ -201,7 +201,7 @@ func (b *bot) Reapers() {
 
 	reapers := b.Groups.Get(Reapers).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
 			continue
 		}
 		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -231,7 +231,7 @@ func (b *bot) Reapers() {
 			}
 
 			// There is an enemy
-			if closestEnemy := goodTargets.Filter(scl.Visible).ClosestTo(reaper.Point()); closestEnemy != nil {
+			if closestEnemy := goodTargets.Filter(scl.Visible).ClosestTo(reaper); closestEnemy != nil {
 				// And it is closer than shooting distance - 0.5
 				if reaper.InRange(closestEnemy, -0.5) {
 					// Retreat a little
@@ -322,7 +322,7 @@ func (b *bot) Cyclones() {
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	cyclones := b.Groups.Get(Cyclones).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
 			continue
 		}
 		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -386,7 +386,7 @@ func (b *bot) Mines() {
 	// allEnemiesReady := allEnemies.Filter(scl.Ready)
 	mines := b.Groups.Get(WidowMines).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
 			continue
 		}
 		if enemy.IsStructure() || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -402,17 +402,17 @@ func (b *bot) Mines() {
 		if mine.HPS > 0 {
 			// detected = targets.InRangeOf(mine, 0).Empty() - this is wrong? Mine has no weapon?
 			detected = targets.First(func(unit *scl.Unit) bool {
-				return mine.Point().Dist(unit.Point()) <= float64(mine.Radius+unit.Radius+5)
+				return mine.Dist(unit) <= float64(mine.Radius+unit.Radius+5)
 			}) == nil
 		}
-		safePos, safe := mine.EvadeEffectsPos(mine.Point(), false, effect.PsiStorm, effect.CorrosiveBile)
+		safePos, safe := mine.EvadeEffectsPos(mine, false, effect.PsiStorm, effect.CorrosiveBile)
 		if !safe {
 			detected = true
 		}
 
 		if mine.IsBurrowed && (detected ||
 			!mine.HasAbility(ability.Smart) || // Reloading
-			targets.CloserThan(10, mine.Point()).Empty() && attackers.Empty()) {
+			targets.CloserThan(10, mine).Empty() && attackers.Empty()) {
 			// No targets or enemies around
 			if mine.Hits < mine.HitsMax/2 {
 				b.Groups.Add(MechRetreat, mine)
@@ -428,14 +428,14 @@ func (b *bot) Mines() {
 			continue
 		}
 
-		targetIsClose := targets.CloserThan(4, mine.Point()).Exists() // For enemies that can't attack ground
+		targetIsClose := targets.CloserThan(4, mine).Exists() // For enemies that can't attack ground
 		if !mine.IsBurrowed && !detected && (attackers.Exists() || targetIsClose) {
 			mine.Command(ability.BurrowDown_WidowMine)
 			continue
 		}
 
 		if targets.Exists() {
-			mine.CommandPos(ability.Move, targets.ClosestTo(mine.Point()).Point())
+			mine.CommandPos(ability.Move, targets.ClosestTo(mine))
 		} else {
 			b.Explore(mine)
 		}
@@ -481,7 +481,7 @@ func (b *bot) Hellions() {
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	hellions := b.Groups.Get(Hellions).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
 			continue
 		}
 		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -497,6 +497,11 @@ func (b *bot) Hellions() {
 		if hellion.Hits < 31 {
 			b.Groups.Add(MechRetreat, hellion)
 			continue
+		}
+		// Transform into hellbats vs zerg in defense, armory exists, not on main base
+		if b.EnemyRace == api.Race_Zerg && hellion.UnitType == terran.Hellion && playDefensive &&
+			b.Units[terran.Armory].First(scl.Ready) != nil && b.HeightAt(hellion) != b.HeightAt(b.StartLoc) {
+			hellion.Command(ability.Morph_Hellbat)
 		}
 
 		if !scl.AttackDelay.UnitIsCool(hellion) {
@@ -524,7 +529,7 @@ func (b *bot) Tanks() {
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	tanks := b.Groups.Get(Tanks).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
 			continue
 		}
 		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -555,7 +560,7 @@ func (b *bot) Tanks() {
 
 				/*retreat := attackers.Exists()
 				if !retreat && goodTargets.Exists() {
-					closestTarget := goodTargets.ClosestTo(tank.Point())
+					closestTarget := goodTargets.ClosestTo(tank)
 					retreat = tank.RangeDelta(closestTarget, -0.1) <= 0
 				}
 				if retreat {
@@ -628,7 +633,7 @@ func (b *bot) Ravens() {
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	enemiesCenter := allEnemiesReady.Center()
 	friends.OrderBy(func(unit *scl.Unit) float64 {
-		return unit.Point().Dist2(enemiesCenter)
+		return unit.Dist2(enemiesCenter)
 	}, false)
 
 	for n, raven := range ravens {
@@ -641,9 +646,9 @@ func (b *bot) Ravens() {
 			if raven.TargetAbility() == ability.Effect_AutoTurret {
 				continue // Let him finish placing
 			}
-			closeEnemies := allEnemies.CloserThan(8, raven.Point())
+			closeEnemies := allEnemies.CloserThan(8, raven)
 			if closeEnemies.Exists() && closeEnemies.Sum(scl.CmpHits) >= 300 {
-				pos := raven.Point().Towards(closeEnemies.Center(), 3)
+				pos := raven.Towards(closeEnemies.Center(), 3)
 				pos = b.FindClosestPos(pos, scl.S2x2, 0, 1, 1, scl.IsBuildable, scl.IsPathable)
 				if pos != 0 {
 					raven.CommandPos(ability.Effect_AutoTurret, pos.S2x2Fix())
@@ -652,9 +657,9 @@ func (b *bot) Ravens() {
 			}
 		}
 
-		pos := friends[scl.MinInt(n, len(friends)-1)].Point().Towards(enemiesCenter, 2)
+		pos := friends[scl.MinInt(n, len(friends)-1)].Towards(enemiesCenter, 2)
 		pos, safe := raven.AirEvade(allEnemiesReady.CanAttack(raven, 2), 2, pos)
-		if !safe || pos.IsFurtherThan(1, raven.Point()) {
+		if !safe || pos.IsFurtherThan(1, raven) {
 			raven.CommandPos(ability.Move, pos)
 			continue
 		}
@@ -675,7 +680,7 @@ func (b *bot) Battlecruisers() {
 	// allEnemiesReady := allEnemies.Filter(scl.Ready)
 
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.Point().IsFurtherThan(defensiveRange, b.StartLoc) {
+		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
 			continue
 		}
 		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -761,7 +766,7 @@ func (b *bot) MechRetreat() {
 		var healingPoint scl.Point
 		dist := math.Inf(1)
 		for _, expNum := range healingPoints {
-			newDist := u.Point().Dist2(b.ExpLocs[expNum])
+			newDist := u.Dist2(b.ExpLocs[expNum])
 			if newDist < dist {
 				healingExp = expNum
 				healingPoint = b.ExpLocs[expNum] - b.StartMinVec*3
@@ -773,14 +778,14 @@ func (b *bot) MechRetreat() {
 				return float64(unit.AssignedHarvesters)
 			})
 			if cc != nil {
-				u.CommandPos(ability.Effect_TacticalJump, cc.Point() - b.StartMinVec * 3)
+				u.CommandPos(ability.Effect_TacticalJump, cc - b.StartMinVec * 3)
 			} else {
 				u.CommandPos(ability.Effect_TacticalJump, healingPoint)
 			}*/
 			u.CommandPos(ability.Effect_TacticalJump, healingPoint)
 			continue
 		}
-		if u.Point().IsCloserThan(4, healingPoint) {
+		if u.IsCloserThan(4, healingPoint) {
 			u.CommandPos(ability.Move, healingPoint) // For battlecruisers
 			b.Groups.Add(MechHealing, u)
 			continue
@@ -801,7 +806,7 @@ func (b *bot) MechRetreat() {
 			}
 		}*/
 
-		if u.Point().IsCloserThan(8, healingPoint) {
+		if u.IsCloserThan(8, healingPoint) {
 			u.CommandPos(ability.Move, healingPoint)
 			continue
 		}

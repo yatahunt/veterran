@@ -6,15 +6,15 @@ import (
 )
 
 // Pass assignGroup = 0 to skip group assignement
-func (b *bot) GetSCV(pos scl.Point, assignGroup scl.GroupID, minHits float64) *scl.Unit {
-	scv1 := b.Groups.Get(ScvReserve).Units.ClosestTo(pos)
+func (b *bot) GetSCV(ptr scl.Pointer, assignGroup scl.GroupID, minHits float64) *scl.Unit {
+	scv1 := b.Groups.Get(ScvReserve).Units.ClosestTo(ptr)
 	scv2 := b.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
 		return unit.IsGathering() && unit.Hits >= minHits
-	}).ClosestTo(pos)
+	}).ClosestTo(ptr)
 
 	scv := scv1
 	if scv1 != nil && scv2 != nil {
-		scv = scl.Units{scv1, scv2}.ClosestTo(pos)
+		scv = scl.Units{scv1, scv2}.ClosestTo(ptr)
 	} else if scv == nil {
 		scv = scv2
 	}

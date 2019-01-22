@@ -238,9 +238,9 @@ var RaxBuildOrder = BuildNodes{
 			}
 
 			rax := b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
-			if rax.Point().IsCloserThan(3, firstBarrackBuildPos[0]) &&
+			if rax.IsCloserThan(3, firstBarrackBuildPos[0]) &&
 				firstBarrackBuildPos[0] != firstBarrackBuildPos[1] {
-				if b.EnemyUnits.Units().CloserThan(safeBuildRange, rax.Point()).Exists() {
+				if b.EnemyUnits.Units().CloserThan(safeBuildRange, rax).Exists() {
 					return
 				}
 				rax.Command(ability.Lift_Barracks)
@@ -386,12 +386,12 @@ func (b *bot) BuildFirstBarrack() {
 func (b *bot) BuildRefinery(cc *scl.Unit) {
 	// Find first geyser that is close to selected cc, but it doesn't have Refinery on top of it
 	builders := b.Groups.Get(Builders).Units
-	geyser := b.VespeneGeysers.Units().CloserThan(10, cc.Point()).First(func(unit *scl.Unit) bool {
-		return b.Units[terran.Refinery].CloserThan(1, unit.Point()).Len() == 0 &&
+	geyser := b.VespeneGeysers.Units().CloserThan(10, cc).First(func(unit *scl.Unit) bool {
+		return b.Units[terran.Refinery].CloserThan(1, unit).Len() == 0 &&
 			unit.FindAssignedBuilder(builders) == nil
 	})
 	if geyser != nil {
-		scv := b.GetSCV(geyser.Point(), Builders, 45)
+		scv := b.GetSCV(geyser, Builders, 45)
 		if scv != nil {
 			scv.CommandTag(ability.Build_Refinery, geyser.Tag)
 			b.DeductResources(ability.Build_Refinery)
@@ -533,12 +533,12 @@ func (b *bot) Morph() {
 	}
 	groundEnemies := b.AllEnemyUnits.Units().Filter(scl.NotFlying)
 	for _, supply := range b.Units[terran.SupplyDepot] {
-		if groundEnemies.CloserThan(4, supply.Point()).Empty() {
+		if groundEnemies.CloserThan(4, supply).Empty() {
 			supply.Command(ability.Morph_SupplyDepot_Lower)
 		}
 	}
 	for _, supply := range b.Units[terran.SupplyDepotLowered] {
-		if groundEnemies.CloserThan(4, supply.Point()).Exists() {
+		if groundEnemies.CloserThan(4, supply).Exists() {
 			supply.Command(ability.Morph_SupplyDepot_Raise)
 		}
 	}
@@ -557,9 +557,9 @@ func (b *bot) Cast() {
 			// Reaper wants to see highground
 			if b.Units[terran.Raven].Empty() {
 				if reaper := b.Groups.Get(Reapers).Units.ClosestTo(b.EnemyStartLoc); reaper != nil {
-					if enemy := allEnemies.CanAttack(reaper, 1).ClosestTo(reaper.Point()); enemy != nil {
-						if !b.IsVisible(enemy.Point()) && b.HeightAt(enemy.Point()) > b.HeightAt(reaper.Point()) {
-							pos := enemy.Point().Towards(b.EnemyStartLoc, 8)
+					if enemy := allEnemies.CanAttack(reaper, 1).ClosestTo(reaper); enemy != nil {
+						if !b.IsVisible(enemy) && b.HeightAt(enemy) > b.HeightAt(reaper) {
+							pos := enemy.Towards(b.EnemyStartLoc, 8)
 							cc.CommandPos(ability.Effect_Scan, pos)
 							log.Debug("Reaper sight scan")
 							return
@@ -571,13 +571,13 @@ func (b *bot) Cast() {
 			// Vision for tanks
 			tanks := b.Units[terran.SiegeTankSieged]
 			tanks.OrderBy(func(unit *scl.Unit) float64 {
-				return unit.Point().Dist2(b.EnemyStartLoc)
+				return unit.Dist2(b.EnemyStartLoc)
 			}, false)
 			for _, tank := range tanks {
 				targets := allEnemies.InRangeOf(tank, 0)
 				if targets.Exists() && visibleEnemies.InRangeOf(tank, 0).Empty() {
-					pos := targets.ClosestTo(b.EnemyStartLoc).Point()
-					cc.CommandPos(ability.Effect_Scan, pos)
+					target := targets.ClosestTo(b.EnemyStartLoc)
+					cc.CommandPos(ability.Effect_Scan, target)
 					log.Debug("Tank sight scan")
 				}
 			}
@@ -597,7 +597,7 @@ func (b *bot) Cast() {
 					return unit.HitsLost >= 41 && !unit.IsArmored() && !dts.CanAttack(unit, 0).Exists()
 				})
 				if hitByDT != nil {
-					cc.CommandPos(ability.Effect_Scan, hitByDT.Point())
+					cc.CommandPos(ability.Effect_Scan, hitByDT)
 					log.Debug("DT scan")
 					return
 				}
@@ -607,17 +607,24 @@ func (b *bot) Cast() {
 			if b.EnemyRace == api.Race_Terran {
 				for _, u := range units {
 					if u.HitsLost == 12 && allEnemies.CanAttack(u, 2).Empty() {
-						cc.CommandPos(ability.Effect_Scan, u.Point())
+						cc.CommandPos(ability.Effect_Scan, u)
 						log.Debug("Banshee scan")
 						return
 					}
 				}
 			}
+
+			// Recon scan af 4:00
+			if b.Loop >= 5376 && !b.IsExplored(b.EnemyMainCenter) {
+				cc.CommandPos(ability.Effect_Scan, b.EnemyMainCenter)
+				log.Debug("Recon scan")
+				return
+			}
 		}
 		// Mule
-		if cc.Energy >= 75 || (b.Loop < 4032 && cc.Energy >= 50) { // 3 min
+		if cc.Energy >= 75 || (b.Loop < 4704 && cc.Energy >= 50) { // 3:30
 			homeMineral := b.MineralFields.Units().
-				CloserThan(scl.ResourceSpreadDistance, cc.Point()).
+				CloserThan(scl.ResourceSpreadDistance, cc).
 				Max(func(unit *scl.Unit) float64 {
 					return float64(unit.MineralContents)
 				})
@@ -630,7 +637,7 @@ func (b *bot) Cast() {
 
 func (b *bot) OrderUnits() {
 	// b.Units[terran.Bunker].Len() * 4 > b.Units[terran.Marine].Len()
-	if (workerRush || b.getEmptyBunker(0) != nil) && b.CanBuy(ability.Train_Marine) {
+	if (workerRush || b.getEmptyBunker(scl.Pt0()) != nil) && b.CanBuy(ability.Train_Marine) {
 		if rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused); rax != nil {
 			if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 				rax.SpamCmds = true
@@ -708,7 +715,7 @@ func (b *bot) OrderUnits() {
 	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused)
 	if rax != nil {
 		// Until 4:00
-		if b.Loop < 5376 && (b.Pending(ability.Train_Reaper) < 2 || b.EnemyRace == api.Race_Zerg) &&
+		if b.Loop < 5376 && (b.Pending(ability.Train_Reaper) < 2 /*|| b.EnemyRace == api.Race_Zerg*/) &&
 			b.CanBuy(ability.Train_Reaper) {
 			if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 				rax.SpamCmds = true

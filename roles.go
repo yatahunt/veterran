@@ -87,7 +87,7 @@ func (b *bot) BuildingsCheck() {
 		if building.FindAssignedBuilder(builders) == nil &&
 			enemies.CanAttack(building, 0).Empty() &&
 			!addonsTypes.Contain(building.UnitType) {
-			scv := b.GetSCV(building.Point(), Builders, 45)
+			scv := b.GetSCV(building, Builders, 45)
 			if scv != nil {
 				scv.CommandTag(ability.Smart, building.Tag)
 			}
@@ -145,7 +145,7 @@ func (b *bot) Repair() {
 		lessThanMaxAssigned := ars.Len() < maxArs
 		healthDecreasing := building.HPS > 0
 		if buildingIsDamaged && (noReps || (allRepairing && lessThanMaxAssigned && healthDecreasing)) {
-			rep := b.GetSCV(building.Point(), Repairers, 45)
+			rep := b.GetSCV(building, Repairers, 45)
 			if rep != nil {
 				rep.CommandTag(ability.Effect_Repair_SCV, building.Tag)
 			}
@@ -156,14 +156,14 @@ func (b *bot) Repair() {
 	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	healer := b.Groups.Get(ScvHealer).Units.First()
 	damagedSCVs := b.Units[terran.SCV].Filter(func(unit *scl.Unit) bool {
-		return unit.Health < unit.HealthMax && ccs.CloserThan(scl.ResourceSpreadDistance, unit.Point()).Exists()
+		return unit.Health < unit.HealthMax && ccs.CloserThan(scl.ResourceSpreadDistance, unit).Exists()
 	})
 	if damagedSCVs.Exists() && damagedSCVs[0] != healer {
 		if healer == nil {
 			healer = b.GetSCV(damagedSCVs.Center(), ScvHealer, 45)
 		}
 		if healer != nil && healer.TargetAbility() != ability.Effect_Repair_SCV {
-			healer.CommandTag(ability.Effect_Repair_SCV, damagedSCVs.ClosestTo(healer.Point()).Tag)
+			healer.CommandTag(ability.Effect_Repair_SCV, damagedSCVs.ClosestTo(healer).Tag)
 		}
 	} else if healer != nil {
 		b.Groups.Add(Miners, healer)
@@ -179,7 +179,7 @@ func (b *bot) Repair() {
 		ars := mech.FindAssignedRepairers(reps)
 		maxArs := int(mech.Radius * 4)
 		if ars.Len() < maxArs {
-			rep := b.GetSCV(mech.Point(), UnitHealers, 45)
+			rep := b.GetSCV(mech, UnitHealers, 45)
 			if rep != nil {
 				rep.CommandTag(ability.Effect_Repair_SCV, mech.Tag)
 			}
@@ -254,7 +254,8 @@ func (b *bot) ScoutBase() {
 	}
 
 	scv := b.Groups.Get(ScoutBase).Units.First()
-	if b.EnemyStartLocs.Len() <= 1 && scv == nil && !workerRush && b.Loop > 896 && b.Loop < 906 { // 0:50
+	if b.EnemyStartLocs.Len() <= 1 && scv == nil && !workerRush && !playDefensive && b.Loop > 896 && b.Loop < 906 {
+		// 0:50
 		scv = b.GetSCV(b.EnemyStartLoc, Scout, 45)
 		if scv != nil {
 			b.Groups.Add(ScoutBase, scv)
@@ -300,7 +301,7 @@ func (b *bot) Miners() {
 	enemies := b.EnemyUnits.Units().Filter(scl.DpsGt5)
 	miners := b.Groups.Get(Miners).Units
 	for _, miner := range miners {
-		if enemies.CloserThan(safeBuildRange, miner.Point()).Exists() {
+		if enemies.CloserThan(safeBuildRange, miner).Exists() {
 			b.Groups.Add(MinersRetreat, miner)
 		}
 	}
@@ -337,7 +338,7 @@ func (b *bot) Miners() {
 			scv := b.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
 				return unit.IsGathering() && unit.IsCloserThan(scl.ResourceSpreadDistance, ref) &&
 					mfs.ByTag(unit.TargetTag()) != nil
-			}).ClosestTo(ref.Point())
+			}).ClosestTo(ref)
 			if scv != nil {
 				scv.CommandTag(ability.Smart, ref.Tag)
 			}
@@ -349,7 +350,7 @@ func (b *bot) Miners() {
 			return unit.IsGathering() && refs.ByTag(tag) != nil
 		})
 		if scv != nil {
-			scv.CommandTag(ability.Smart, mfs.ClosestTo(scv.Point()).Tag)
+			scv.CommandTag(ability.Smart, mfs.ClosestTo(scv).Tag)
 		}
 	}
 }
@@ -371,7 +372,7 @@ func (b *bot) TanksOnExps() {
 
 	bunkers := b.Units[terran.Bunker]
 	bunker := bunkers.Filter(func(unit *scl.Unit) bool {
-		return tanksSieged.CloserThan(5, unit.Point()).Empty()
+		return tanksSieged.CloserThan(5, unit).Empty()
 	}).ClosestTo(b.StartLoc)
 	for _, tank := range tanksUnsieged {
 		if bunker == nil {
@@ -379,8 +380,8 @@ func (b *bot) TanksOnExps() {
 			continue
 		}
 		ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
-		cc := ccs.ClosestTo(bunker.Point())
-		pos := bunker.Point().Towards(cc.Point(), 1.5)
+		cc := ccs.ClosestTo(bunker)
+		pos := bunker.Towards(cc, 1.5)
 		if tank.IsFarFrom(pos) {
 			tank.CommandPos(ability.Move, pos)
 		} else if tank.IsIdle() {
@@ -390,7 +391,7 @@ func (b *bot) TanksOnExps() {
 
 	candidates := b.Groups.Get(Tanks).Units
 	if tanks.Len() < bunkers.Len() && candidates.Exists() && bunker != nil {
-		tank := candidates.ClosestTo(bunker.Point())
+		tank := candidates.ClosestTo(bunker)
 		b.Groups.Add(TanksOnExps, tank)
 	}
 }
