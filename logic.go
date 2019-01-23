@@ -8,34 +8,23 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/zerg"
 )
 
-// todo: торы против зергов вместо батлов
-// todo: + забить на разведку и всегда играть оборонительно?
+// todo: торы против зергов вместо батлов?
 // todo: викинги против баньши? Или просто добавить туррелей?
 // todo: убрать лишний скан после того как снаряды от убитой баньши долетают до цели
-// todo: + против агро-лингов надо что-то придумать. Бункер на хайграунде + хеллбаты?
 // todo: юниты в углах карты могут отвлекать минки
-// todo: строители умирают от большой армии не пытаясь отступать. Просто отменить не достаточно, приказ будет дан снова
-// todo: + проверка на отсутсвие экспа первым рипером -> playDefensive if true
-// todo: + отмена бункеров и танков когда всё уже хорошо (лимит юнитов >= 100)
-// todo: + микро риперами против королев поломалось
-// todo: + до геллионов - больше риперов против зерга (пока нет спидлингов) + грейд на атаку пехоте если > 4
-// todo: + минки должны выкапываться под плохими эффектами
-// todo: + надо раньше выходить на вторую базу
 // todo: ? циклоны перестали стрелять отступая от лингов
-// todo: ? юниты не очень эффективно избегают штормов
 // todo: ? рабы всё ещё творят херню (когда их больше, чем нужно?) - видимо, связано с починкой и недостатком ревурсов
 // todo: ? рабочие пытаются поставить все здания на одной точке -> возможно, нужно строить на %3 кадрах (ошибки отсутствия ресурсов?)
 // todo: нужно что-то придумать с SCV и miners под атакой. Сейчас они реагируют слишком сильно и пугливо
+// todo: минки боятся рабочих, забегают в угол и тупят -> отслеживать время взрыва и закапывать если по пути к лечению
+// todo: хрень с хайграундом на автоматоне, юниты идут не туда и дохнут
 // todo: надо как-то определять какие здания не стоит чинить, т.к. рабочий будет убит (по числу ranged?)
 // todo: танку надо перераскладываться, если на границе его радиуса только здания
 // todo: строить первый CC на хайграунде если опасно?
 // todo: детектить однобазовый оллин и переходить на вторую только после определённого лимита
 // todo: поднимать и спасать CC, но забить на починку рефов, если рядом враги
-// todo: хрень с хайграундом на автоматоне, юниты идут не туда и дохнут
 // todo: если есть апгрейд для минок, закапывать их, если за ними гонится кто-то быстрее их
 // todo: детект спидлингов + крип
-// todo: минки боятся рабочих, забегают в угол и тупят -> отслеживать время взрыва и закапывать если по пути к лечению
-// todo: орбиталки без минералов не кидают мулов -> резерв для сканов? Блокируют использование других CC
 // todo: use dead units events
 // todo: анализировать неуспешные попытки строительства, зарытые линги мешают поставить СС -> ставить башню рядом?
 
@@ -296,7 +285,7 @@ func (b *bot) EnableDefensivePlay() {
 func (b *bot) DefensivePlayCheck() {
 	armyScore := b.Units.Units().Filter(scl.DpsGt5).Sum(scl.CmpGroundScore)
 	enemyScore := b.AllEnemyUnits.Units().Filter(scl.DpsGt5).Sum(scl.CmpGroundScore)
-	if armyScore > enemyScore && b.Obs.Score.ScoreDetails.FoodUsed.Army >= 75 {
+	if armyScore > enemyScore * 1.5 && b.Obs.Score.ScoreDetails.FoodUsed.Army >= 75 {
 		playDefensive = false
 		bunkersPos = nil
 		if bunkers := b.Units[terran.Bunker]; bunkers.Exists() {
@@ -307,15 +296,12 @@ func (b *bot) DefensivePlayCheck() {
 			b.Groups.Add(Tanks, tanks...)
 		}
 	}
-	if armyScore > enemyScore && b.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 {
+	if armyScore > enemyScore * 1.5 && b.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 {
 		playDefensive = false
 	}
 	if armyScore * 1.5 < enemyScore {
 		b.EnableDefensivePlay()
 	}
-	/*if b.AllEnemyUnits[zerg.Zergling].Len() >= 20 || b.AllEnemyUnits[protoss.Carrier].Len() >= 3 {
-		b.EnableDefensivePlay()
-	}*/
 	if b.Loop >= 3584 && b.Loop < 3594 { // 2:40
 		townHalls := append(scl.UnitAliases.For(terran.CommandCenter), scl.UnitAliases.For(zerg.Hatchery)...)
 		townHalls = append(townHalls, protoss.Nexus)

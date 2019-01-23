@@ -576,9 +576,7 @@ func (b *bot) Cast() {
 
 			// Vision for tanks
 			tanks := b.Units[terran.SiegeTankSieged]
-			tanks.OrderBy(func(unit *scl.Unit) float64 {
-				return unit.Dist2(b.EnemyStartLoc)
-			}, false)
+			tanks.OrderByDistanceTo(b.EnemyStartLoc, false)
 			for _, tank := range tanks {
 				targets := allEnemies.InRangeOf(tank, 0)
 				if targets.Exists() && visibleEnemies.InRangeOf(tank, 0).Empty() {
@@ -701,8 +699,8 @@ func (b *bot) OrderUnits() {
 				terran.Liberator, terran.Raven, terran.Banshee, terran.Battlecruiser, zerg.Queen, zerg.Mutalisk,
 				zerg.Corruptor, zerg.Viper, zerg.Ultralisk, zerg.BroodLord)
 			tanksScore := b.EnemyProduction.Score(protoss.Stalker, protoss.Colossus, protoss.PhotonCannon,
-				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, zerg.Zergling, zerg.Baneling, zerg.Roach,
-				zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler)
+				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, /*zerg.Zergling, zerg.Baneling,*/
+				zerg.Roach, zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler)
 			buyCyclones = cyclonesScore / float64(cyclones + 1) > tanksScore / float64(tanks + 1)
 			buyTanks = !buyCyclones
 		}

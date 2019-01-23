@@ -118,9 +118,14 @@ func ReaperMoveFunc(u *scl.Unit, target *scl.Unit) {
 func (b *bot) Explore(u *scl.Unit) {
 	if playDefensive {
 		pos := b.MainRamp.Top
-		bunker := b.Units[terran.Bunker].ClosestTo(b.ExpLocs[0])
+		/*bunker := b.Units[terran.Bunker].ClosestTo(b.ExpLocs[0])
 		if bunker != nil {
 			pos = bunker.Point()
+		}*/
+		bunkers := b.Units[terran.Bunker]
+		if bunkers.Exists() {
+			bunkers.OrderByDistanceTo(b.StartLoc, false)
+			pos = bunkers[int(u.Tag) % bunkers.Len()].Point()
 		}
 		if u.IsFarFrom(pos) {
 			u.CommandPos(ability.Move, pos)
@@ -634,9 +639,7 @@ func (b *bot) Ravens() {
 	allEnemies := b.AllEnemyUnits.Units()
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	enemiesCenter := allEnemiesReady.Center()
-	friends.OrderBy(func(unit *scl.Unit) float64 {
-		return unit.Dist2(enemiesCenter)
-	}, false)
+	friends.OrderByDistanceTo(enemiesCenter, false)
 
 	for n, raven := range ravens {
 		if raven.Hits < 71 {
@@ -776,14 +779,6 @@ func (b *bot) MechRetreat() {
 			}
 		}
 		if u.UnitType == terran.Battlecruiser && u.HasAbility(ability.Effect_TacticalJump) {
-			/*cc := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Max(func(unit *scl.Unit) float64 {
-				return float64(unit.AssignedHarvesters)
-			})
-			if cc != nil {
-				u.CommandPos(ability.Effect_TacticalJump, cc - b.StartMinVec * 3)
-			} else {
-				u.CommandPos(ability.Effect_TacticalJump, healingPoint)
-			}*/
 			u.CommandPos(ability.Effect_TacticalJump, healingPoint)
 			continue
 		}
