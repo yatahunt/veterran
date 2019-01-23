@@ -201,9 +201,9 @@ func (b *bot) Reapers() {
 
 	reapers := b.Groups.Get(Reapers).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
+		/* if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
 			continue
-		}
+		} */
 		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue
 		}
@@ -212,9 +212,6 @@ func (b *bot) Reapers() {
 			goodTargets.Add(enemy)
 		}
 	}
-	/* if goodTargets.Exists() {
-		time.Sleep(time.Millisecond * 5)
-	} */
 
 	// Main army
 	for _, reaper := range reapers {
@@ -346,19 +343,24 @@ func (b *bot) Cyclones() {
 		}
 
 		// Keep range
-		// canAttack := scl.AttackDelay.UnitIsCool(cyclone) || cyclone.HasAbility(ability.Effect_LockOn)
-		/* if canAttack && ! { // And if can't lock on
-			canAttack = allEnemies.ByTag(cyclone.EngagedTargetTag) == nil // There is no lock
-		} */
-		/*if !canAttack {
-			attackers := allEnemiesReady.CanAttack(cyclone, 4)
+		attackers := allEnemiesReady.CanAttack(cyclone, 2)
+		canLock := cyclone.HasAbility(ability.Effect_LockOn)
+		isLocked := !canLock && cyclone.EngagedTargetTag != 0
+		canAttack := !isLocked && scl.AttackDelay.UnitIsCool(cyclone)
+		if isLocked {
+			target := allEnemies.ByTag(cyclone.EngagedTargetTag)
+			if cyclone.InRange(target, 4) {
+				cyclone.GroundFallback(attackers, 2, b.HomePaths)
+				continue
+			}
+		} else if !canAttack {
 			closeTargets := goodTargets.InRangeOf(cyclone, -0.5)
 			if attackers.Exists() || closeTargets.Exists() {
 				cyclone.GroundFallback(attackers, 2, b.HomePaths)
 				continue
 			}
-		}*/
-		attackers := allEnemiesReady.CanAttack(cyclone, 2)
+		}
+		/*attackers := allEnemiesReady.CanAttack(cyclone, 2)
 		retreat := cyclone.HPS > 0 && attackers.Exists()
 		if !retreat && !cyclone.HasAbility(ability.Effect_LockOn) && attackers.Exists() {
 			target := allEnemies.ByTag(cyclone.EngagedTargetTag)
@@ -368,7 +370,7 @@ func (b *bot) Cyclones() {
 		if retreat {
 			cyclone.GroundFallback(attackers, 2, b.HomePaths)
 			continue
-		}
+		}*/
 
 		// Attack
 		if airTargets.Exists() || goodTargets.Exists() || okTargets.Exists() {

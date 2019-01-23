@@ -690,15 +690,30 @@ func (b *bot) OrderUnits() {
 
 	factory := b.Units[terran.Factory].First(scl.Ready, scl.Unused, scl.HasTechlab)
 	if factory != nil {
-		cyclones := b.Groups.Get(Cyclones).Units.Len() // b.Units[terran.Cyclone].Len()
-		tanks := b.Groups.Get(Tanks).Units.Len()       // b.Units.OfType(scl.UnitAliases.For(terran.SiegeTank)...).Len()
-		if cyclones <= tanks && (!playDefensive || tanks > 0) {
+		cyclones := b.PendingAliases(ability.Train_Cyclone)
+		tanks := b.PendingAliases(ability.Train_SiegeTank)
+
+		buyCyclones := b.EnemyProduction.Len(terran.Banshee) > 0 && cyclones == 0
+		buyTanks := playDefensive && tanks == 0
+		if !buyCyclones && !buyTanks {
+			cyclonesScore := b.EnemyProduction.Score(protoss.WarpPrism, protoss.Phoenix, protoss.VoidRay,
+				protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.VikingFighter, terran.Medivac,
+				terran.Liberator, terran.Raven, terran.Banshee, terran.Battlecruiser, zerg.Queen, zerg.Mutalisk,
+				zerg.Corruptor, zerg.Viper, zerg.Ultralisk, zerg.BroodLord)
+			tanksScore := b.EnemyProduction.Score(protoss.Stalker, protoss.Colossus, protoss.PhotonCannon,
+				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, zerg.Zergling, zerg.Baneling, zerg.Roach,
+				zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler)
+			buyCyclones = cyclonesScore / float64(cyclones + 1) > tanksScore / float64(tanks + 1)
+			buyTanks = !buyCyclones
+		}
+
+		if buyCyclones {
 			if b.CanBuy(ability.Train_Cyclone) {
 				b.OrderTrain(factory, ability.Train_Cyclone)
 			} else if cyclones == 0 {
 				b.DeductResources(ability.Train_Cyclone) // Gather money
 			}
-		} else {
+		} else if buyTanks {
 			if b.CanBuy(ability.Train_SiegeTank) {
 				b.OrderTrain(factory, ability.Train_SiegeTank)
 			} else if tanks == 0 {
@@ -717,10 +732,19 @@ func (b *bot) OrderUnits() {
 		}
 		mines := b.PendingAliases(ability.Train_WidowMine)
 		hellions := b.PendingAliases(ability.Train_Hellion)
-		if b.CanBuy(ability.Train_WidowMine) && mines < 8 && mines <= hellions {
+
+		minesScore := b.EnemyProduction.Score(protoss.Stalker, protoss.Archon, protoss.Phoenix, protoss.VoidRay,
+			protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.Cyclone, terran.SiegeTank, terran.Thor,
+			terran.VikingFighter, terran.Medivac, terran.Liberator, terran.Raven, terran.Banshee,
+			terran.Battlecruiser, zerg.Queen, zerg.Roach, zerg.Ravager, zerg.Mutalisk, zerg.Corruptor, zerg.Viper,
+			zerg.Ultralisk, zerg.BroodLord)
+		hellionsScore := b.EnemyProduction.Score(protoss.Zealot, protoss.Sentry, protoss.Adept, protoss.HighTemplar,
+			protoss.DarkTemplar, terran.Reaper, zerg.Zergling, zerg.Baneling, zerg.Hydralisk, zerg.SwarmHostMP)
+		buyMines := minesScore / float64(mines + 1) > hellionsScore / float64(hellions + 1)
+
+		if buyMines && b.CanBuy(ability.Train_WidowMine) {
 			b.OrderTrain(factory, ability.Train_WidowMine)
-		}
-		if b.CanBuy(ability.Train_Hellion) && hellions < 8 && hellions <= mines {
+		} else if b.CanBuy(ability.Train_Hellion) {
 			b.OrderTrain(factory, ability.Train_Hellion)
 		}
 	}
