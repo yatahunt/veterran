@@ -196,7 +196,7 @@ func (b *bot) Marines() {
 
 func (b *bot) Reapers() {
 	var mfsPos scl.Point
-	if !playDefensive && b.Loop < 3584 { // For exp recon before 2:40
+	if /*!playDefensive &&*/ b.EnemyRace != api.Race_Zerg && b.Loop < 3584 { // For exp recon before 2:40
 		mfsPos = b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, b.EnemyExpLocs[0]).Center()
 	}
 	okTargets := scl.Units{}
@@ -348,17 +348,19 @@ func (b *bot) Cyclones() {
 		}
 
 		// Keep range
+		// cyclone.EngagedTargetTag is irrelevant
 		attackers := allEnemiesReady.CanAttack(cyclone, 2)
 		canLock := cyclone.HasAbility(ability.Effect_LockOn)
-		isLocked := !canLock && cyclone.EngagedTargetTag != 0
-		canAttack := !isLocked && scl.AttackDelay.UnitIsCool(cyclone)
-		if isLocked {
-			target := allEnemies.ByTag(cyclone.EngagedTargetTag)
+		/*target := allEnemies.ByTag(cyclone.EngagedTargetTag)
+		isLocked := !canLock && target != nil
+		canAttack := !isLocked && scl.AttackDelay.UnitIsCool(cyclone)*/
+		if !canLock {
+			target := goodTargets.ClosestTo(cyclone)
 			if cyclone.InRange(target, 4) {
 				cyclone.GroundFallback(attackers, 2, b.HomePaths)
 				continue
 			}
-		} else if !canAttack {
+		} else if !scl.AttackDelay.UnitIsCool(cyclone) {
 			closeTargets := goodTargets.InRangeOf(cyclone, -0.5)
 			if attackers.Exists() || closeTargets.Exists() {
 				cyclone.GroundFallback(attackers, 2, b.HomePaths)
@@ -506,14 +508,15 @@ func (b *bot) Hellions() {
 			continue
 		}
 		// Transform into hellbats vs zerg in defense, armory exists, not on main base
-		if b.EnemyRace == api.Race_Zerg && hellion.UnitType == terran.Hellion && playDefensive &&
+		if b.EnemyRace == api.Race_Zerg && hellion.UnitType == terran.Hellion /*&& playDefensive*/ &&
 			b.Units[terran.Armory].First(scl.Ready) != nil && b.HeightAt(hellion) != b.HeightAt(b.StartLoc) {
 			hellion.Command(ability.Morph_Hellbat)
 		}
 
-		if !scl.AttackDelay.UnitIsCool(hellion) {
-			attackers := allEnemiesReady.CanAttack(hellion, 2)
-			closeTargets := goodTargets.InRangeOf(hellion, -0.5)
+		attackers := allEnemiesReady.CanAttack(hellion, 2)
+		closeAttackers := attackers.CanAttack(hellion, -1)
+		closeTargets := goodTargets.InRangeOf(hellion, -0.5)
+		if !scl.AttackDelay.UnitIsCool(hellion) || (closeAttackers.Exists() && closeTargets.Exists()) {
 			if attackers.Exists() || closeTargets.Exists() {
 				hellion.GroundFallback(attackers, 2, b.HomePaths)
 				continue

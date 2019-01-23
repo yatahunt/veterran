@@ -56,7 +56,8 @@ var RootBuildOrder = BuildNodes{
 		WaitRes: func(b *bot) bool {
 			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
 			// First orbital is morphing
-			if ccs.Len() == 1 && ccs.First().UnitType == terran.OrbitalCommand {
+			if ccs.Len() == 1 && ccs.First().UnitType == terran.OrbitalCommand &&
+				b.PendingAliases(ability.Train_Reaper) != 0 {
 				return true
 			}
 			if ccs.Len() <= b.FoodUsed/35 {
@@ -701,7 +702,7 @@ func (b *bot) OrderUnits() {
 			tanksScore := b.EnemyProduction.Score(protoss.Stalker, protoss.Colossus, protoss.PhotonCannon,
 				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, /*zerg.Zergling, zerg.Baneling,*/
 				zerg.Roach, zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler)
-			buyCyclones = cyclonesScore / float64(cyclones + 1) > tanksScore / float64(tanks + 1)
+			buyCyclones = cyclonesScore / float64(cyclones + 1) >= tanksScore / float64(tanks + 1)
 			buyTanks = !buyCyclones
 		}
 
@@ -738,7 +739,7 @@ func (b *bot) OrderUnits() {
 			zerg.Ultralisk, zerg.BroodLord)
 		hellionsScore := b.EnemyProduction.Score(protoss.Zealot, protoss.Sentry, protoss.Adept, protoss.HighTemplar,
 			protoss.DarkTemplar, terran.Reaper, zerg.Zergling, zerg.Baneling, zerg.Hydralisk, zerg.SwarmHostMP)
-		buyMines := minesScore / float64(mines + 1) > hellionsScore / float64(hellions + 1)
+		buyMines := minesScore / float64(mines + 1) >= hellionsScore / float64(hellions + 1)
 
 		if buyMines && b.CanBuy(ability.Train_WidowMine) {
 			b.OrderTrain(factory, ability.Train_WidowMine)
@@ -750,7 +751,7 @@ func (b *bot) OrderUnits() {
 	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused)
 	if rax != nil {
 		// Until 4:00
-		if b.Loop < 5376 && (b.Pending(ability.Train_Reaper) < 2 /*|| b.EnemyRace == api.Race_Zerg*/) &&
+		if b.Loop < 5376 && (b.Pending(ability.Train_Reaper) < 2 || b.EnemyRace == api.Race_Zerg) &&
 			b.CanBuy(ability.Train_Reaper) {
 			if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 				rax.SpamCmds = true

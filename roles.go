@@ -27,7 +27,7 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 		b.Groups.Add(WidowMines, unit)
 		return
 	}
-	if unit.UnitType == terran.Hellion {
+	if unit.UnitType == terran.Hellion || unit.UnitType == terran.HellionTank {
 		b.Groups.Add(Hellions, unit)
 		return
 	}
