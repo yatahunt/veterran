@@ -2,6 +2,7 @@ package main
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"os"
 )
 
 func (b *bot) InitBot() {
@@ -49,6 +50,12 @@ func (b *bot) InitBot() {
 	b.DebugSend()*/
 }
 
+func (b *bot) GGCheck() bool {
+	return b.Minerals < 50 &&
+		b.Units.Units().First(func(unit *scl.Unit) bool { return !unit.IsStructure() }) == nil &&
+		b.AllEnemyUnits.Units().First(scl.DpsGt5) != nil
+}
+
 // OnStep is called each game step (every game update by default)
 func (b *bot) Step() {
 	defer scl.RecoverPanic()
@@ -56,10 +63,13 @@ func (b *bot) Step() {
 	b.Cmds = &scl.CommandsStack{}
 	b.Obs = b.Info.Observation().Observation
 	b.ParseObservation()
-	if b.Loop != 0 && b.Loop - b.LastLoop != 1 && !isRealtime {
+	if b.Loop != 0 && b.Loop-b.LastLoop != 1 && !isRealtime {
 		b.FramesPerOrder = 6
 		isRealtime = true
 		b.ChatSend("Realtime mode detected")
+	}
+	if b.Loop != 0 && b.LastLoop == 0 { // Second loop. For some reason chat sometimes doesn't work on the first loop
+		b.ChatSend("VeTerran v1.3.0 (glhf)")
 	}
 	if b.Loop != 0 && b.Loop == b.LastLoop {
 		return // Skip frame repeat
@@ -74,8 +84,11 @@ func (b *bot) Step() {
 	if b.ExpLocs.Len() == 0 {
 		b.InitBot()
 	}
-	if b.Loop == 8 {
-		b.ChatSend("VeTerran v1.3.0 (glhf)")
+
+	if b.GGCheck() {
+		b.ChatSend("(gg)")
+		b.Info.SendActions(b.Actions)
+		os.Exit(0)
 	}
 
 	b.Logic()
