@@ -19,6 +19,10 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 		b.Groups.Add(Marines, unit)
 		return
 	}
+	if unit.UnitType == terran.Marauder {
+		b.Groups.Add(Marauders, unit)
+		return
+	}
 	if unit.UnitType == terran.Reaper {
 		b.Groups.Add(Reapers, unit)
 		return
@@ -37,6 +41,10 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 	}
 	if unit.UnitType == terran.SiegeTank || unit.UnitType == terran.SiegeTankSieged {
 		b.Groups.Add(Tanks, unit)
+		return
+	}
+	if unit.UnitType == terran.Medivac {
+		b.Groups.Add(Medivacs, unit)
 		return
 	}
 	if unit.UnitType == terran.Raven {
@@ -301,7 +309,7 @@ func (b *bot) Miners() {
 	enemies := b.EnemyUnits.Units().Filter(scl.DpsGt5)
 	miners := b.Groups.Get(Miners).Units
 	for _, miner := range miners {
-		if enemies.CloserThan(safeBuildRange, miner).Exists() {
+		if enemies.CloserThan(safeBuildRange, miner).Sum(scl.CmpGroundDamage) > miner.Hits {
 			b.Groups.Add(MinersRetreat, miner)
 		}
 	}

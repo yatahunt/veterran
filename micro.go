@@ -125,7 +125,7 @@ func (b *bot) Explore(u *scl.Unit) {
 		bunkers := b.Units[terran.Bunker]
 		if bunkers.Exists() {
 			bunkers.OrderByDistanceTo(b.StartLoc, false)
-			pos = bunkers[int(u.Tag) % bunkers.Len()].Point()
+			pos = bunkers[int(u.Tag)%bunkers.Len()].Point()
 		}
 		if u.IsFarFrom(pos) {
 			u.CommandPos(ability.Move, pos)
@@ -194,10 +194,49 @@ func (b *bot) Marines() {
 	}
 }
 
+func (b *bot) Marauders() {
+	okTargets := scl.Units{}
+	goodTargets := scl.Units{}
+	allEnemies := b.AllEnemyUnits.Units()
+	allEnemiesReady := allEnemies.Filter(scl.Ready)
+	marauders := b.Groups.Get(Marauders).Units
+	for _, enemy := range allEnemies {
+		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
+			continue
+		}
+		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
+			continue
+		}
+		okTargets.Add(enemy)
+		if !enemy.IsStructure() || enemy.IsDefensive() {
+			goodTargets.Add(enemy)
+		}
+	}
+
+	for _, marauder := range marauders {
+		if !scl.AttackDelay.UnitIsCool(marauder) {
+			attackers := allEnemiesReady.CanAttack(marauder, 2)
+			closeTargets := goodTargets.InRangeOf(marauder, -0.5)
+			if attackers.Exists() || closeTargets.Exists() {
+				marauder.GroundFallback(attackers, 2, b.HomePaths)
+				continue
+			}
+		}
+
+		// Attack
+		if goodTargets.Exists() || okTargets.Exists() {
+			marauder.Attack(goodTargets, okTargets)
+		} else {
+			b.Explore(marauder)
+		}
+	}
+}
+
 func (b *bot) Reapers() {
-	var mfsPos scl.Point
+	var mfsPos, basePos scl.Point
 	if /*!playDefensive &&*/ b.EnemyRace != api.Race_Zerg && b.Loop < 3584 { // For exp recon before 2:40
 		mfsPos = b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, b.EnemyExpLocs[0]).Center()
+		basePos = b.EnemyStartLoc
 	}
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
@@ -220,7 +259,7 @@ func (b *bot) Reapers() {
 
 	// Main army
 	for _, reaper := range reapers {
-		if reaper.Hits < 27 {
+		if reaper.Hits < reaper.HitsMax/2 {
 			b.Groups.Add(ReapersRetreat, reaper)
 			continue
 		}
@@ -252,6 +291,8 @@ func (b *bot) Reapers() {
 
 		if mfsPos != 0 && !b.IsExplored(mfsPos) && goodTargets.InRangeOf(reaper, 0).Empty() {
 			reaper.CommandPos(ability.Move, mfsPos)
+		} else if basePos != 0 && !b.IsExplored(basePos) && goodTargets.InRangeOf(reaper, 0).Empty() {
+			reaper.CommandPos(ability.Move, basePos)
 		} else if goodTargets.Exists() || okTargets.Exists() {
 			reaper.AttackCustom(scl.DefaultAttackFunc, ReaperMoveFunc, goodTargets, okTargets)
 		} else {
@@ -262,7 +303,7 @@ func (b *bot) Reapers() {
 	// Damaged reapers
 	reapers = b.Groups.Get(ReapersRetreat).Units
 	for _, reaper := range reapers {
-		if reaper.Health > 36 {
+		if reaper.Hits > reaper.HitsMax/2+10 {
 			b.Groups.Add(Reapers, reaper)
 			continue
 		}
@@ -342,7 +383,7 @@ func (b *bot) Cyclones() {
 	}
 
 	for _, cyclone := range cyclones {
-		if cyclone.Hits < 51 {
+		if cyclone.Hits < cyclone.HitsMax/2 {
 			b.Groups.Add(MechRetreat, cyclone)
 			continue
 		}
@@ -503,7 +544,7 @@ func (b *bot) Hellions() {
 	}
 
 	for _, hellion := range hellions {
-		if hellion.Hits < 31 || (hellion.UnitType == terran.HellionTank && hellion.Hits < 41) {
+		if hellion.Hits < hellion.HitsMax / 2 {
 			b.Groups.Add(MechRetreat, hellion)
 			continue
 		}
@@ -554,7 +595,7 @@ func (b *bot) Tanks() {
 
 	for _, tank := range tanks {
 		if tank.UnitType == terran.SiegeTank {
-			if tank.Hits < 71 {
+			if tank.Hits < tank.HitsMax / 2 {
 				b.Groups.Add(MechRetreat, tank)
 				continue
 			}
@@ -619,6 +660,65 @@ func (b *bot) Tanks() {
 	}
 }
 
+func (b *bot) Medivacs() {
+	medivacs := b.Groups.Get(Medivacs).Units
+	if medivacs.Empty() {
+		return
+	}
+
+	patients := append(b.Groups.Get(Marines).Units, b.Groups.Get(Marauders).Units...)
+	if patients.Empty() {
+		patients = b.Groups.Get(Miners).Units
+	}
+	if patients.Empty() {
+		return
+	}
+
+	injured := patients.Filter(func(unit *scl.Unit) bool { return unit.Hits < unit.HitsMax })
+	injured.OrderBy(func(unit *scl.Unit) float64 { return unit.Hits / unit.HitsMax }, false)
+
+	allEnemies := b.AllEnemyUnits.Units()
+	allEnemiesReady := allEnemies.Filter(scl.Ready)
+	enemiesCenter := allEnemiesReady.Center()
+	firstPatient := patients.ClosestTo(enemiesCenter)
+
+	for _, medivac := range medivacs {
+		if medivac.Hits < medivac.HitsMax / 2 {
+			if medivac.HasAbility(ability.Effect_MedivacIgniteAfterburners) {
+				medivac.Command(ability.Effect_MedivacIgniteAfterburners)
+			}
+			b.Groups.Add(MechRetreat, medivac)
+			continue
+		}
+
+		// This should be most damaged unit
+		closeInjured := injured.CloserThan(float64(medivac.Radius) + 4, medivac).First()
+		if closeInjured == nil {
+			closeInjured = injured.ClosestTo(medivac)
+		}
+		if medivac.Energy >= 5 && medivac.HasAbility(ability.Effect_Heal) && closeInjured != nil {
+			if closeInjured.IsFurtherThan(8, medivac) &&
+				medivac.HasAbility(ability.Effect_MedivacIgniteAfterburners) {
+				medivac.Command(ability.Effect_MedivacIgniteAfterburners)
+				medivac.CommandTagQueue(ability.Effect_Heal, closeInjured.Tag)
+			} else {
+				medivac.CommandTag(ability.Effect_Heal, closeInjured.Tag)
+			}
+			continue
+		}
+		if closeInjured == nil {
+			closeInjured = firstPatient
+		}
+
+		pos, safe := medivac.AirEvade(allEnemiesReady.CanAttack(medivac, 2), 2, closeInjured)
+		if !safe {
+			medivac.CommandPos(ability.Move, pos)
+		} else {
+			medivac.CommandTag(ability.Move, closeInjured.Tag)
+		}
+	}
+}
+
 func (b *bot) Ravens() {
 	ravens := b.Groups.Get(Ravens).Units
 	if ravens.Empty() {
@@ -645,15 +745,16 @@ func (b *bot) Ravens() {
 	friends.OrderByDistanceTo(enemiesCenter, false)
 
 	for n, raven := range ravens {
-		if raven.Hits < 71 {
+		if raven.TargetAbility() == ability.Effect_AutoTurret {
+			continue // Let him finish placing
+		}
+
+		if raven.Hits < raven.HitsMax / 2 {
 			b.Groups.Add(MechRetreat, raven)
 			continue
 		}
 
 		if raven.Energy >= 50 {
-			if raven.TargetAbility() == ability.Effect_AutoTurret {
-				continue // Let him finish placing
-			}
 			closeEnemies := allEnemies.CloserThan(8, raven)
 			if closeEnemies.Exists() && closeEnemies.Sum(scl.CmpHits) >= 300 {
 				pos := raven.Towards(closeEnemies.Center(), 3)
@@ -717,7 +818,7 @@ func (b *bot) Battlecruisers() {
 		}*/
 
 		if (bc.HasAbility(ability.Effect_TacticalJump) && bc.Hits < 100) ||
-			(!bc.HasAbility(ability.Effect_TacticalJump) && bc.Hits < 250) {
+			(!bc.HasAbility(ability.Effect_TacticalJump) && bc.Hits < bc.HitsMax / 2) {
 			b.Groups.Add(MechRetreat, bc)
 			continue
 		}
@@ -811,6 +912,9 @@ func (b *bot) MechRetreat() {
 			continue
 		}
 		if u.IsFlying {
+			if u.UnitType == terran.Medivac && u.HasAbility(ability.Effect_MedivacIgniteAfterburners) {
+				u.Command(ability.Effect_MedivacIgniteAfterburners)
+			}
 			pos, _ := u.AirEvade(enemies, 2, healingPoint)
 			u.CommandPos(ability.Move, pos)
 		} else {
@@ -822,11 +926,13 @@ func (b *bot) MechRetreat() {
 func (b *bot) Micro() {
 	b.WorkerRushDefence()
 	b.Marines()
+	b.Marauders()
 	b.Reapers()
 	b.Cyclones()
 	b.Mines()
 	b.Hellions()
 	b.Tanks()
+	b.Medivacs()
 	b.Ravens()
 	b.Battlecruisers()
 	b.MechRetreat()

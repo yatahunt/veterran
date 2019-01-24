@@ -8,6 +8,7 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/zerg"
 )
 
+// todo: протестировать, может MinersRetreat вообще не нужно
 // todo: торы против зергов вместо батлов?
 // todo: викинги против баньши? Или просто добавить туррелей?
 // todo: убрать лишний скан после того как снаряды от убитой баньши долетают до цели
@@ -53,6 +54,7 @@ const (
 	ScoutBase
 	ScvReserve
 	Marines
+	Marauders
 	Reapers
 	ReapersRetreat
 	Cyclones
@@ -61,6 +63,7 @@ const (
 	Hellions
 	Tanks
 	TanksOnExps
+	Medivacs
 	Ravens
 	Battlecruisers
 	MechRetreat
