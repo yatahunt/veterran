@@ -459,6 +459,26 @@ func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 }
 
 func (b *bot) OrderUpgrades() {
+	lab := b.Units[terran.BarracksTechLab].First(scl.Ready, scl.Idle)
+	if lab != nil {
+		b.RequestAvailableAbilities(true, lab) // todo: request true each frame -> HasTrueAbility?
+		if !b.Upgrades[ability.Research_ConcussiveShells] && b.PendingAliases(ability.Train_Marauder) >= 2 &&
+			lab.HasAbility(ability.Research_ConcussiveShells) && b.CanBuy(ability.Research_ConcussiveShells) {
+			lab.Command(ability.Research_ConcussiveShells)
+			return
+		}
+		if !b.Upgrades[ability.Research_CombatShield] && b.Units[terran.Marine].Len() >= 4 &&
+			lab.HasAbility(ability.Research_CombatShield) && b.CanBuy(ability.Research_CombatShield) {
+			lab.Command(ability.Research_CombatShield)
+			return
+		}
+		if b.Upgrades[ability.Research_ConcussiveShells] || b.PendingAliases(ability.Research_ConcussiveShells) > 0 ||
+			b.Upgrades[ability.Research_CombatShield] || b.PendingAliases(ability.Research_CombatShield) > 0 {
+			lab.Command(ability.Research_Stimpack)
+			return
+		}
+	}
+
 	eng := b.Units[terran.EngineeringBay].First(scl.Ready, scl.Idle)
 	if eng != nil {
 		b.RequestAvailableAbilities(true, eng) // request abilities again because we want to ignore resource reqs
@@ -490,23 +510,6 @@ func (b *bot) OrderUpgrades() {
 			eng.HasAbility(ability.Research_HiSecAutoTracking) && b.CanBuy(ability.Research_HiSecAutoTracking) {
 			eng.Command(ability.Research_HiSecAutoTracking)
 			return
-		}
-	}
-
-	lab := b.Units[terran.BarracksTechLab].First(scl.Ready, scl.Idle)
-	if lab != nil {
-		b.RequestAvailableAbilities(true, lab) // todo: request true each frame -> HasTrueAbility?
-		if !b.Upgrades[ability.Research_ConcussiveShells] && b.PendingAliases(ability.Train_Marauder) >= 2 &&
-			lab.HasAbility(ability.Research_ConcussiveShells) && b.CanBuy(ability.Research_ConcussiveShells) {
-			lab.Command(ability.Research_ConcussiveShells)
-			return
-		}
-		if b.Units[terran.Marine].Len() >= 4 {
-			if !b.Upgrades[ability.Research_CombatShield] && lab.HasAbility(ability.Research_CombatShield) &&
-				b.CanBuy(ability.Research_CombatShield) {
-				lab.Command(ability.Research_CombatShield)
-				return
-			}
 		}
 	}
 
@@ -883,7 +886,9 @@ func (b *bot) Macro() {
 	}
 
 	if lastBuildLoop+b.FramesPerOrder < b.Loop {
-		b.OrderUpgrades()
+		if b.Loop >= 5376 { // 4:00
+			b.OrderUpgrades()
+		}
 		b.ProcessBuildOrder(RootBuildOrder)
 		b.Morph()
 		b.OrderUnits()

@@ -10,6 +10,8 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/zerg"
 	"math"
 	"math/rand"
+	"github.com/chippydip/go-sc2ai/enums/buff"
+	"bitbucket.org/aisee/minilog"
 )
 
 func WorkerMoveFunc(u *scl.Unit, target *scl.Unit) {
@@ -185,6 +187,12 @@ func (b *bot) Marines() {
 			}
 		}
 
+		if b.Upgrades[ability.Research_Stimpack] && marine.HasAbility(ability.Effect_Stim_Marine) &&
+			!marine.HasBuff(buff.Stimpack) && goodTargets.InRangeOf(marine, 2).Sum(scl.CmpHits) >= 200 {
+			marine.Command(ability.Effect_Stim_Marine)
+			continue
+		}
+
 		// Attack
 		if goodTargets.Exists() || okTargets.Exists() {
 			marine.Attack(goodTargets, okTargets)
@@ -221,6 +229,12 @@ func (b *bot) Marauders() {
 				marauder.GroundFallback(attackers, 2, b.HomePaths)
 				continue
 			}
+		}
+
+		if b.Upgrades[ability.Research_Stimpack] && marauder.HasAbility(ability.Effect_Stim_Marauder) &&
+			!marauder.HasBuff(buff.StimpackMarauder) && goodTargets.InRangeOf(marauder, 2).Sum(scl.CmpHits) >= 200 {
+			marauder.Command(ability.Effect_Stim_Marauder)
+			continue
 		}
 
 		// Attack
@@ -544,7 +558,7 @@ func (b *bot) Hellions() {
 	}
 
 	for _, hellion := range hellions {
-		if hellion.Hits < hellion.HitsMax / 2 {
+		if hellion.Hits < hellion.HitsMax/2 {
 			b.Groups.Add(MechRetreat, hellion)
 			continue
 		}
@@ -595,7 +609,7 @@ func (b *bot) Tanks() {
 
 	for _, tank := range tanks {
 		if tank.UnitType == terran.SiegeTank {
-			if tank.Hits < tank.HitsMax / 2 {
+			if tank.Hits < tank.HitsMax/2 {
 				b.Groups.Add(MechRetreat, tank)
 				continue
 			}
@@ -683,7 +697,7 @@ func (b *bot) Medivacs() {
 	firstPatient := patients.ClosestTo(enemiesCenter)
 
 	for _, medivac := range medivacs {
-		if medivac.Hits < medivac.HitsMax / 2 {
+		if medivac.Hits < medivac.HitsMax/2 {
 			if medivac.HasAbility(ability.Effect_MedivacIgniteAfterburners) {
 				medivac.Command(ability.Effect_MedivacIgniteAfterburners)
 			}
@@ -692,7 +706,7 @@ func (b *bot) Medivacs() {
 		}
 
 		// This should be most damaged unit
-		closeInjured := injured.CloserThan(float64(medivac.Radius) + 4, medivac).First()
+		closeInjured := injured.CloserThan(float64(medivac.Radius)+4, medivac).First()
 		if closeInjured == nil {
 			closeInjured = injured.ClosestTo(medivac)
 		}
@@ -749,7 +763,7 @@ func (b *bot) Ravens() {
 			continue // Let him finish placing
 		}
 
-		if raven.Hits < raven.HitsMax / 2 {
+		if raven.Hits < raven.HitsMax/2 {
 			b.Groups.Add(MechRetreat, raven)
 			continue
 		}
@@ -822,7 +836,7 @@ func (b *bot) Battlecruisers() {
 		}*/
 
 		if (bc.HasAbility(ability.Effect_TacticalJump) && bc.Hits < 100) ||
-			(!bc.HasAbility(ability.Effect_TacticalJump) && bc.Hits < bc.HitsMax / 2) {
+			(!bc.HasAbility(ability.Effect_TacticalJump) && bc.Hits < bc.HitsMax/2) {
 			b.Groups.Add(MechRetreat, bc)
 			continue
 		}
@@ -927,6 +941,23 @@ func (b *bot) MechRetreat() {
 	}
 }
 
+func (b *bot) StaticDefense() {
+	targets := b.EnemyUnits.Units()
+	buildings := b.Units.OfType(terran.Bunker, terran.MissileTurret, terran.AutoTurret) // terran.PlanetaryFortress
+	for _, building := range buildings {
+		closeTargets := targets.InRangeOf(building, 0)
+		if building.UnitType == terran.Bunker && b.Upgrades[ability.Research_Stimpack] /*&&
+			targets.InRangeOf(building, 0).Sum(scl.CmpHits) >= 200*/ {
+			log.Info(building.Abilities)
+			log.Info(building.BuffIds)
+		}
+
+		if closeTargets.Exists() {
+			building.Attack(closeTargets)
+		}
+	}
+}
+
 func (b *bot) Micro() {
 	b.WorkerRushDefence()
 	b.Marines()
@@ -940,4 +971,5 @@ func (b *bot) Micro() {
 	b.Ravens()
 	b.Battlecruisers()
 	b.MechRetreat()
+	b.StaticDefense()
 }
