@@ -766,9 +766,13 @@ func (b *bot) Ravens() {
 			}
 		}
 
+		ravenPos := raven.TargetPos()
+		if ravenPos == 0 {
+			ravenPos = raven.Point()
+		}
 		pos := friends[scl.MinInt(n, len(friends)-1)].Towards(enemiesCenter, 2)
 		pos, safe := raven.AirEvade(allEnemiesReady.CanAttack(raven, 2), 2, pos)
-		if !safe || pos.IsFurtherThan(1, raven) {
+		if !safe || pos.IsFurtherThan(1, ravenPos) {
 			raven.CommandPos(ability.Move, pos)
 			continue
 		}
