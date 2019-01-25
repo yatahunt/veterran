@@ -2,7 +2,6 @@ package main
 
 import (
 	"bitbucket.org/aisee/sc2lib"
-	"os"
 )
 
 func (b *bot) InitBot() {
@@ -57,7 +56,7 @@ func (b *bot) GGCheck() bool {
 }
 
 // OnStep is called each game step (every game update by default)
-func (b *bot) Step() {
+func (b *bot) Step() bool { // bool = is final
 	defer scl.RecoverPanic()
 
 	b.Cmds = &scl.CommandsStack{}
@@ -72,7 +71,7 @@ func (b *bot) Step() {
 		b.ChatSend("VeTerran v1.3.0 (glhf)")
 	}
 	if b.Loop != 0 && b.Loop == b.LastLoop {
-		return // Skip frame repeat
+		return false // Skip frame repeat
 	} else {
 		b.LastLoop = b.Loop
 	}
@@ -88,7 +87,7 @@ func (b *bot) Step() {
 	if b.GGCheck() {
 		b.ChatSend("(gg)")
 		b.Info.SendActions(b.Actions)
-		os.Exit(0)
+		return true
 	}
 
 	b.Logic()
@@ -103,4 +102,5 @@ func (b *bot) Step() {
 		b.DebugMap()
 		b.DebugSend()
 	}*/
+	return false
 }

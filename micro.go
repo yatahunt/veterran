@@ -174,7 +174,7 @@ func (b *bot) Marines() {
 		}
 
 		// Load into a bunker
-		if goodTargets.InRangeOf(marine, 0).Empty() {
+		if playDefensive && goodTargets.InRangeOf(marine, 0).Empty() {
 			bunker := b.getEmptyBunker(marine)
 			if bunker != nil {
 				if bunker.IsReady() {
@@ -666,7 +666,8 @@ func (b *bot) Tanks() {
 				continue
 			}
 
-			if farTargets.Empty() {
+			// Unsiege if can't attack and only buildings are close to max range
+			if farTargets.Filter(func(unit *scl.Unit) bool { return !unit.IsStructure() }).Empty() {
 				tank.Command(ability.Morph_Unsiege)
 			}
 		}
@@ -959,6 +960,20 @@ func (b *bot) StaticDefense() {
 	}
 }
 
+func (b *bot) FlyingBuildings() {
+	buildings := b.Units.OfType(terran.CommandCenter, terran.CommandCenterFlying,
+		terran.OrbitalCommand, terran.OrbitalCommandFlying)
+	enemies := b.AllEnemyUnits.Units().Filter(scl.Ready)
+	for _, building := range buildings {
+		attackers := enemies.CanAttack(building, 0)
+		if !building.IsFlying && building.Hits < building.HitsMax * 3 / 4 && attackers.Exists() {
+			building.Command(ability.Lift)
+		} else if building.IsFlying && attackers.Empty() {
+			building.Command(ability.Land)
+		}
+	}
+}
+
 func (b *bot) Micro() {
 	b.WorkerRushDefence()
 	b.Marines()
@@ -973,4 +988,5 @@ func (b *bot) Micro() {
 	b.Battlecruisers()
 	b.MechRetreat()
 	b.StaticDefense()
+	b.FlyingBuildings()
 }

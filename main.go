@@ -27,7 +27,9 @@ func runAgent(info client.AgentInfo) {
 	b.UnitCreatedCallback = b.OnUnitCreated
 
 	for b.Info.IsInGame() {
-		b.Step()
+		if b.Step() {
+			break
+		}
 
 		if err := b.Info.Step(1); err != nil {
 			log.Error(err)

@@ -707,8 +707,7 @@ func (b *bot) Cast() {
 }
 
 func (b *bot) OrderUnits() {
-	// b.Units[terran.Bunker].Len() * 4 > b.Units[terran.Marine].Len()
-	if (workerRush || b.getEmptyBunker(scl.Pt0()) != nil) && b.CanBuy(ability.Train_Marine) {
+	if (workerRush/* || b.getEmptyBunker(scl.Pt0()) != nil*/) && b.CanBuy(ability.Train_Marine) {
 		if rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused); rax != nil {
 			if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 				rax.SpamCmds = true
@@ -745,7 +744,9 @@ func (b *bot) OrderUnits() {
 			}
 		}
 	}
-	starport = b.Units[terran.Starport].First(scl.Ready, scl.Unused)
+	starport = b.Units[terran.Starport].First(scl.Ready, scl.Unused, func(unit *scl.Unit) bool {
+		return unit.Tag != starport.Tag // Don't select previously selected producer
+	})
 	if starport != nil {
 		if starport.HasReactor() && scl.UnitsOrders[starport.Tag].Loop+b.FramesPerOrder <= b.Loop {
 			starport.SpamCmds = true
@@ -814,7 +815,9 @@ func (b *bot) OrderUnits() {
 			}
 		}
 	}
-	rax = b.Units[terran.Barracks].First(scl.Ready, scl.Unused)
+	rax = b.Units[terran.Barracks].First(scl.Ready, scl.Unused, func(unit *scl.Unit) bool {
+		return unit.Tag != rax.Tag // Don't select previously selected producer
+	})
 	if rax != nil {
 		if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 			rax.SpamCmds = true
@@ -830,7 +833,7 @@ func (b *bot) OrderUnits() {
 	}
 
 	factory = b.Units[terran.Factory].First(func(unit *scl.Unit) bool {
-		return unit.IsReady() && unit.IsUnused() && !unit.HasTechlab()
+		return unit.IsReady() && unit.IsUnused() && !unit.HasTechlab() && unit.Tag != factory.Tag
 	})
 	if factory != nil {
 		if factory.HasReactor() && scl.UnitsOrders[factory.Tag].Loop+b.FramesPerOrder <= b.Loop {
