@@ -4,14 +4,13 @@ import (
 	"bitbucket.org/aisee/sc2lib"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
+	"github.com/chippydip/go-sc2ai/enums/buff"
 	"github.com/chippydip/go-sc2ai/enums/effect"
 	"github.com/chippydip/go-sc2ai/enums/protoss"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 	"github.com/chippydip/go-sc2ai/enums/zerg"
 	"math"
 	"math/rand"
-	"github.com/chippydip/go-sc2ai/enums/buff"
-	"bitbucket.org/aisee/minilog"
 )
 
 func WorkerMoveFunc(u *scl.Unit, target *scl.Unit) {
@@ -248,7 +247,7 @@ func (b *bot) Marauders() {
 
 func (b *bot) Reapers() {
 	var mfsPos, basePos scl.Point
-	if /*!playDefensive &&*/ b.EnemyRace != api.Race_Zerg && b.Loop < 3584 { // For exp recon before 2:40
+	if /*!playDefensive &&*/ b.EnemyRace != api.Race_Zerg && b.Loop < 5376 { // For exp recon before 4:00
 		mfsPos = b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, b.EnemyExpLocs[0]).Center()
 		basePos = b.EnemyStartLoc
 	}
@@ -411,7 +410,7 @@ func (b *bot) Cyclones() {
 		canAttack := !isLocked && scl.AttackDelay.UnitIsCool(cyclone)*/
 		if !canLock {
 			target := goodTargets.ClosestTo(cyclone)
-			if cyclone.InRange(target, 4) {
+			if target != nil && cyclone.InRange(target, 4) {
 				cyclone.GroundFallback(attackers, 2, b.HomePaths)
 				continue
 			}
@@ -740,6 +739,8 @@ func (b *bot) Ravens() {
 	}
 
 	friends := append(b.Groups.Get(Tanks).Units, b.Groups.Get(Cyclones).Units...)
+	friends = append(friends, b.Groups.Get(Marines).Units...)
+	friends = append(friends, b.Groups.Get(Marauders).Units...)
 	if friends.Empty() {
 		friends = b.Groups.Get(WidowMines).Units
 	}
@@ -946,10 +947,10 @@ func (b *bot) StaticDefense() {
 	buildings := b.Units.OfType(terran.Bunker, terran.MissileTurret, terran.AutoTurret) // terran.PlanetaryFortress
 	for _, building := range buildings {
 		closeTargets := targets.InRangeOf(building, 0)
-		if building.UnitType == terran.Bunker && b.Upgrades[ability.Research_Stimpack] /*&&
-			targets.InRangeOf(building, 0).Sum(scl.CmpHits) >= 200*/ {
-			log.Info(building.Abilities)
-			log.Info(building.BuffIds)
+		if building.UnitType == terran.Bunker && b.Upgrades[ability.Research_Stimpack] {
+			// targets.InRangeOf(building, 0).Sum(scl.CmpHits) >= 200
+			/*log.Info(building.Abilities)
+			log.Info(building.BuffIds)*/
 		}
 
 		if closeTargets.Exists() {

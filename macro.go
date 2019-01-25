@@ -201,7 +201,7 @@ var RaxBuildOrder = BuildNodes{
 		Limit: func(b *bot) int {
 			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
 			// orbitals := b.Units.OfType(terran.OrbitalCommand)
-			return scl.MinInt(3, ccs.Len()+1)
+			return scl.MinInt(3, ccs.Len())
 		},
 		Active: func(b *bot) int { return 2 },
 	},
@@ -229,7 +229,7 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks reactors",
 		Ability: ability.Build_Reactor_Barracks,
 		Premise: func(b *bot) bool {
-			return (b.Vespene >= 200 && b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil) ||
+			return /*(b.Vespene >= 200 && */b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil ||
 				b.Units[terran.BarracksFlying].First() != nil
 		},
 		Limit:  BuildOne, // b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Len()
@@ -264,7 +264,11 @@ var RaxBuildOrder = BuildNodes{
 		},
 		Active: BuildOne,
 		Method: func(b *bot) {
-			b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_TechLab_Barracks)
+			rax := b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
+			if rax.IsCloserThan(3, firstBarrackBuildPos[0]) {
+				return
+			}
+			rax.Command(ability.Build_TechLab_Barracks)
 		},
 	},
 }
@@ -342,14 +346,14 @@ var StarportBuildOrder = BuildNodes{
 
 func (b *bot) OrderBuild(scv *scl.Unit, pos scl.Point, aid api.AbilityID) {
 	scv.CommandPos(aid, pos)
-	scv.Orders = append(scv.Orders, &api.UnitOrder{AbilityId: aid}) // todo: move in commands
+	// scv.Orders = append(scv.Orders, &api.UnitOrder{AbilityId: aid}) // todo: move in commands
 	b.DeductResources(aid)
 	log.Debugf("%d: Building %v", b.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
 }
 
 func (b *bot) OrderTrain(factory *scl.Unit, aid api.AbilityID) {
 	factory.Command(aid)
-	factory.Orders = append(factory.Orders, &api.UnitOrder{AbilityId: aid}) // todo: move in commands
+	// factory.Orders = append(factory.Orders, &api.UnitOrder{AbilityId: aid}) // todo: move in commands
 	b.DeductResources(aid)
 	log.Debugf("%d: Training %v", b.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
 }
@@ -472,8 +476,10 @@ func (b *bot) OrderUpgrades() {
 			lab.Command(ability.Research_CombatShield)
 			return
 		}
-		if b.Upgrades[ability.Research_ConcussiveShells] || b.PendingAliases(ability.Research_ConcussiveShells) > 0 ||
-			b.Upgrades[ability.Research_CombatShield] || b.PendingAliases(ability.Research_CombatShield) > 0 {
+		if (b.Upgrades[ability.Research_ConcussiveShells] || b.PendingAliases(ability.Research_ConcussiveShells) > 0 ||
+			b.Upgrades[ability.Research_CombatShield] || b.PendingAliases(ability.Research_CombatShield) > 0) &&
+			!b.Upgrades[ability.Research_Stimpack] && lab.HasAbility(ability.Research_Stimpack) &&
+			b.CanBuy(ability.Research_Stimpack) {
 			lab.Command(ability.Research_Stimpack)
 			return
 		}
@@ -764,10 +770,10 @@ func (b *bot) OrderUnits() {
 			cyclonesScore := b.EnemyProduction.Score(protoss.WarpPrism, protoss.Phoenix, protoss.VoidRay,
 				protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.VikingFighter, terran.Medivac,
 				terran.Liberator, terran.Raven, terran.Banshee, terran.Battlecruiser, zerg.Queen, zerg.Mutalisk,
-				zerg.Corruptor, zerg.Viper, zerg.Ultralisk, zerg.BroodLord)
+				zerg.Corruptor, zerg.Viper, zerg.Ultralisk, zerg.BroodLord) + 1
 			tanksScore := b.EnemyProduction.Score(protoss.Stalker, protoss.Colossus, protoss.PhotonCannon,
 				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, /*zerg.Zergling, zerg.Baneling,*/
-				zerg.Roach, zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler)
+				zerg.Roach, zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler) + 1
 			buyCyclones = cyclonesScore/float64(cyclones+1) >= tanksScore/float64(tanks+1)
 			buyTanks = !buyCyclones
 		}
@@ -793,11 +799,11 @@ func (b *bot) OrderUnits() {
 		marauders := b.PendingAliases(ability.Train_Marauder)
 		marinesScore := b.EnemyProduction.Score(protoss.Immortal, protoss.WarpPrism, protoss.Phoenix, protoss.VoidRay,
 			protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.VikingFighter, terran.Medivac, terran.Liberator,
-			terran.Raven, terran.Banshee, terran.Battlecruiser, zerg.Zergling, zerg.Mutalisk, zerg.Corruptor, zerg.Viper,
-			zerg.BroodLord)
+			terran.Raven, terran.Banshee, terran.Battlecruiser, zerg.Mutalisk, zerg.Corruptor, zerg.Viper,
+			zerg.BroodLord) + 1 //  zerg.Zergling,
 		maraudersScore := b.EnemyProduction.Score(protoss.Zealot, protoss.Stalker, protoss.Adept, terran.Reaper,
 			terran.Hellion, terran.WidowMine, terran.Cyclone, terran.Thor, zerg.Baneling, zerg.Roach, zerg.Ravager,
-			zerg.Ultralisk)
+			zerg.Ultralisk) + 1
 		buyMarauders := marinesScore/float64(marines+1) < maraudersScore/float64(marauders+1)
 
 		if buyMarauders {
@@ -839,9 +845,9 @@ func (b *bot) OrderUnits() {
 			protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.Cyclone, terran.SiegeTank, terran.Thor,
 			terran.VikingFighter, terran.Medivac, terran.Liberator, terran.Raven, terran.Banshee,
 			terran.Battlecruiser, zerg.Queen, zerg.Roach, zerg.Ravager, zerg.Mutalisk, zerg.Corruptor, zerg.Viper,
-			zerg.Ultralisk, zerg.BroodLord)
+			zerg.Ultralisk, zerg.BroodLord) + 1
 		hellionsScore := b.EnemyProduction.Score(protoss.Zealot, protoss.Sentry, protoss.Adept, protoss.HighTemplar,
-			protoss.DarkTemplar, terran.Reaper, zerg.Zergling, zerg.Baneling, zerg.Hydralisk, zerg.SwarmHostMP)
+			protoss.DarkTemplar, terran.Reaper, zerg.Zergling, zerg.Baneling, zerg.Hydralisk, zerg.SwarmHostMP) + 1
 		buyMines := minesScore/float64(mines+1) >= hellionsScore/float64(hellions+1)
 
 		if buyMines && b.CanBuy(ability.Train_WidowMine) {

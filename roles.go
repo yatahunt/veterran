@@ -308,7 +308,7 @@ func (b *bot) ScoutBase() {
 func (b *bot) Miners() {
 	enemies := b.EnemyUnits.Units().Filter(scl.DpsGt5)
 	miners := b.Groups.Get(Miners).Units
-	for _, miner := range miners {
+	/*for _, miner := range miners {
 		if enemies.CloserThan(safeBuildRange, miner).Sum(scl.CmpGroundDamage) > miner.Hits {
 			b.Groups.Add(MinersRetreat, miner)
 		}
@@ -322,7 +322,7 @@ func (b *bot) Miners() {
 			continue
 		}
 		miner.GroundFallback(enemies, 2, b.HomePaths)
-	}
+	}*/
 
 	if b.Loop%b.FramesPerOrder != 0 {
 		// try to fix destribution bug. Might be caused by AssignedHarvesters lagging
@@ -338,7 +338,7 @@ func (b *bot) Miners() {
 
 	// If there is ready unsaturated refinery and an scv gathering, send it there
 	refs := b.Units[terran.Refinery]
-	if b.Minerals > ccs.Len() * 100 && b.Minerals/2 > b.Vespene {
+	if b.Minerals > scl.MinInt(5, ccs.Len()) * 100 && b.Minerals/2 > b.Vespene {
 		ref := refs.First(func(unit *scl.Unit) bool { return unit.IsReady() && unit.AssignedHarvesters < 3 })
 		if ref != nil {
 			// Get scv gathering minerals
@@ -351,7 +351,7 @@ func (b *bot) Miners() {
 				scv.CommandTag(ability.Smart, ref.Tag)
 			}
 		}
-	} else if b.Vespene > ccs.Len() * 200 && b.Minerals < b.Vespene && refs.Exists() {
+	} else if b.Vespene > scl.MinInt(5, ccs.Len()) * 100 && b.Minerals < b.Vespene && refs.Exists() {
 		// mfs := b.MineralFields.Units()
 		scv := b.Groups.Get(Miners).Units.First(func(unit *scl.Unit) bool {
 			tag := unit.TargetTag()
