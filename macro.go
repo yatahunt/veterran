@@ -138,8 +138,11 @@ var RootBuildOrder = BuildNodes{
 			return b.Units[terran.Factory].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func(b *bot) int {
-			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
-			return scl.MinInt(4, ccs.Len()-1)
+			buildFacts := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
+			if b.EnemyRace == api.Race_Zerg {
+				buildFacts--
+			}
+			return scl.MinInt(4, buildFacts)
 		},
 		Active:  BuildOne,
 		Unlocks: FactoryBuildOrder,
@@ -197,7 +200,8 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
+			return b.EnemyRace == api.Race_Zerg &&
+				b.Units[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
 				b.Units[terran.BarracksFlying].Empty()
 		},
 		Limit: func(b *bot) int {
@@ -851,7 +855,7 @@ func (b *bot) OrderUnits() {
 			terran.VikingFighter, terran.Medivac, terran.Liberator, terran.Raven, terran.Banshee,
 			terran.Battlecruiser, zerg.Queen, zerg.Roach, zerg.Ravager, zerg.Mutalisk, zerg.Corruptor, zerg.Viper,
 			zerg.Ultralisk, zerg.BroodLord) + 1
-		hellionsScore := b.EnemyProduction.Score(protoss.Zealot, protoss.Sentry, protoss.Adept, protoss.HighTemplar,
+		hellionsScore := b.EnemyProduction.Score(protoss.Zealot, protoss.Sentry, /*protoss.Adept, */protoss.HighTemplar,
 			protoss.DarkTemplar, terran.Reaper, zerg.Zergling, zerg.Baneling, zerg.Hydralisk, zerg.SwarmHostMP) + 1
 		buyMines := minesScore/float64(mines+1) >= hellionsScore/float64(hellions+1)
 

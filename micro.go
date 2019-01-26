@@ -40,6 +40,7 @@ func (b *bot) WorkerRushDefence() {
 		alert = enemies.CloserThan(workersRange-4, b.StartLoc).Exists()
 		if alert && enemies.Len() >= 10 {
 			workerRush = true
+			b.DisableDefensivePlay()
 		}
 	}
 	if workerRush && enemyWorkers.CloserThan(70, b.StartLoc).Empty() {
@@ -973,8 +974,12 @@ func (b *bot) FlyingBuildings() {
 	for _, building := range buildings {
 		attackers := enemies.CanAttack(building, 0)
 		if !building.IsFlying && building.Hits < building.HitsMax * 3 / 4 && attackers.Exists() {
-			building.Command(ability.Cancel_Last)
-			building.CommandQueue(ability.Lift)
+			if building.IsIdle() {
+				building.Command(ability.Lift)
+			} else {
+				building.Command(ability.Cancel_Last)
+				building.CommandQueue(ability.Lift)
+			}
 		} else if building.IsFlying && attackers.Empty() {
 			building.CommandPos(ability.Land, b.ExpLocs.ClosestTo(building))
 		}
