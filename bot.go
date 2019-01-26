@@ -68,7 +68,7 @@ func (b *bot) Step() bool { // bool = is final
 		b.ChatSend("Realtime mode detected")
 	}
 	if b.Loop != 0 && b.LastLoop == 0 { // Second loop. For some reason chat sometimes doesn't work on the first loop
-		b.ChatSend("VeTerran v1.3.0 (glhf)")
+		b.ChatSend("VeTerran v1.3.1 (glhf)")
 	}
 	if b.Loop != 0 && b.Loop == b.LastLoop {
 		return false // Skip frame repeat
@@ -87,6 +87,7 @@ func (b *bot) Step() bool { // bool = is final
 	if b.GGCheck() {
 		b.ChatSend("(gg)")
 		b.Info.SendActions(b.Actions)
+		b.Info.LeaveGame()
 		return true
 	}
 

@@ -7,9 +7,10 @@ import (
 
 // Pass assignGroup = 0 to skip group assignement
 func (b *bot) GetSCV(ptr scl.Pointer, assignGroup scl.GroupID, minHits float64) *scl.Unit {
+	// refs := b.Units.OfType(terran.Refinery, terran.RefineryRich)
 	scv1 := b.Groups.Get(ScvReserve).Units.ClosestTo(ptr)
 	scv2 := b.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
-		return unit.IsGathering() && unit.Hits >= minHits
+		return !unit.IsReturning() && unit.Hits >= minHits // && refs.ByTag(unit.TargetTag()) == nil
 	}).ClosestTo(ptr)
 
 	scv := scv1

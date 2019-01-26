@@ -170,7 +170,8 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Bunkers",
 		Ability: ability.Build_Bunker,
 		Premise: func(b *bot) bool {
-			return b.AllEnemyUnits.Units().Filter(scl.DpsGt5).CloserThan(defensiveRange, b.StartLoc).Empty()
+			return b.Units.OfType(terran.Marine, terran.Reaper).Len() >= 2 &&
+				b.AllEnemyUnits.Units().Filter(scl.DpsGt5).CloserThan(defensiveRange, b.StartLoc).Empty()
 		},
 		Limit:   func(b *bot) int { return bunkersPos.Len() },
 		Active:  func(b *bot) int { return bunkersPos.Len() },
@@ -196,14 +197,15 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.Barracks].First(scl.Ready, scl.Unused) == nil
+			return b.Units[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
+				b.Units[terran.BarracksFlying].Empty()
 		},
 		Limit: func(b *bot) int {
 			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
 			// orbitals := b.Units.OfType(terran.OrbitalCommand)
-			return scl.MinInt(3, ccs.Len())
+			return scl.MinInt(2, ccs.Len())
 		},
-		Active: func(b *bot) int { return 2 },
+		Active: BuildOne,
 	},
 	{
 		Name:    "Engineering Bay",
@@ -229,7 +231,7 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks reactors",
 		Ability: ability.Build_Reactor_Barracks,
 		Premise: func(b *bot) bool {
-			return /*(b.Vespene >= 200 && */b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil ||
+			return (b.Vespene >= 100 && b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil) ||
 				b.Units[terran.BarracksFlying].First() != nil
 		},
 		Limit:  BuildOne, // b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Len()
@@ -242,15 +244,16 @@ var RaxBuildOrder = BuildNodes{
 			}
 
 			rax := b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
-			if rax.IsCloserThan(3, firstBarrackBuildPos[0]) &&
-				firstBarrackBuildPos[0] != firstBarrackBuildPos[1] {
-				if b.EnemyUnits.Units().CloserThan(safeBuildRange, rax).Exists() {
-					return
+			if rax.IsCloserThan(3, firstBarrackBuildPos[0]) {
+				if firstBarrackBuildPos[0] != firstBarrackBuildPos[1] {
+					if b.EnemyUnits.Units().CloserThan(safeBuildRange, rax).Exists() {
+						return
+					}
+					rax.Command(ability.Lift_Barracks)
+				} else {
+					rax.Command(ability.Build_Reactor_Barracks)
 				}
-				rax.Command(ability.Lift_Barracks)
-			} /* else {
-				rax.Command(ability.Build_Reactor_Barracks)
-			}*/
+			}
 		},
 	},
 	{
@@ -306,7 +309,7 @@ var FactoryBuildOrder = BuildNodes{
 }
 
 var StarportBuildOrder = BuildNodes{
-	{
+	/*{
 		Name:    "Starport Reactor",
 		Ability: ability.Build_Reactor_Starport,
 		Premise: func(b *bot) bool {
@@ -318,7 +321,7 @@ var StarportBuildOrder = BuildNodes{
 		Method: func(b *bot) {
 			b.Units[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Starport)
 		},
-	},
+	},*/
 	{
 		Name:    "Starport Tech Lab",
 		Ability: ability.Build_TechLab_Starport,
@@ -326,7 +329,7 @@ var StarportBuildOrder = BuildNodes{
 			return b.Units[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
 		Limit: func(b *bot) int {
-			return b.Units[terran.Starport].Len() - 1
+			return b.Units[terran.Starport].Len()
 		},
 		Active: BuildOne,
 		Method: func(b *bot) {
@@ -491,10 +494,10 @@ func (b *bot) OrderUpgrades() {
 		if b.Units[terran.Marine].Len()+b.Units[terran.Marauder].Len()*2 >= 8 {
 			for _, a := range []api.AbilityID{
 				ability.Research_TerranInfantryWeaponsLevel1,
-				ability.Research_TerranInfantryWeaponsLevel2,
-				ability.Research_TerranInfantryWeaponsLevel3,
 				ability.Research_TerranInfantryArmorLevel1,
+				ability.Research_TerranInfantryWeaponsLevel2,
 				ability.Research_TerranInfantryArmorLevel2,
+				ability.Research_TerranInfantryWeaponsLevel3,
 				ability.Research_TerranInfantryArmorLevel3,
 			} {
 				if b.Upgrades[a] {
@@ -707,7 +710,7 @@ func (b *bot) Cast() {
 }
 
 func (b *bot) OrderUnits() {
-	if (workerRush/* || b.getEmptyBunker(scl.Pt0()) != nil*/) && b.CanBuy(ability.Train_Marine) {
+	if (workerRush /* || b.getEmptyBunker(scl.Pt0()) != nil*/) && b.CanBuy(ability.Train_Marine) {
 		if rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused); rax != nil {
 			if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 				rax.SpamCmds = true
@@ -745,15 +748,15 @@ func (b *bot) OrderUnits() {
 		}
 	}
 	starport = b.Units[terran.Starport].First(scl.Ready, scl.Unused, func(unit *scl.Unit) bool {
-		return unit.Tag != starport.Tag // Don't select previously selected producer
+		return starport == nil || unit.Tag != starport.Tag // Don't select previously selected producer
 	})
 	if starport != nil {
 		if starport.HasReactor() && scl.UnitsOrders[starport.Tag].Loop+b.FramesPerOrder <= b.Loop {
 			starport.SpamCmds = true
 		}
 		medivacs := b.Pending(ability.Train_Medivac)
-		infantry := b.Units[terran.Marine].Len()+b.Units[terran.Marauder].Len()*2
-		if (medivacs == 0 || medivacs * 8 < infantry) && b.CanBuy(ability.Train_Medivac) {
+		infantry := b.Units[terran.Marine].Len() + b.Units[terran.Marauder].Len()*2
+		if (medivacs == 0 || medivacs*8 < infantry) && b.CanBuy(ability.Train_Medivac) {
 			b.OrderTrain(starport, ability.Train_Medivac)
 		} else if medivacs == 0 {
 			b.DeductResources(ability.Train_Medivac) // Gather money
@@ -816,7 +819,7 @@ func (b *bot) OrderUnits() {
 		}
 	}
 	rax = b.Units[terran.Barracks].First(scl.Ready, scl.Unused, func(unit *scl.Unit) bool {
-		return unit.Tag != rax.Tag // Don't select previously selected producer
+		return rax == nil || unit.Tag != rax.Tag // Don't select previously selected producer
 	})
 	if rax != nil {
 		if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
@@ -826,14 +829,13 @@ func (b *bot) OrderUnits() {
 		if b.Loop < 5376 && (b.Pending(ability.Train_Reaper) < 2 || b.EnemyRace == api.Race_Zerg) &&
 			b.CanBuy(ability.Train_Reaper) {
 			b.OrderTrain(rax, ability.Train_Reaper)
-		}
-		if /*b.Minerals > 600 && */ b.CanBuy(ability.Train_Marine) {
+		} else if b.Loop >= 2688 && b.CanBuy(ability.Train_Marine) { // 2:00
 			b.OrderTrain(rax, ability.Train_Marine)
 		}
 	}
 
 	factory = b.Units[terran.Factory].First(func(unit *scl.Unit) bool {
-		return unit.IsReady() && unit.IsUnused() && !unit.HasTechlab() && unit.Tag != factory.Tag
+		return unit.IsReady() && unit.IsUnused() && !unit.HasTechlab() && (factory == nil || unit.Tag != factory.Tag)
 	})
 	if factory != nil {
 		if factory.HasReactor() && scl.UnitsOrders[factory.Tag].Loop+b.FramesPerOrder <= b.Loop {

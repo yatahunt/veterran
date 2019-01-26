@@ -194,7 +194,12 @@ func (b *bot) Marines() {
 
 		// Attack
 		if goodTargets.Exists() || okTargets.Exists() {
-			marine.Attack(goodTargets, okTargets)
+			ics := b.EnemyUnits[protoss.Interceptor]
+			if ics.Exists() {
+				marine.CommandPos(ability.Attack_Attack_23, ics.ClosestTo(marine))
+			} else {
+				marine.Attack(goodTargets, okTargets)
+			}
 		} else {
 			b.Explore(marine)
 		}
@@ -247,14 +252,15 @@ func (b *bot) Marauders() {
 
 func (b *bot) Reapers() {
 	var mfsPos, basePos scl.Point
-	if /*!playDefensive &&*/ b.EnemyRace != api.Race_Zerg && b.Loop < 5376 { // For exp recon before 4:00
-		mfsPos = b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, b.EnemyExpLocs[0]).Center()
-		basePos = b.EnemyStartLoc
-	}
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
 	allEnemies := b.AllEnemyUnits.Units()
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
+	/*!playDefensive && b.EnemyRace != api.Race_Zerg &&*/
+	if b.Loop < 5376 && allEnemies.CloserThan(defensiveRange, b.StartLoc).Empty() { // For exp recon before 4:00
+		mfsPos = b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, b.EnemyExpLocs[0]).Center()
+		basePos = b.EnemyStartLoc
+	}
 
 	reapers := b.Groups.Get(Reapers).Units
 	for _, enemy := range allEnemies {
@@ -967,9 +973,10 @@ func (b *bot) FlyingBuildings() {
 	for _, building := range buildings {
 		attackers := enemies.CanAttack(building, 0)
 		if !building.IsFlying && building.Hits < building.HitsMax * 3 / 4 && attackers.Exists() {
-			building.Command(ability.Lift)
+			building.Command(ability.Cancel_Last)
+			building.CommandQueue(ability.Lift)
 		} else if building.IsFlying && attackers.Empty() {
-			building.Command(ability.Land)
+			building.CommandPos(ability.Land, b.ExpLocs.ClosestTo(building))
 		}
 	}
 }

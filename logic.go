@@ -2,10 +2,15 @@ package main
 
 import (
 	"bitbucket.org/aisee/sc2lib"
-	"github.com/chippydip/go-sc2ai/enums/terran"
 	"github.com/chippydip/go-sc2ai/enums/ability"
+	"github.com/chippydip/go-sc2ai/enums/terran"
 )
 
+// todo: марины не умеют атаковать интерцепторы
+// todo: иногда бот не отменяет строящиеся добиваемые здания?
+// todo: что делать с батонами? При обнаружении забивать на всё и выходить в минки + батлы?
+// todo: надёжно ставить рекатор на первом бараке
+// todo: надо выбирать цели в соответствии с типом брони и снаряда
 // todo: + ВСЕ марины идут к бункеру (а должно только 4)
 // todo: + Оборона не снимается при лимите в 200
 // todo: + протестировать, может MinersRetreat вообще не нужно
@@ -13,7 +18,7 @@ import (
 // todo: убрать лишний скан после того как снаряды от убитой баньши долетают до цели
 // todo: юниты в углах карты могут отвлекать минки
 // todo: ? рабы всё ещё творят херню (когда их больше, чем нужно?) - видимо, связано с починкой и недостатком ревурсов
-// todo: ? рабочие пытаются поставить все здания на одной точке -> возможно, нужно строить на %3 кадрах (ошибки отсутствия ресурсов?)
+// todo: + рабочие пытаются поставить все здания на одной точке -> возможно, нужно строить на %3 кадрах (ошибки отсутствия ресурсов?)
 // todo: + нужно что-то придумать с SCV и miners под атакой. Сейчас они реагируют слишком сильно и пугливо
 // todo: минки боятся рабочих, забегают в угол и тупят -> отслеживать время взрыва и закапывать если по пути к лечению
 // todo: хрень с хайграундом на автоматоне, юниты идут не туда и дохнут
@@ -304,9 +309,9 @@ func (b *bot) DisableDefensivePlay() {
 func (b *bot) DefensivePlayCheck() {
 	armyScore := b.Units.Units().Filter(scl.DpsGt5).Sum(scl.CmpGroundScore)
 	enemyScore := b.AllEnemyUnits.Units().Filter(scl.DpsGt5).Sum(scl.CmpGroundScore)
-	if armyScore > enemyScore * 1.5 && b.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 || b.FoodUsed > 180 {
+	if armyScore > enemyScore*1.5 && b.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 || b.FoodUsed > 180 {
 		b.DisableDefensivePlay()
-	} else if armyScore * 1.5 < enemyScore {
+	} else if armyScore*1.5 < enemyScore {
 		b.EnableDefensivePlay()
 	}
 	/*if b.Loop >= 3584 && b.Loop < 3594 { // 2:40
