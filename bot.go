@@ -4,6 +4,8 @@ import (
 	"bitbucket.org/aisee/sc2lib"
 )
 
+const version = "VeTerran v1.3.3 (glhf)"
+
 func (b *bot) InitBot() {
 	scl.InitUnits(b.Info.Data().Units)
 	scl.InitUpgrades(b.Info.Data().Upgrades)
@@ -65,10 +67,11 @@ func (b *bot) Step() {
 	if b.Loop != 0 && b.Loop-b.LastLoop != 1 && !isRealtime {
 		b.FramesPerOrder = 6
 		isRealtime = true
+		b.ChatSend(version)
 		b.ChatSend("Realtime mode detected")
 	}
-	if b.Loop != 0 && b.LastLoop == 0 { // Second loop. For some reason chat sometimes doesn't work on the first loop
-		b.ChatSend("VeTerran v1.3.2 (glhf)")
+	if b.Loop == 8 && !isRealtime {
+		b.ChatSend(version)
 	}
 	if b.Loop != 0 && b.Loop == b.LastLoop {
 		return // Skip frame repeat

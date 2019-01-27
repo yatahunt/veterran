@@ -6,34 +6,25 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/terran"
 )
 
-// todo: марины не умеют атаковать интерцепторы
-// todo: иногда бот не отменяет строящиеся добиваемые здания?
-// todo: что делать с батонами? При обнаружении забивать на всё и выходить в минки + батлы?
-// todo: надёжно ставить рекатор на первом бараке
+// todo: отступающе отстреливающиеся геллионы слишком легко дохнут
+// todo: не строить аддоны, если рядом враги
+// todo: ? иногда бот не отменяет строящиеся добиваемые здания?
 // todo: надо выбирать цели в соответствии с типом брони и снаряда
-// todo: + ВСЕ марины идут к бункеру (а должно только 4)
-// todo: + Оборона не снимается при лимите в 200
-// todo: + протестировать, может MinersRetreat вообще не нужно
 // todo: викинги против баньши? Туррели не помогут
-// todo: убрать лишний скан после того как снаряды от убитой баньши долетают до цели
-// todo: юниты в углах карты могут отвлекать минки
-// todo: ? рабы всё ещё творят херню (когда их больше, чем нужно?) - видимо, связано с починкой и недостатком ревурсов
-// todo: + рабочие пытаются поставить все здания на одной точке -> возможно, нужно строить на %3 кадрах (ошибки отсутствия ресурсов?)
-// todo: + нужно что-то придумать с SCV и miners под атакой. Сейчас они реагируют слишком сильно и пугливо
 // todo: минки боятся рабочих, забегают в угол и тупят -> отслеживать время взрыва и закапывать если по пути к лечению
-// todo: хрень с хайграундом на автоматоне, юниты идут не туда и дохнут
+// todo: ? хрень с хайграундом на автоматоне, юниты идут не туда и дохнут
 // todo: надо как-то определять какие здания не стоит чинить, т.к. рабочий будет убит (по числу ranged?)
-// todo: + танку надо перераскладываться, если на границе его радиуса только здания
 // todo: строить первый CC на хайграунде если опасно?
-// todo: детектить однобазовый оллин и переходить на вторую только после определённого лимита
-// todo: + поднимать и спасать CC, но забить на починку рефов, если рядом враги
 // todo: если есть апгрейд для минок, закапывать их, если за ними гонится кто-то быстрее их
 // todo: детект спидлингов + крип
+// todo: юниты в углах карты могут отвлекать минки
+// todo: убрать лишний скан после того как снаряды от убитой баньши долетают до цели
 // todo: use dead units events
 // todo: анализировать неуспешные попытки строительства, зарытые линги мешают поставить СС -> ставить башню рядом?
 
 var isRealtime = false
 var workerRush = false
+var lingRush = false
 var buildTurrets = false
 var playDefensive = true
 var defensiveRange = 0.0
@@ -117,9 +108,25 @@ func (b *bot) FindBuildingsPositions() {
 	// Positions for first 2 supplies and barrack
 	rp2x2 := b.FindRamp2x2Positions(b.MainRamp)
 	firstBarrackBuildPos = b.FindRampBarracksPositions(b.MainRamp)
-	for _, p := range b.GetBuildingPoints(firstBarrackBuildPos[1], scl.S5x3) { // Take second position, with addon
-		b.SetBuildable(p, false)
-		b.SetPathable(p, false)
+	if firstBarrackBuildPos.Len() > 1 && rp2x2.Len() > 1 {
+		points := []scl.Points{
+			b.GetBuildingPoints(firstBarrackBuildPos[0], scl.S3x3),
+			b.GetBuildingPoints(firstBarrackBuildPos[1], scl.S5x3), // Take second position with addon
+			b.GetBuildingPoints(rp2x2[0], scl.S2x2),
+			b.GetBuildingPoints(rp2x2[1], scl.S2x2),
+		}
+		for _, ps := range points {
+			for _, p := range ps {
+				b.SetBuildable(p, false)
+				b.SetPathable(p, false)
+			}
+		}
+		// Position for turret
+		closeSupply := rp2x2.ClosestTo(b.StartLoc)
+		pos := b.FindClosestPos(closeSupply, scl.S2x2, 0, 2, 2, scl.IsBuildable, scl.IsPathable)
+		if pos != 0 {
+			turretsPos.Add(pos.S2x2Fix())
+		}
 	}
 
 	// Positions for main base buildings
@@ -307,8 +314,8 @@ func (b *bot) DisableDefensivePlay() {
 }
 
 func (b *bot) DefensivePlayCheck() {
-	armyScore := b.Units.Units().Filter(scl.DpsGt5).Sum(scl.CmpGroundScore)
-	enemyScore := b.AllEnemyUnits.Units().Filter(scl.DpsGt5).Sum(scl.CmpGroundScore)
+	armyScore := b.Units.Units().Filter(scl.NotWorker).Sum(scl.CmpFood)
+	enemyScore := b.AllEnemyUnits.Units().Filter(scl.NotWorker).Sum(scl.CmpFood)
 	if armyScore > enemyScore*1.5 && b.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 || b.FoodUsed > 180 {
 		b.DisableDefensivePlay()
 	} else if armyScore*1.5 < enemyScore {

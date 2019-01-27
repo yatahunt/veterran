@@ -87,7 +87,7 @@ func (b *bot) BuildingsCheck() {
 
 		// Cancel building if it will be destroyed soon
 		if building.HPS*2.5 > building.Hits {
-			building.Command(ability.Cancel)
+			building.Command(ability.Cancel_BuildInProgress)
 			continue
 		}
 
@@ -262,7 +262,7 @@ func (b *bot) ScoutBase() {
 	}
 
 	scv := b.Groups.Get(ScoutBase).Units.First()
-	if b.EnemyStartLocs.Len() <= 1 && scv == nil && !workerRush && !playDefensive && b.Loop > 896 && b.Loop < 906 {
+	if b.EnemyStartLocs.Len() <= 1 && scv == nil && !workerRush /*&& !playDefensive*/ && b.Loop > 896 && b.Loop < 906 {
 		// 0:50
 		scv = b.GetSCV(b.EnemyStartLoc, Scout, 45)
 		if scv != nil {
@@ -291,6 +291,9 @@ func (b *bot) ScoutBase() {
 		if b.EnemyRace == api.Race_Zerg {
 			if b.AllEnemyUnits[zerg.SpawningPool].First(scl.Ready) != nil || b.AllEnemyUnits[zerg.Zergling].Exists() {
 				b.EnableDefensivePlay()
+			}
+			if b.AllEnemyUnits[zerg.Zergling].Exists() {
+				lingRush = true
 			}
 		}
 		if b.EnemyRace == api.Race_Protoss {

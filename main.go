@@ -38,14 +38,14 @@ func runAgent(info client.AgentInfo) {
 	}
 }
 
-func main() {
+func run() {
 	log.SetConsoleLevel(log.L_info) // L_info L_debug
 	maps := []string{"BlueshiftLE", "CeruleanFallLE", "ParaSiteLE",
 		"AutomatonLE", "KairosJunctionLE", "PortAleksanderLE", "StasisLE", "DarknessSanctuaryLE"}
 
 	rand.Seed(time.Now().UnixNano())
 	runner.Set("map", maps[rand.Intn(len(maps))]+".SC2Map")
-	// runner.Set("map", "ParaSiteLE.SC2Map")
+	// runner.Set("map", "DarknessSanctuaryLE.SC2Map")
 	runner.Set("ComputerOpponent", "true")
 	runner.Set("ComputerRace", "random")           // terran zerg protoss random
 	runner.Set("ComputerDifficulty", "CheatMoney") // CheatInsane CheatMoney VeryHard
@@ -53,4 +53,27 @@ func main() {
 
 	// Create the agent and then start the game
 	runner.RunAgent(client.NewParticipant(api.Race_Terran, client.AgentFunc(runAgent), ""))
+}
+
+func main() {
+	/*f, err := os.Create("cpu.prof")
+	if err != nil {
+		log.Fatal("could not create CPU profile: ", err)
+	}
+	if err := pprof.StartCPUProfile(f); err != nil {
+		log.Fatal("could not start CPU profile: ", err)
+	}
+	defer pprof.StopCPUProfile()*/
+
+	run()
+
+	/*f, err = os.Create("mem.prof")
+	if err != nil {
+		log.Fatal("could not create memory profile: ", err)
+	}
+	runtime.GC() // get up-to-date statistics
+	if err := pprof.WriteHeapProfile(f); err != nil {
+		log.Fatal("could not write memory profile: ", err)
+	}
+	f.Close()*/
 }

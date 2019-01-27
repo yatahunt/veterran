@@ -77,7 +77,7 @@ var RootBuildOrder = BuildNodes{
 		Ability: ability.Build_SupplyDepot,
 		Premise: func(b *bot) bool {
 			// it's safe && 1 depo is placed && < 2:00 && only one cc
-			if /*!playDefensive && */ b.FoodCap > 20 && b.Loop < 2688 &&
+			if !playDefensive && b.FoodCap > 20 && b.Loop < 2688 &&
 				b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Len() == 1 {
 				return false // Wait for a second cc
 			}
@@ -111,7 +111,7 @@ var RootBuildOrder = BuildNodes{
 				if raxPending == 0 {
 					return false
 				}
-				if b.Minerals > 500 {
+				if b.Minerals > 350 {
 					return true
 				}
 				if ccs.Len() < 3 {
@@ -200,14 +200,14 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
 		Premise: func(b *bot) bool {
-			return b.EnemyRace == api.Race_Zerg &&
+			return b.EnemyRace != api.Race_Protoss &&
 				b.Units[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
 				b.Units[terran.BarracksFlying].Empty()
 		},
 		Limit: func(b *bot) int {
-			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			// ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
 			// orbitals := b.Units.OfType(terran.OrbitalCommand)
-			return scl.MinInt(2, ccs.Len())
+			return 2 // scl.MinInt(2, ccs.Len())
 		},
 		Active: BuildOne,
 	},
@@ -235,8 +235,10 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks reactors",
 		Ability: ability.Build_Reactor_Barracks,
 		Premise: func(b *bot) bool {
-			return (b.Vespene >= 100 && b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil) ||
-				b.Units[terran.BarracksFlying].First() != nil
+			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
+			return ccs.Len() > 2 &&
+				((b.Vespene >= 100 && b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil) ||
+					b.Units[terran.BarracksFlying].First() != nil)
 		},
 		Limit:  BuildOne, // b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Len()
 		Active: BuildOne,
@@ -264,7 +266,8 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks techlabs",
 		Ability: ability.Build_TechLab_Barracks,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
+			return ccs.Len() >= 2 && b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
 		Limit: func(b *bot) int {
 			return b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Len() - 1
@@ -495,7 +498,7 @@ func (b *bot) OrderUpgrades() {
 	eng := b.Units[terran.EngineeringBay].First(scl.Ready, scl.Idle)
 	if eng != nil {
 		b.RequestAvailableAbilities(true, eng) // request abilities again because we want to ignore resource reqs
-		if b.Units[terran.Marine].Len()+b.Units[terran.Marauder].Len()*2 >= 8 {
+		if b.Units[terran.Marine].Len()+b.Units[terran.Marauder].Len()*2+b.Units[terran.Reaper].Len()*2 >= 8 {
 			for _, a := range []api.AbilityID{
 				ability.Research_TerranInfantryWeaponsLevel1,
 				ability.Research_TerranInfantryArmorLevel1,
@@ -714,6 +717,10 @@ func (b *bot) Cast() {
 }
 
 func (b *bot) OrderUnits() {
+	mech := false
+	if b.EnemyRace != api.Race_Zerg {
+		mech = true
+	}
 	if (workerRush /* || b.getEmptyBunker(scl.Pt0()) != nil*/) && b.CanBuy(ability.Train_Marine) {
 		if rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused); rax != nil {
 			if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
@@ -789,14 +796,50 @@ func (b *bot) OrderUnits() {
 		if buyCyclones {
 			if b.CanBuy(ability.Train_Cyclone) {
 				b.OrderTrain(factory, ability.Train_Cyclone)
-			} else if cyclones == 0 {
+			} else if cyclones == 0 || mech {
 				b.DeductResources(ability.Train_Cyclone) // Gather money
 			}
 		} else if buyTanks {
 			if b.CanBuy(ability.Train_SiegeTank) {
 				b.OrderTrain(factory, ability.Train_SiegeTank)
-			} else if tanks == 0 {
+			} else if tanks == 0 || mech {
 				b.DeductResources(ability.Train_SiegeTank) // Gather money
+			}
+		}
+	}
+
+	factory = b.Units[terran.Factory].First(func(unit *scl.Unit) bool {
+		return unit.IsReady() && unit.IsUnused() && !unit.HasTechlab() && (factory == nil || unit.Tag != factory.Tag)
+	})
+	if factory != nil {
+		if factory.HasReactor() && scl.UnitsOrders[factory.Tag].Loop+b.FramesPerOrder <= b.Loop {
+			// I need to pass this param because else duplicate order will be ignored
+			// But I need to be sure that there was no previous order recently
+			factory.SpamCmds = true
+		}
+		mines := b.PendingAliases(ability.Train_WidowMine)
+		hellions := b.PendingAliases(ability.Train_Hellion)
+
+		minesScore := b.EnemyProduction.Score(protoss.Stalker, protoss.Archon, protoss.Phoenix, protoss.VoidRay,
+			protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.Cyclone, terran.SiegeTank, terran.Thor,
+			terran.VikingFighter, terran.Medivac, terran.Liberator, terran.Raven, terran.Banshee,
+			terran.Battlecruiser, zerg.Hydralisk, zerg.Queen, zerg.Roach, zerg.Ravager, zerg.Mutalisk, zerg.Corruptor,
+			zerg.Viper, zerg.Ultralisk, zerg.BroodLord) + 1
+		hellionsScore := b.EnemyProduction.Score(protoss.Zealot, protoss.Sentry, protoss.HighTemplar,
+			protoss.DarkTemplar, terran.Reaper, zerg.Zergling, zerg.Baneling, zerg.SwarmHostMP) + 1
+		buyMines := minesScore/float64(mines+1) >= hellionsScore/float64(hellions+1)
+
+		if buyMines {
+			if b.CanBuy(ability.Train_WidowMine) {
+				b.OrderTrain(factory, ability.Train_WidowMine)
+			} else if mines == 0 || mech {
+				b.DeductResources(ability.Train_WidowMine) // Gather money
+			}
+		} else {
+			if b.CanBuy(ability.Train_Hellion) {
+				b.OrderTrain(factory, ability.Train_Hellion)
+			} else if hellions == 0 || mech {
+				b.DeductResources(ability.Train_Hellion) // Gather money
 			}
 		}
 	}
@@ -830,39 +873,13 @@ func (b *bot) OrderUnits() {
 			rax.SpamCmds = true
 		}
 		// Until 4:00
-		if b.Loop < 5376 && (b.Pending(ability.Train_Reaper) < 2 || b.EnemyRace == api.Race_Zerg) &&
+		// b.Loop < 5376 && (b.Pending(ability.Train_Reaper) < 2 || b.EnemyRace == api.Race_Zerg) &&
+		// before 2:40 or if they are not dying until 4:00
+		if !lingRush && (b.Loop < 3584 || (b.Loop < 5376 && b.Pending(ability.Train_Reaper) > b.Loop/1344)) &&
 			b.CanBuy(ability.Train_Reaper) {
 			b.OrderTrain(rax, ability.Train_Reaper)
 		} else if b.Loop >= 2688 && b.CanBuy(ability.Train_Marine) { // 2:00
 			b.OrderTrain(rax, ability.Train_Marine)
-		}
-	}
-
-	factory = b.Units[terran.Factory].First(func(unit *scl.Unit) bool {
-		return unit.IsReady() && unit.IsUnused() && !unit.HasTechlab() && (factory == nil || unit.Tag != factory.Tag)
-	})
-	if factory != nil {
-		if factory.HasReactor() && scl.UnitsOrders[factory.Tag].Loop+b.FramesPerOrder <= b.Loop {
-			// I need to pass this param because else duplicate order will be ignored
-			// But I need to be sure that there was no previous order recently
-			factory.SpamCmds = true
-		}
-		mines := b.PendingAliases(ability.Train_WidowMine)
-		hellions := b.PendingAliases(ability.Train_Hellion)
-
-		minesScore := b.EnemyProduction.Score(protoss.Stalker, protoss.Archon, protoss.Phoenix, protoss.VoidRay,
-			protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.Cyclone, terran.SiegeTank, terran.Thor,
-			terran.VikingFighter, terran.Medivac, terran.Liberator, terran.Raven, terran.Banshee,
-			terran.Battlecruiser, zerg.Queen, zerg.Roach, zerg.Ravager, zerg.Mutalisk, zerg.Corruptor, zerg.Viper,
-			zerg.Ultralisk, zerg.BroodLord) + 1
-		hellionsScore := b.EnemyProduction.Score(protoss.Zealot, protoss.Sentry, /*protoss.Adept, */protoss.HighTemplar,
-			protoss.DarkTemplar, terran.Reaper, zerg.Zergling, zerg.Baneling, zerg.Hydralisk, zerg.SwarmHostMP) + 1
-		buyMines := minesScore/float64(mines+1) >= hellionsScore/float64(hellions+1)
-
-		if buyMines && b.CanBuy(ability.Train_WidowMine) {
-			b.OrderTrain(factory, ability.Train_WidowMine)
-		} else if b.CanBuy(ability.Train_Hellion) {
-			b.OrderTrain(factory, ability.Train_Hellion)
 		}
 	}
 }
