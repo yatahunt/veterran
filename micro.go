@@ -15,7 +15,7 @@ import (
 
 func WorkerMoveFunc(u *scl.Unit, target *scl.Unit) {
 	if !u.InRange(target, 0) || !target.IsVisible() {
-		if u.WeaponCooldown > 0 {
+		if u.WeaponCooldown > 0 && u.PosDelta == 0 {
 			u.SpamCmds = true
 		}
 		u.CommandPos(ability.Move, target)
