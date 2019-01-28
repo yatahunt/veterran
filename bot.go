@@ -4,7 +4,7 @@ import (
 	"bitbucket.org/aisee/sc2lib"
 )
 
-const version = "VeTerran v1.3.3 (glhf)"
+const version = "VeTerran v1.3.4 (glhf)"
 
 func (b *bot) InitBot() {
 	scl.InitUnits(b.Info.Data().Units)

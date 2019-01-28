@@ -68,7 +68,7 @@ func (b *bot) WorkerRushDefence() {
 			continue
 		}
 
-		if scl.AttackDelay.UnitIsCool(unit) {
+		if unit.IsCool() {
 			unit.AttackCustom(scl.DefaultAttackFunc, WorkerMoveFunc, enemies)
 		} else {
 			friends := army.InRangeOf(unit, 0)
@@ -165,7 +165,7 @@ func (b *bot) Marines() {
 	}
 
 	for _, marine := range marines {
-		if !scl.AttackDelay.UnitIsCool(marine) {
+		if !marine.IsCool() {
 			attackers := allEnemiesReady.CanAttack(marine, 2)
 			closeTargets := goodTargets.InRangeOf(marine, -0.5)
 			if attackers.Exists() || closeTargets.Exists() {
@@ -227,7 +227,7 @@ func (b *bot) Marauders() {
 	}
 
 	for _, marauder := range marauders {
-		if !scl.AttackDelay.UnitIsCool(marauder) {
+		if !marauder.IsCool() {
 			attackers := allEnemiesReady.CanAttack(marauder, 2)
 			closeTargets := goodTargets.InRangeOf(marauder, -0.5)
 			if attackers.Exists() || closeTargets.Exists() {
@@ -286,7 +286,7 @@ func (b *bot) Reapers() {
 
 		// Keep range
 		// Weapon is recharging
-		if !scl.AttackDelay.UnitIsCool(reaper) {
+		if !reaper.IsCool() {
 			if b.ThrowMine(reaper, goodTargets) {
 				continue
 			}
@@ -328,7 +328,7 @@ func (b *bot) Reapers() {
 			continue
 		}
 		// Use attack if enemy is close but can't attack reaper
-		if scl.AttackDelay.UnitIsCool(reaper) &&
+		if reaper.IsCool() &&
 			(goodTargets.InRangeOf(reaper, 0).Exists() || okTargets.InRangeOf(reaper, 0).Exists()) &&
 			allEnemiesReady.CanAttack(reaper, 1).Empty() {
 			reaper.AttackCustom(scl.DefaultAttackFunc, ReaperMoveFunc, goodTargets, okTargets)
@@ -414,14 +414,14 @@ func (b *bot) Cyclones() {
 		canLock := cyclone.HasAbility(ability.Effect_LockOn)
 		/*target := allEnemies.ByTag(cyclone.EngagedTargetTag)
 		isLocked := !canLock && target != nil
-		canAttack := !isLocked && scl.AttackDelay.UnitIsCool(cyclone)*/
+		canAttack := !isLocked && cyclone.IsCool()*/
 		if !canLock {
 			target := goodTargets.ClosestTo(cyclone)
 			if target != nil && cyclone.InRange(target, 4) {
 				cyclone.GroundFallback(attackers, 2, b.HomePaths)
 				continue
 			}
-		} else if !scl.AttackDelay.UnitIsCool(cyclone) {
+		} else if !cyclone.IsCool() {
 			closeTargets := goodTargets.InRangeOf(cyclone, -0.5)
 			if attackers.Exists() || closeTargets.Exists() {
 				cyclone.GroundFallback(attackers, 2, b.HomePaths)
@@ -577,7 +577,7 @@ func (b *bot) Hellions() {
 		attackers := allEnemiesReady.CanAttack(hellion, 2)
 		closeAttackers := attackers.CanAttack(hellion, -1)
 		closeTargets := goodTargets.InRangeOf(hellion, -0.5)
-		if !scl.AttackDelay.UnitIsCool(hellion) || (closeAttackers.Exists() && closeTargets.Exists()) {
+		if !hellion.IsCool() || (closeAttackers.Exists() && closeTargets.Exists()) {
 			if attackers.Exists() || closeTargets.Exists() {
 				hellion.GroundFallback(attackers, 2, b.HomePaths)
 				continue
@@ -622,7 +622,7 @@ func (b *bot) Tanks() {
 
 			// Keep range
 			attackers := allEnemiesReady.CanAttack(tank, 2)
-			if !scl.AttackDelay.UnitIsCool(tank) {
+			if !tank.IsCool() {
 				closeTargets := goodTargets.InRangeOf(tank, -0.5)
 				if attackers.Exists() || closeTargets.Exists() {
 					tank.GroundFallback(attackers, 2, b.HomePaths)
