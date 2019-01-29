@@ -828,8 +828,7 @@ func (b *bot) OrderUnits() {
 			terran.VikingFighter, terran.Medivac, terran.Liberator, terran.Raven, terran.Banshee,
 			terran.Battlecruiser, zerg.Hydralisk, zerg.Queen, zerg.Roach, zerg.Ravager, zerg.Mutalisk, zerg.Corruptor,
 			zerg.Viper, zerg.Ultralisk, zerg.BroodLord) + 1
-		hellionsScore := b.EnemyProduction.Score(protoss.Zealot, protoss.Sentry, protoss.HighTemplar,
-			protoss.DarkTemplar, terran.Reaper, zerg.Zergling, zerg.Baneling, zerg.SwarmHostMP) + 1
+		hellionsScore := b.EnemyProduction.Score(zerg.Zergling, zerg.Baneling, zerg.SwarmHostMP) + 1
 		buyMines := minesScore/float64(mines+1) >= hellionsScore/float64(hellions+1)
 
 		if buyMines {
@@ -881,7 +880,7 @@ func (b *bot) OrderUnits() {
 		if !LingRush && (b.Loop < 3584 || (b.Loop < 5376 && b.Pending(ability.Train_Reaper) > b.Loop/1344)) &&
 			b.CanBuy(ability.Train_Reaper) {
 			b.OrderTrain(rax, ability.Train_Reaper)
-		} else if b.Loop >= 2688 && b.CanBuy(ability.Train_Marine) { // 2:00
+		} else if /*b.Loop >= 2688 &&*/ b.CanBuy(ability.Train_Marine) { // 2:00
 			b.OrderTrain(rax, ability.Train_Marine)
 		}
 	}
