@@ -68,7 +68,7 @@ func (b *bot) OnUnitCreated(unit *scl.Unit) {
 func (b *bot) BuildingsCheck() {
 	builders := b.Groups.Get(Builders).Units
 	buildings := b.Groups.Get(UnderConstruction).Units
-	enemies := b.EnemyUnits.Units().Filter(scl.DpsGt5)
+	enemies := b.Units.Enemy.All().Filter(scl.DpsGt5)
 	// This is const. Move somewhere else?
 	addonsTypes := append(scl.UnitAliases.For(terran.Reactor), scl.UnitAliases.For(terran.TechLab)...)
 	for _, building := range buildings {
@@ -77,7 +77,7 @@ func (b *bot) BuildingsCheck() {
 			case terran.Barracks:
 				fallthrough
 			case terran.Factory:
-				building.CommandPos(ability.Rally_Building, b.MainRamp.Top+b.MainRamp.Vec*3)
+				building.CommandPos(ability.Rally_Building, b.Ramps.My.Top+b.Ramps.My.Vec*3)
 				b.Groups.Add(Buildings, building)
 			default:
 				b.Groups.Add(Buildings, building) // And remove from current group
@@ -102,7 +102,7 @@ func (b *bot) BuildingsCheck() {
 		}
 
 		// Cancel refinery if worker rush is detected and don't build new until enemy is gone
-		if workerRush && building.UnitType == terran.Refinery {
+		if WorkerRush && building.UnitType == terran.Refinery {
 			building.Command(ability.Cancel)
 		}
 	}
@@ -110,7 +110,7 @@ func (b *bot) BuildingsCheck() {
 
 func (b *bot) Builders() {
 	builders := b.Groups.Get(Builders).Units
-	enemies := b.EnemyUnits.Units()
+	enemies := b.Units.Enemy.All()
 	for _, u := range builders {
 		enemy := enemies.First(func(unit *scl.Unit) bool {
 			return unit.GroundDPS() > 5 && unit.InRange(u, 2)
@@ -138,7 +138,7 @@ func (b *bot) Repair() {
 		}
 	}
 
-	if b.Minerals < 25 || workerRush {
+	if b.Minerals < 25 || WorkerRush {
 		return
 	}
 
@@ -161,9 +161,9 @@ func (b *bot) Repair() {
 	}
 
 	// ScvHealer
-	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+	ccs := b.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	healer := b.Groups.Get(ScvHealer).Units.First()
-	damagedSCVs := b.Units[terran.SCV].Filter(func(unit *scl.Unit) bool {
+	damagedSCVs := b.Units.My[terran.SCV].Filter(func(unit *scl.Unit) bool {
 		return unit.Health < unit.HealthMax && ccs.CloserThan(scl.ResourceSpreadDistance, unit).Exists()
 	})
 	if damagedSCVs.Exists() && damagedSCVs[0] != healer {
@@ -213,24 +213,24 @@ func (b *bot) DoubleHeal() {
 
 func (b *bot) Scout() {
 	scv := b.Groups.Get(Scout).Units.First()
-	if b.EnemyStartLocs.Len() > 1 && scv == nil && b.Loop < 60 {
-		scv = b.GetSCV(b.EnemyStartLocs[0], Scout, 45)
+	if b.Locs.EnemyStarts.Len() > 1 && scv == nil && b.Loop < 60 {
+		scv = b.GetSCV(b.Locs.EnemyStarts[0], Scout, 45)
 		if scv != nil {
-			scv.CommandPos(ability.Move, b.EnemyStartLocs[0])
+			scv.CommandPos(ability.Move, b.Locs.EnemyStarts[0])
 		}
 		return
 	}
 
 	if scv != nil {
 		// Workers rush
-		if b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).FurtherThan(40, b.EnemyStartLoc).Len() > 3 {
+		if b.Units.Enemy.OfType(terran.SCV, zerg.Drone, protoss.Probe).FurtherThan(40, b.Locs.EnemyStart).Len() > 3 {
 			b.Groups.Add(Miners, scv)
 			return
 		}
 
 		if scv.IsIdle() {
 			// Check N-1 positions
-			for _, p := range b.EnemyStartLocs[:b.EnemyStartLocs.Len()-1] {
+			for _, p := range b.Locs.EnemyStarts[:b.Locs.EnemyStarts.Len()-1] {
 				if b.IsExplored(p) {
 					continue
 				}
@@ -238,14 +238,14 @@ func (b *bot) Scout() {
 				return
 			}
 			// If N-1 checked and not found, then N is EnemyStartLoc
-			b.RecalcEnemyStartLoc(b.EnemyStartLocs[b.EnemyStartLocs.Len()-1])
+			b.RecalcEnemyStartLoc(b.Locs.EnemyStarts[b.Locs.EnemyStarts.Len()-1])
 			b.Groups.Add(ScoutBase, scv) // promote scout
 			b.EnableDefensivePlay()      // we don't know what enemy is doing
 			return
 		}
 
-		if buildings := b.EnemyUnits.Units().Filter(scl.Structure); buildings.Exists() {
-			for _, p := range b.EnemyStartLocs[:b.EnemyStartLocs.Len()-1] {
+		if buildings := b.Units.Enemy.All().Filter(scl.Structure); buildings.Exists() {
+			for _, p := range b.Locs.EnemyStarts[:b.Locs.EnemyStarts.Len()-1] {
 				if buildings.CloserThan(20, p).Exists() {
 					b.RecalcEnemyStartLoc(p)
 					b.Groups.Add(ScoutBase, scv) // promote scout
@@ -262,9 +262,9 @@ func (b *bot) ScoutBase() {
 	}
 
 	scv := b.Groups.Get(ScoutBase).Units.First()
-	if b.EnemyStartLocs.Len() <= 1 && scv == nil && !workerRush /*&& !playDefensive*/ && b.Loop > 896 && b.Loop < 906 {
+	if b.Locs.EnemyStarts.Len() <= 1 && scv == nil && !WorkerRush /*&& !PlayDefensive*/ && b.Loop > 896 && b.Loop < 906 {
 		// 0:50
-		scv = b.GetSCV(b.EnemyStartLoc, Scout, 45)
+		scv = b.GetSCV(b.Locs.EnemyStart, Scout, 45)
 		if scv != nil {
 			b.Groups.Add(ScoutBase, scv)
 		}
@@ -274,42 +274,42 @@ func (b *bot) ScoutBase() {
 	}
 
 	// Workers rush
-	if b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe).FurtherThan(40, b.EnemyStartLoc).Len() > 3 {
+	if b.Units.Enemy.OfType(terran.SCV, zerg.Drone, protoss.Probe).FurtherThan(40, b.Locs.EnemyStart).Len() > 3 {
 		b.Groups.Add(Miners, scv)
 		return
 	}
 
-	enemies := b.AllEnemyUnits.Units().Filter(scl.DpsGt5)
+	enemies := b.Units.AllEnemy.All().Filter(scl.DpsGt5)
 	if enemies.Exists() || b.Loop > 2240 { // 1:40
 		b.Groups.Add(Miners, scv) // dismiss scout
 
 		if b.EnemyRace == api.Race_Terran {
-			if b.AllEnemyUnits[terran.Barracks].Len() >= 3 {
+			if b.Units.AllEnemy[terran.Barracks].Len() >= 3 {
 				b.EnableDefensivePlay()
 			}
 		}
 		if b.EnemyRace == api.Race_Zerg {
-			if b.AllEnemyUnits[zerg.SpawningPool].First(scl.Ready) != nil || b.AllEnemyUnits[zerg.Zergling].Exists() {
+			if b.Units.AllEnemy[zerg.SpawningPool].First(scl.Ready) != nil || b.Units.AllEnemy[zerg.Zergling].Exists() {
 				b.EnableDefensivePlay()
 			}
-			if b.AllEnemyUnits[zerg.Zergling].Exists() {
-				lingRush = true
+			if b.Units.AllEnemy[zerg.Zergling].Exists() {
+				LingRush = true
 			}
 		}
 		if b.EnemyRace == api.Race_Protoss {
-			if b.AllEnemyUnits[protoss.Gateway].Len() >= 2 {
+			if b.Units.AllEnemy[protoss.Gateway].Len() >= 2 {
 				b.EnableDefensivePlay()
 			}
 		}
 	}
 
-	vec := (scv.Point() - b.EnemyStartLoc).Norm().Rotate(math.Pi / 10)
-	pos := b.EnemyStartLoc + vec*10
+	vec := (scv.Point() - b.Locs.EnemyStart).Norm().Rotate(math.Pi / 10)
+	pos := b.Locs.EnemyStart + vec*10
 	scv.CommandPos(ability.Move, pos)
 }
 
 func (b *bot) Miners() {
-	enemies := b.EnemyUnits.Units().Filter(scl.DpsGt5)
+	enemies := b.Units.Enemy.All().Filter(scl.DpsGt5)
 	miners := b.Groups.Get(Miners).Units
 	/*for _, miner := range miners {
 		if enemies.CloserThan(safeBuildRange, miner).Sum(scl.CmpGroundDamage) > miner.Hits {
@@ -333,19 +333,19 @@ func (b *bot) Miners() {
 	}
 	// Std miners handler
 	miners = b.Groups.Get(Miners).Units
-	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).
+	ccs := b.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).
 		Filter(func(unit *scl.Unit) bool {
-		return unit.IsReady() && enemies.CanAttack(unit, 0).Empty()
-	})
+			return unit.IsReady() && enemies.CanAttack(unit, 0).Empty()
+		})
 	b.HandleMiners(miners, ccs, 1.5) // reserve more vespene
 
 	// If there is ready unsaturated refinery and an scv gathering, send it there
-	refs := b.Units[terran.Refinery]
-	if b.Minerals > scl.MinInt(5, ccs.Len()) * 100 && b.Minerals/2 > b.Vespene {
+	refs := b.Units.My[terran.Refinery]
+	if b.Minerals > scl.MinInt(5, ccs.Len())*100 && b.Minerals/2 > b.Vespene {
 		ref := refs.First(func(unit *scl.Unit) bool { return unit.IsReady() && unit.AssignedHarvesters < 3 })
 		if ref != nil {
 			// Get scv gathering minerals
-			mfs := b.MineralFields.Units()
+			mfs := b.Units.Minerals.All()
 			scv := b.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
 				return unit.IsGathering() && unit.IsCloserThan(scl.ResourceSpreadDistance, ref) &&
 					mfs.ByTag(unit.TargetTag()) != nil
@@ -354,7 +354,7 @@ func (b *bot) Miners() {
 				scv.CommandTag(ability.Smart, ref.Tag)
 			}
 		}
-	} else if b.Vespene > scl.MinInt(5, ccs.Len()) * 100 && b.Minerals < b.Vespene/2 && refs.Exists() {
+	} else if b.Vespene > scl.MinInt(5, ccs.Len())*100 && b.Minerals < b.Vespene/2 && refs.Exists() {
 		cc := ccs.Filter(func(unit *scl.Unit) bool { return unit.AssignedHarvesters < unit.IdealHarvesters })
 		if cc != nil {
 			scv := b.Groups.Get(Miners).Units.First(func(unit *scl.Unit) bool {
@@ -373,27 +373,27 @@ func (b *bot) TanksOnExps() {
 	tanks := b.Groups.Get(TanksOnExps).Units
 	tanksSieged := tanks.Filter(func(unit *scl.Unit) bool { return unit.UnitType == terran.SiegeTankSieged })
 	tanksUnsieged := tanks.Filter(func(unit *scl.Unit) bool { return unit.UnitType == terran.SiegeTank })
-	if !playDefensive {
+	if !PlayDefensive {
 		// Move all unsieged tanks back to army
 		for _, tank := range tanksUnsieged {
 			b.Groups.Add(Tanks, tank)
 		}
 		return
 	}
-	if b.AllEnemyUnits.Units().Filter(scl.DpsGt5).CloserThan(defensiveRange, b.StartLoc).Exists() {
+	if b.Units.AllEnemy.All().Filter(scl.DpsGt5).CloserThan(DefensiveRange, b.Locs.MyStart).Exists() {
 		return // Enemies are too close already
 	}
 
-	bunkers := b.Units[terran.Bunker]
+	bunkers := b.Units.My[terran.Bunker]
 	bunker := bunkers.Filter(func(unit *scl.Unit) bool {
 		return tanksSieged.CloserThan(5, unit).Empty()
-	}).ClosestTo(b.StartLoc)
+	}).ClosestTo(b.Locs.MyStart)
 	for _, tank := range tanksUnsieged {
 		if bunker == nil {
 			b.Groups.Add(Tanks, tank)
 			continue
 		}
-		ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+		ccs := b.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 		cc := ccs.ClosestTo(bunker)
 		pos := bunker.Towards(cc, 1.5)
 		if tank.IsFarFrom(pos) {

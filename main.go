@@ -3,40 +3,29 @@ package main
 import (
 	"bitbucket.org/aisee/minilog"
 	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/client"
 	"github.com/chippydip/go-sc2ai/runner"
 	"math/rand"
-	"strings"
 	"time"
 )
 
-type bot struct {
-	scl.Bot
-}
-
-func runAgent(info client.AgentInfo) {
-	b := bot{}
-	b.Info = info
-	b.FramesPerOrder = 3
-	b.MaxGroup = MaxGroup
-	if b.Info.IsRealtime() {
-		b.FramesPerOrder = 6
-		log.Info("Realtime mode")
-	}
-	b.UnitCreatedCallback = b.OnUnitCreated
-
-	for b.Info.IsInGame() {
-		b.Step()
-
-		if err := b.Info.Step(1); err != nil {
-			log.Error(err)
-			if strings.Contains(err.Error(), "An existing connection was forcibly closed by the remote host.") {
-				return
-			}
-		}
-	}
-}
+// todo: отступающе отстреливающиеся геллионы слишком легко дохнут
+// todo: не строить аддоны, если рядом враги
+// todo: ? иногда бот не отменяет строящиеся добиваемые здания?
+// todo: надо выбирать цели в соответствии с типом брони и снаряда
+// todo: викинги против баньши? Туррели не помогут
+// todo: минки боятся рабочих, забегают в угол и тупят -> отслеживать время взрыва и закапывать если по пути к лечению
+// todo: ? хрень с хайграундом на автоматоне, юниты идут не туда и дохнут
+// todo: надо как-то определять какие здания не стоит чинить, т.к. рабочий будет убит (по числу ranged?)
+// todo: строить первый CC на хайграунде если опасно?
+// todo: если есть апгрейд для минок, закапывать их, если за ними гонится кто-то быстрее их
+// todo: детект спидлингов + крип
+// todo: юниты в углах карты могут отвлекать минки
+// todo: убрать лишний скан после того как снаряды от убитой баньши долетают до цели
+// todo: use dead units events
+// todo: анализировать неуспешные попытки строительства, зарытые линги мешают поставить СС -> ставить башню рядом?
 
 func run() {
 	log.SetConsoleLevel(log.L_info) // L_info L_debug
@@ -52,7 +41,7 @@ func run() {
 	// runner.Set("realtime", "true")
 
 	// Create the agent and then start the game
-	runner.RunAgent(client.NewParticipant(api.Race_Terran, client.AgentFunc(runAgent), ""))
+	runner.RunAgent(client.NewParticipant(api.Race_Terran, client.AgentFunc(bot.RunAgent), ""))
 }
 
 func main() {

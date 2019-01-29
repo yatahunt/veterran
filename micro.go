@@ -2,6 +2,8 @@ package main
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/veterran/bot"
+	"bitbucket.org/aisee/veterran/micro"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/buff"
@@ -25,26 +27,26 @@ func WorkerMoveFunc(u *scl.Unit, target *scl.Unit) {
 func (b *bot) WorkerRushDefence() {
 	enemiesRange := 12.0
 	workersRange := 10.0
-	enemyWorkers := b.EnemyUnits.OfType(terran.SCV, zerg.Drone, protoss.Probe)
-	if workerRush {
+	enemyWorkers := b.Units.Enemy.OfType(terran.SCV, zerg.Drone, protoss.Probe)
+	if WorkerRush {
 		workersRange = 50.0
-	} else if building := b.Units.Units().Filter(scl.Structure).ClosestTo(b.MainRamp.Top); building != nil {
-		workersRange = math.Max(workersRange, building.Dist(b.StartLoc)+6)
+	} else if building := b.Units.My.All().Filter(scl.Structure).ClosestTo(b.Ramps.My.Top); building != nil {
+		workersRange = math.Max(workersRange, building.Dist(b.Locs.MyStart)+6)
 	}
 
-	workers := b.Units.OfType(terran.SCV).CloserThan(scl.ResourceSpreadDistance, b.StartLoc)
-	enemies := b.EnemyUnits.Units().Filter(scl.NotFlying).CloserThan(enemiesRange, b.StartLoc)
-	alert := enemies.CloserThan(enemiesRange-4, b.StartLoc).Exists()
-	if enemies.Empty() || enemies.Sum(scl.CmpGroundScore) > workers.Sum(scl.CmpGroundScore)*2 || workerRush {
-		enemies = enemyWorkers.CloserThan(workersRange, b.StartLoc)
-		alert = enemies.CloserThan(workersRange-4, b.StartLoc).Exists()
+	workers := b.Units.My.OfType(terran.SCV).CloserThan(scl.ResourceSpreadDistance, b.Locs.MyStart)
+	enemies := b.Units.Enemy.All().Filter(scl.NotFlying).CloserThan(enemiesRange, b.Locs.MyStart)
+	alert := enemies.CloserThan(enemiesRange-4, b.Locs.MyStart).Exists()
+	if enemies.Empty() || enemies.Sum(scl.CmpGroundScore) > workers.Sum(scl.CmpGroundScore)*2 || WorkerRush {
+		enemies = enemyWorkers.CloserThan(workersRange, b.Locs.MyStart)
+		alert = enemies.CloserThan(workersRange-4, b.Locs.MyStart).Exists()
 		if alert && enemies.Len() >= 10 {
-			workerRush = true
+			WorkerRush = true
 			b.DisableDefensivePlay()
 		}
 	}
-	if workerRush && enemyWorkers.CloserThan(70, b.StartLoc).Empty() {
-		workerRush = false
+	if WorkerRush && enemyWorkers.CloserThan(70, b.Locs.MyStart).Empty() {
+		WorkerRush = false
 	}
 
 	army := b.Groups.Get(WorkerRushDefenders).Units
@@ -55,7 +57,7 @@ func (b *bot) WorkerRushDefence() {
 
 	balance := army.Sum(scl.CmpGroundScore) / enemies.Sum(scl.CmpGroundScore)
 	if alert && balance < 1 {
-		worker := b.GetSCV(b.StartLoc, WorkerRushDefenders, 20)
+		worker := b.GetSCV(b.Locs.MyStart, WorkerRushDefenders, 20)
 		if worker != nil {
 			army.Add(worker)
 			b.Groups.Add(WorkerRushDefenders, worker)
@@ -79,7 +81,7 @@ func (b *bot) WorkerRushDefence() {
 		}
 	}
 
-	if workerRush && b.Minerals >= 75 {
+	if WorkerRush && b.Minerals >= 75 {
 		workers := b.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
 			return unit.Hits < 11 && unit.IsGathering()
 		})
@@ -108,25 +110,25 @@ func (b *bot) ThrowMine(reaper *scl.Unit, targets scl.Units) bool {
 func ReaperMoveFunc(u *scl.Unit, target *scl.Unit) {
 	// Unit need to be closer to the target to shoot?
 	if !u.InRange(target, -0.1) || !target.IsVisible() {
-		u.AttackMove(target, u.Bot.HomeReaperPaths)
+		u.AttackMove(target, bot.B.HomeReaperPaths)
 		/*if u.Hits == u.HitsMax {
-			u.AttackMove(target, u.Bot.EnemyReaperPaths)
+			u.AttackMove(target, bot.B.EnemyReaperPaths)
 		} else {
-			u.AttackMove(target, u.Bot.HomeReaperPaths)
+			u.AttackMove(target, bot.B.HomeReaperPaths)
 		}*/
 	}
 }
 
 func (b *bot) Explore(u *scl.Unit) {
-	if playDefensive {
-		pos := b.MainRamp.Top
-		/*bunker := b.Units[terran.Bunker].ClosestTo(b.ExpLocs[0])
+	if PlayDefensive {
+		pos := b.Ramps.My.Top
+		/*bunker := b.Units.My[terran.Bunker].ClosestTo(b.Locs.MyExps[0])
 		if bunker != nil {
 			pos = bunker.Point()
 		}*/
-		bunkers := b.Units[terran.Bunker]
+		bunkers := b.Units.My[terran.Bunker]
 		if bunkers.Exists() {
-			bunkers.OrderByDistanceTo(b.StartLoc, false)
+			bunkers.OrderByDistanceTo(b.Locs.MyStart, false)
 			pos = bunkers[int(u.Tag)%bunkers.Len()].Point()
 		}
 		if u.IsFarFrom(pos) {
@@ -134,12 +136,12 @@ func (b *bot) Explore(u *scl.Unit) {
 		}
 		return
 	}
-	if !b.IsExplored(b.EnemyStartLoc) {
-		u.CommandPos(ability.Attack, b.EnemyStartLoc)
+	if !b.IsExplored(b.Locs.EnemyStart) {
+		u.CommandPos(ability.Attack, b.Locs.EnemyStart)
 	} else {
 		// Search for other bases
 		if u.IsIdle() {
-			pos := b.EnemyExpLocs[rand.Intn(len(b.EnemyExpLocs))]
+			pos := b.Locs.EnemyExps[rand.Intn(len(b.Locs.EnemyExps))]
 			u.CommandPos(ability.Move, pos)
 		}
 	}
@@ -148,11 +150,11 @@ func (b *bot) Explore(u *scl.Unit) {
 func (b *bot) Marines() {
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
-	allEnemies := b.AllEnemyUnits.Units()
+	allEnemies := b.Units.AllEnemy.All()
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	marines := b.Groups.Get(Marines).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
+		if PlayDefensive && enemy.IsFurtherThan(DefensiveRange, b.Locs.MyStart) {
 			continue
 		}
 		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -175,7 +177,7 @@ func (b *bot) Marines() {
 		}
 
 		// Load into a bunker
-		if playDefensive && goodTargets.InRangeOf(marine, 0).Empty() {
+		if PlayDefensive && goodTargets.InRangeOf(marine, 0).Empty() {
 			bunker := b.getEmptyBunker(marine)
 			if bunker != nil {
 				if bunker.IsReady() {
@@ -195,7 +197,7 @@ func (b *bot) Marines() {
 
 		// Attack
 		if goodTargets.Exists() || okTargets.Exists() {
-			ics := b.EnemyUnits[protoss.Interceptor]
+			ics := b.Units.Enemy[protoss.Interceptor]
 			if ics.Exists() {
 				marine.CommandPos(ability.Attack_Attack_23, ics.ClosestTo(marine))
 			} else {
@@ -210,11 +212,11 @@ func (b *bot) Marines() {
 func (b *bot) Marauders() {
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
-	allEnemies := b.AllEnemyUnits.Units()
+	allEnemies := b.Units.AllEnemy.All()
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	marauders := b.Groups.Get(Marauders).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
+		if PlayDefensive && enemy.IsFurtherThan(DefensiveRange, b.Locs.MyStart) {
 			continue
 		}
 		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -255,17 +257,17 @@ func (b *bot) Reapers() {
 	var mfsPos, basePos scl.Point
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
-	allEnemies := b.AllEnemyUnits.Units()
+	allEnemies := b.Units.AllEnemy.All()
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
-	/*!playDefensive && b.EnemyRace != api.Race_Zerg &&*/
-	if b.Loop < 5376 && allEnemies.CloserThan(defensiveRange, b.StartLoc).Empty() { // For exp recon before 4:00
-		mfsPos = b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, b.EnemyExpLocs[0]).Center()
-		basePos = b.EnemyStartLoc
+	/*!PlayDefensive && b.EnemyRace != api.Race_Zerg &&*/
+	if b.Loop < 5376 && allEnemies.CloserThan(DefensiveRange, b.Locs.MyStart).Empty() { // For exp recon before 4:00
+		mfsPos = b.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, b.Locs.EnemyExps[0]).Center()
+		basePos = b.Locs.EnemyStart
 	}
 
 	reapers := b.Groups.Get(Reapers).Units
 	for _, enemy := range allEnemies {
-		/* if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
+		/* if PlayDefensive && enemy.IsFurtherThan(DefensiveRange, b.Locs.MyStart) {
 			continue
 		} */
 		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -373,7 +375,7 @@ func CycloneAttackFunc(u *scl.Unit, priority int, targets scl.Units) bool {
 func CycloneMoveFunc(u *scl.Unit, target *scl.Unit) {
 	// Unit need to be closer to the target to shoot? (lock-on range)
 	if !u.InRange(target, 2-0.1) || !target.IsVisible() {
-		u.AttackMove(target, u.Bot.HomePaths)
+		u.AttackMove(target, bot.B.HomePaths)
 	}
 }
 
@@ -381,11 +383,11 @@ func (b *bot) Cyclones() {
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
 	airTargets := scl.Units{}
-	allEnemies := b.AllEnemyUnits.Units()
+	allEnemies := b.Units.AllEnemy.All()
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	cyclones := b.Groups.Get(Cyclones).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
+		if PlayDefensive && enemy.IsFurtherThan(DefensiveRange, b.Locs.MyStart) {
 			continue
 		}
 		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -452,11 +454,11 @@ func (b *bot) Cyclones() {
 func (b *bot) Mines() {
 	targets := scl.Units{}
 	// detectors := scl.Units{}
-	allEnemies := b.AllEnemyUnits.Units()
+	allEnemies := b.Units.AllEnemy.All()
 	// allEnemiesReady := allEnemies.Filter(scl.Ready)
 	mines := b.Groups.Get(WidowMines).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
+		if PlayDefensive && enemy.IsFurtherThan(DefensiveRange, b.Locs.MyStart) {
 			continue
 		}
 		if enemy.IsStructure() || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -522,7 +524,7 @@ func (b *bot) Mines() {
 			continue
 		}
 		if mine.IsIdle() {
-			vec := (b.EnemyStartLoc - mine.Point()).Norm()
+			vec := (b.Locs.EnemyStart - mine.Point()).Norm()
 			p1 := mine.Point() - vec*20
 			p2 := p1
 			if rand.Intn(2) == 1 {
@@ -547,11 +549,11 @@ func (b *bot) Mines() {
 func (b *bot) Hellions() {
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
-	allEnemies := b.AllEnemyUnits.Units()
+	allEnemies := b.Units.AllEnemy.All()
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	hellions := b.Groups.Get(Hellions).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
+		if PlayDefensive && enemy.IsFurtherThan(DefensiveRange, b.Locs.MyStart) {
 			continue
 		}
 		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -569,8 +571,8 @@ func (b *bot) Hellions() {
 			continue
 		}
 		// Transform into hellbats vs zerg in defense, armory exists, not on main base
-		if b.EnemyRace == api.Race_Zerg && hellion.UnitType == terran.Hellion /*&& playDefensive*/ &&
-			b.Units[terran.Armory].First(scl.Ready) != nil && b.HeightAt(hellion) != b.HeightAt(b.StartLoc) {
+		if b.EnemyRace == api.Race_Zerg && hellion.UnitType == terran.Hellion /*&& PlayDefensive*/ &&
+			b.Units.My[terran.Armory].First(scl.Ready) != nil && b.HeightAt(hellion) != b.HeightAt(b.Locs.MyStart) {
 			hellion.Command(ability.Morph_Hellbat)
 		}
 
@@ -596,11 +598,11 @@ func (b *bot) Hellions() {
 func (b *bot) Tanks() {
 	okTargets := scl.Units{}
 	goodTargets := scl.Units{}
-	allEnemies := b.AllEnemyUnits.Units()
+	allEnemies := b.Units.AllEnemy.All()
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	tanks := b.Groups.Get(Tanks).Units
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
+		if PlayDefensive && enemy.IsFurtherThan(DefensiveRange, b.Locs.MyStart) {
 			continue
 		}
 		if enemy.IsFlying || enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -698,7 +700,7 @@ func (b *bot) Medivacs() {
 	injured := patients.Filter(func(unit *scl.Unit) bool { return unit.Hits < unit.HitsMax })
 	injured.OrderBy(func(unit *scl.Unit) float64 { return unit.Hits / unit.HitsMax }, false)
 
-	allEnemies := b.AllEnemyUnits.Units()
+	allEnemies := b.Units.AllEnemy.All()
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	enemiesCenter := allEnemiesReady.Center()
 	firstPatient := patients.ClosestTo(enemiesCenter)
@@ -762,7 +764,7 @@ func (b *bot) Ravens() {
 		return
 	}
 
-	allEnemies := b.AllEnemyUnits.Units()
+	allEnemies := b.Units.AllEnemy.All()
 	allEnemiesReady := allEnemies.Filter(scl.Ready)
 	enemiesCenter := allEnemiesReady.Center()
 	friends.OrderByDistanceTo(enemiesCenter, false)
@@ -812,11 +814,11 @@ func (b *bot) Battlecruisers() {
 	goodTargets := scl.Units{}
 	yamaTargets := scl.Units{}
 	yamaFiring := map[api.UnitTag]int{}
-	allEnemies := b.AllEnemyUnits.Units()
+	allEnemies := b.Units.AllEnemy.All()
 	// allEnemiesReady := allEnemies.Filter(scl.Ready)
 
 	for _, enemy := range allEnemies {
-		if playDefensive && enemy.IsFurtherThan(defensiveRange, b.StartLoc) {
+		if PlayDefensive && enemy.IsFurtherThan(DefensiveRange, b.Locs.MyStart) {
 			continue
 		}
 		if enemy.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
@@ -880,10 +882,10 @@ func (b *bot) MechRetreat() {
 	if us.Empty() {
 		return
 	}
-	enemies := b.AllEnemyUnits.Units().Filter(scl.Ready)
-	scvs := b.Units[terran.SCV]
+	enemies := b.Units.AllEnemy.All().Filter(scl.Ready)
+	scvs := b.Units.My[terran.SCV]
 	var healingPoints []int
-	for expNum, expLoc := range b.ExpLocs {
+	for expNum, expLoc := range b.Locs.MyExps {
 		if scvs.CloserThan(scl.ResourceSpreadDistance, expLoc).Len() < 4 {
 			continue
 		}
@@ -902,10 +904,10 @@ func (b *bot) MechRetreat() {
 		var healingPoint scl.Point
 		dist := math.Inf(1)
 		for _, expNum := range healingPoints {
-			newDist := u.Dist2(b.ExpLocs[expNum])
+			newDist := u.Dist2(b.Locs.MyExps[expNum])
 			if newDist < dist {
 				healingExp = expNum
-				healingPoint = b.ExpLocs[expNum] - b.StartMinVec*3
+				healingPoint = b.Locs.MyExps[expNum] - b.Locs.MyStartMinVec*3
 				dist = newDist
 			}
 		}
@@ -951,8 +953,8 @@ func (b *bot) MechRetreat() {
 }
 
 func (b *bot) StaticDefense() {
-	targets := b.EnemyUnits.Units()
-	buildings := b.Units.OfType(terran.Bunker, terran.MissileTurret, terran.AutoTurret) // terran.PlanetaryFortress
+	targets := b.Units.Enemy.All()
+	buildings := b.Units.My.OfType(terran.Bunker, terran.MissileTurret, terran.AutoTurret) // terran.PlanetaryFortress
 	for _, building := range buildings {
 		closeTargets := targets.InRangeOf(building, 0)
 		if building.UnitType == terran.Bunker && b.Upgrades[ability.Research_Stimpack] {
@@ -968,12 +970,12 @@ func (b *bot) StaticDefense() {
 }
 
 func (b *bot) FlyingBuildings() {
-	buildings := b.Units.OfType(terran.CommandCenter, terran.CommandCenterFlying,
+	buildings := b.Units.My.OfType(terran.CommandCenter, terran.CommandCenterFlying,
 		terran.OrbitalCommand, terran.OrbitalCommandFlying)
-	enemies := b.AllEnemyUnits.Units().Filter(scl.Ready)
+	enemies := b.Units.AllEnemy.All().Filter(scl.Ready)
 	for _, building := range buildings {
 		attackers := enemies.CanAttack(building, 0)
-		if !building.IsFlying && building.Hits < building.HitsMax * 3 / 4 && attackers.Exists() {
+		if !building.IsFlying && building.Hits < building.HitsMax*3/4 && attackers.Exists() {
 			if building.IsIdle() {
 				building.Command(ability.Lift)
 			} else {
@@ -981,12 +983,14 @@ func (b *bot) FlyingBuildings() {
 				building.CommandQueue(ability.Lift)
 			}
 		} else if building.IsFlying && attackers.Empty() {
-			building.CommandPos(ability.Land, b.ExpLocs.ClosestTo(building))
+			building.CommandPos(ability.Land, b.Locs.MyExps.ClosestTo(building))
 		}
 	}
 }
 
 func (b *bot) Micro() {
+	micro.Do(b.Enemies.All)
+
 	b.WorkerRushDefence()
 	b.Marines()
 	b.Marauders()

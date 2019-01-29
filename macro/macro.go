@@ -1,4 +1,4 @@
-package main
+package macro
 
 import (
 	"bitbucket.org/aisee/minilog"
@@ -30,6 +30,9 @@ type BuildNodes []BuildNode
 func BuildOne(b *bot) int { return 1 }
 func Yes(b *bot) bool     { return true }
 
+var BuildTurrets = false
+var LastBuildLoop = 0
+
 var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
 	ability.Build_CommandCenter:  scl.S5x5,
 	ability.Build_SupplyDepot:    scl.S2x2,
@@ -49,12 +52,12 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Expansion CCs",
 		Ability: ability.Build_CommandCenter,
 		Premise: func(b *bot) bool {
-			return b.AllEnemyUnits.Units().Filter(scl.DpsGt5).CloserThan(defensiveRange, b.StartLoc).Empty()
+			return b.Units.AllEnemy.All().Filter(scl.DpsGt5).CloserThan(DefensiveRange, b.Locs.MyStart).Empty()
 		},
-		Limit:  func(b *bot) int { return buildPos[scl.S5x5].Len() },
+		Limit:  func(b *bot) int { return BuildPos[scl.S5x5].Len() },
 		Active: BuildOne,
 		WaitRes: func(b *bot) bool {
-			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			ccs := b.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
 			// First orbital is morphing
 			if ccs.Len() == 1 && ccs.First().UnitType == terran.OrbitalCommand &&
 				b.PendingAliases(ability.Train_Reaper) != 0 {
@@ -67,7 +70,7 @@ var RootBuildOrder = BuildNodes{
 		},
 		Method: func(b *bot) {
 			pos := b.Build(ability.Build_CommandCenter)
-			if pos != 0 && playDefensive {
+			if pos != 0 && PlayDefensive {
 				b.FindBunkerPosition(pos)
 			}
 		},
@@ -77,8 +80,8 @@ var RootBuildOrder = BuildNodes{
 		Ability: ability.Build_SupplyDepot,
 		Premise: func(b *bot) bool {
 			// it's safe && 1 depo is placed && < 2:00 && only one cc
-			if !playDefensive && b.FoodCap > 20 && b.Loop < 2688 &&
-				b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Len() == 1 {
+			if !PlayDefensive && b.FoodCap > 20 && b.Loop < 2688 &&
+				b.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Len() == 1 {
 				return false // Wait for a second cc
 			}
 			return b.FoodLeft < 6+b.FoodUsed/20 && b.FoodCap < 200
@@ -90,8 +93,8 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Barrack",
 		Ability: ability.Build_Barracks,
 		Premise: func(b *bot) bool {
-			return b.Units.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
-				b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Empty()
+			return b.Units.My.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
+				b.Units.My.OfType(scl.UnitAliases.For(terran.Barracks)...).Empty()
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,
@@ -101,13 +104,13 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Refinery",
 		Ability: ability.Build_Refinery,
 		Premise: func(b *bot) bool {
-			if workerRush {
+			if WorkerRush {
 				return false
 			}
 			if b.Vespene < b.Minerals*2 {
 				raxPending := b.Pending(ability.Build_Barracks)
 				refPending := b.Pending(ability.Build_Refinery)
-				ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+				ccs := b.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
 				if raxPending == 0 {
 					return false
 				}
@@ -124,7 +127,7 @@ var RootBuildOrder = BuildNodes{
 		Limit:  func(b *bot) int { return 20 },
 		Active: func(b *bot) int { return 2 },
 		Method: func(b *bot) {
-			ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+			ccs := b.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 			if cc := ccs.First(scl.Ready); cc != nil {
 				b.BuildRefinery(cc)
 			}
@@ -135,10 +138,10 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Factory",
 		Ability: ability.Build_Factory,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.Factory].First(scl.Ready, scl.Unused) == nil
+			return b.Units.My[terran.Factory].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func(b *bot) int {
-			buildFacts := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
+			buildFacts := b.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
 			if b.EnemyRace == api.Race_Zerg {
 				buildFacts--
 			}
@@ -151,14 +154,14 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Starport",
 		Ability: ability.Build_Starport,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.Starport].First(scl.Ready, scl.Unused) == nil
+			return b.Units.My[terran.Starport].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func(b *bot) int {
-			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			ccs := b.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
 			if ccs.Len() < 3 && b.Minerals < 500 {
 				return 0
 			}
-			if b.Units[terran.FusionCore].First(scl.Ready) == nil {
+			if b.Units.My[terran.FusionCore].First(scl.Ready) == nil {
 				return 2
 			}
 			return scl.MinInt(4, ccs.Len())
@@ -173,8 +176,8 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Bunkers",
 		Ability: ability.Build_Bunker,
 		Premise: func(b *bot) bool {
-			return b.Units.OfType(terran.Marine, terran.Reaper).Len() >= 2 &&
-				b.AllEnemyUnits.Units().Filter(scl.DpsGt5).CloserThan(defensiveRange, b.StartLoc).Empty()
+			return b.Units.My.OfType(terran.Marine, terran.Reaper).Len() >= 2 &&
+				b.Units.AllEnemy.All().Filter(scl.DpsGt5).CloserThan(DefensiveRange, b.Locs.MyStart).Empty()
 		},
 		Limit:   func(b *bot) int { return bunkersPos.Len() },
 		Active:  func(b *bot) int { return bunkersPos.Len() },
@@ -184,12 +187,12 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Armory",
 		Ability: ability.Build_Armory,
 		Premise: func(b *bot) bool {
-			// b.Units[terran.Factory].First(scl.Ready) != nil // Needs factory
-			return b.Units[terran.EngineeringBay].First(scl.Ready) != nil
+			// b.Units.My[terran.Factory].First(scl.Ready) != nil // Needs factory
+			return b.Units.My[terran.EngineeringBay].First(scl.Ready) != nil
 		},
 		WaitRes: Yes,
 		Limit: func(b *bot) int {
-			if b.Units[terran.FusionCore].First(scl.Ready) != nil {
+			if b.Units.My[terran.FusionCore].First(scl.Ready) != nil {
 				return 2
 			}
 			return 1
@@ -201,12 +204,12 @@ var RaxBuildOrder = BuildNodes{
 		Ability: ability.Build_Barracks,
 		Premise: func(b *bot) bool {
 			return b.EnemyRace != api.Race_Protoss &&
-				b.Units[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
-				b.Units[terran.BarracksFlying].Empty()
+				b.Units.My[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
+				b.Units.My[terran.BarracksFlying].Empty()
 		},
 		Limit: func(b *bot) int {
-			// ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
-			// orbitals := b.Units.OfType(terran.OrbitalCommand)
+			// ccs := b.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			// orbitals := b.Units.My.OfType(terran.OrbitalCommand)
 			return 2 // scl.MinInt(2, ccs.Len())
 		},
 		Active: BuildOne,
@@ -215,7 +218,7 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Engineering Bay",
 		Ability: ability.Build_EngineeringBay,
 		Premise: func(b *bot) bool {
-			return b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len() >= 2
+			return b.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len() >= 2
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,
@@ -224,8 +227,8 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Missile Turrets",
 		Ability: ability.Build_MissileTurret,
 		Premise: func(b *bot) bool {
-			//  && b.Units[terran.EngineeringBay].First(scl.Ready) != nil
-			return buildTurrets
+			//  && b.Units.My[terran.EngineeringBay].First(scl.Ready) != nil
+			return BuildTurrets
 		},
 		Limit:   func(b *bot) int { return turretsPos.Len() },
 		Active:  func(b *bot) int { return turretsPos.Len() },
@@ -235,24 +238,24 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks reactors",
 		Ability: ability.Build_Reactor_Barracks,
 		Premise: func(b *bot) bool {
-			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
+			ccs := b.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
 			return ccs.Len() > 2 &&
-				((b.Vespene >= 100 && b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil) ||
-					b.Units[terran.BarracksFlying].First() != nil)
+				((b.Vespene >= 100 && b.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil) ||
+					b.Units.My[terran.BarracksFlying].First() != nil)
 		},
-		Limit:  BuildOne, // b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Len()
+		Limit:  BuildOne, // b.Units.My.OfType(scl.UnitAliases.For(terran.Barracks)...).Len()
 		Active: BuildOne,
 		Method: func(b *bot) {
 			// todo: group?
-			if rax := b.Units[terran.BarracksFlying].First(); rax != nil {
-				rax.CommandPos(ability.Build_Reactor_Barracks, firstBarrackBuildPos[1])
+			if rax := b.Units.My[terran.BarracksFlying].First(); rax != nil {
+				rax.CommandPos(ability.Build_Reactor_Barracks, FirstBarrackBuildPos[1])
 				return
 			}
 
-			rax := b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
-			if rax.IsCloserThan(3, firstBarrackBuildPos[0]) {
-				if firstBarrackBuildPos[0] != firstBarrackBuildPos[1] {
-					if b.EnemyUnits.Units().CloserThan(safeBuildRange, rax).Exists() {
+			rax := b.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
+			if rax.IsCloserThan(3, FirstBarrackBuildPos[0]) {
+				if FirstBarrackBuildPos[0] != FirstBarrackBuildPos[1] {
+					if b.Units.Enemy.All().CloserThan(safeBuildRange, rax).Exists() {
 						return
 					}
 					rax.Command(ability.Lift_Barracks)
@@ -266,16 +269,16 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks techlabs",
 		Ability: ability.Build_TechLab_Barracks,
 		Premise: func(b *bot) bool {
-			ccs := b.Units.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
-			return ccs.Len() >= 2 && b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+			ccs := b.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
+			return ccs.Len() >= 2 && b.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
 		Limit: func(b *bot) int {
-			return b.Units.OfType(scl.UnitAliases.For(terran.Barracks)...).Len() - 1
+			return b.Units.My.OfType(scl.UnitAliases.For(terran.Barracks)...).Len() - 1
 		},
 		Active: BuildOne,
 		Method: func(b *bot) {
-			rax := b.Units[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
-			if rax.IsCloserThan(3, firstBarrackBuildPos[0]) {
+			rax := b.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
+			if rax.IsCloserThan(3, FirstBarrackBuildPos[0]) {
 				return
 			}
 			rax.Command(ability.Build_TechLab_Barracks)
@@ -288,29 +291,29 @@ var FactoryBuildOrder = BuildNodes{
 		Name:    "Factory Tech Lab",
 		Ability: ability.Build_TechLab_Factory,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.FactoryReactor].Exists() &&
-				b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+			return b.Units.My[terran.FactoryReactor].Exists() &&
+				b.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
 		Limit: func(b *bot) int {
-			return b.Units[terran.Factory].Len() - b.Units[terran.FactoryReactor].Len()
+			return b.Units.My[terran.Factory].Len() - b.Units.My[terran.FactoryReactor].Len()
 		},
 		Active: BuildOne,
 		Method: func(b *bot) {
-			b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_TechLab_Factory)
+			b.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_TechLab_Factory)
 		},
 	},
 	{
 		Name:    "Factory Reactor",
 		Ability: ability.Build_Reactor_Factory,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+			return b.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
 		Limit: func(b *bot) int { // Build one but after tech lab
-			return scl.MinInt(1, b.Units[terran.Factory].Len()-1)
+			return scl.MinInt(1, b.Units.My[terran.Factory].Len()-1)
 		},
 		Active: BuildOne,
 		Method: func(b *bot) {
-			b.Units[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Factory)
+			b.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Factory)
 		},
 	},
 }
@@ -320,34 +323,34 @@ var StarportBuildOrder = BuildNodes{
 		Name:    "Starport Reactor",
 		Ability: ability.Build_Reactor_Starport,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle) != nil &&
+			return b.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle) != nil &&
 				b.PendingAliases(ability.Train_Medivac) > 0
 		},
 		Limit: BuildOne,
 		Active: BuildOne,
 		Method: func(b *bot) {
-			b.Units[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Starport)
+			b.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Starport)
 		},
 	},*/
 	{
 		Name:    "Starport Tech Lab",
 		Ability: ability.Build_TechLab_Starport,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+			return b.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
 		Limit: func(b *bot) int {
-			return b.Units[terran.Starport].Len()
+			return b.Units.My[terran.Starport].Len()
 		},
 		Active: BuildOne,
 		Method: func(b *bot) {
-			b.Units[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_TechLab_Starport)
+			b.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_TechLab_Starport)
 		},
 	},
 	{
 		Name:    "Fusion Core",
 		Ability: ability.Build_FusionCore,
 		Premise: func(b *bot) bool {
-			return b.Units[terran.Raven].Exists()
+			return b.Units.My[terran.Raven].Exists()
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,
@@ -376,7 +379,7 @@ func (b *bot) Build(aid api.AbilityID) scl.Point {
 	}
 
 	techReq := scl.Types[scl.AbilityUnit[aid]].TechRequirement
-	if techReq != 0 && b.Units.OfType(scl.UnitAliases.For(techReq)...).Empty() {
+	if techReq != 0 && b.Units.My.OfType(scl.UnitAliases.For(techReq)...).Empty() {
 		return 0 // Not available because of tech reqs, like: supply is needed for barracks
 	}
 
@@ -385,11 +388,11 @@ func (b *bot) Build(aid api.AbilityID) scl.Point {
 		buildersTargets.Add(builder.TargetPos())
 	}
 
-	enemies := b.AllEnemyUnits.Units().Filter(scl.DpsGt5)
-	positions := buildPos[size]
+	enemies := b.Units.AllEnemy.All().Filter(scl.DpsGt5)
+	positions := BuildPos[size]
 	if size == scl.S3x3 {
 		// Add larger building positions if there is not enough S3x3 positions
-		positions = append(positions, buildPos[scl.S5x3]...)
+		positions = append(positions, BuildPos[scl.S5x3]...)
 	}
 	if aid == ability.Build_MissileTurret {
 		positions = turretsPos
@@ -407,7 +410,7 @@ func (b *bot) Build(aid api.AbilityID) scl.Point {
 		if enemies.CloserThan(safeBuildRange, pos).Exists() {
 			continue
 		}
-		if playDefensive && aid == ability.Build_CommandCenter && pos.IsFurtherThan(defensiveRange, b.StartLoc) {
+		if PlayDefensive && aid == ability.Build_CommandCenter && pos.IsFurtherThan(DefensiveRange, b.Locs.MyStart) {
 			continue
 		}
 
@@ -424,8 +427,8 @@ func (b *bot) Build(aid api.AbilityID) scl.Point {
 }
 
 func (b *bot) BuildFirstBarrack() {
-	pos := firstBarrackBuildPos[0]
-	scv := b.Units[terran.SCV].ClosestTo(pos)
+	pos := FirstBarrackBuildPos[0]
+	scv := b.Units.My[terran.SCV].ClosestTo(pos)
 	if scv != nil {
 		b.Groups.Add(Builders, scv)
 		b.OrderBuild(scv, pos, ability.Build_Barracks)
@@ -435,8 +438,8 @@ func (b *bot) BuildFirstBarrack() {
 func (b *bot) BuildRefinery(cc *scl.Unit) {
 	// Find first geyser that is close to selected cc, but it doesn't have Refinery on top of it
 	builders := b.Groups.Get(Builders).Units
-	geyser := b.VespeneGeysers.Units().CloserThan(10, cc).First(func(unit *scl.Unit) bool {
-		return b.Units[terran.Refinery].CloserThan(1, unit).Len() == 0 &&
+	geyser := b.Units.Geysers.All().CloserThan(10, cc).First(func(unit *scl.Unit) bool {
+		return b.Units.My[terran.Refinery].CloserThan(1, unit).Len() == 0 &&
 			unit.FindAssignedBuilder(builders) == nil
 	})
 	if geyser != nil {
@@ -466,14 +469,14 @@ func (b *bot) ProcessBuildOrder(buildOrder BuildNodes) {
 				b.Build(node.Ability)
 			}
 		}
-		if node.Unlocks != nil && b.Units[scl.AbilityUnit[node.Ability]].Exists() {
+		if node.Unlocks != nil && b.Units.My[scl.AbilityUnit[node.Ability]].Exists() {
 			b.ProcessBuildOrder(node.Unlocks)
 		}
 	}
 }
 
 func (b *bot) OrderUpgrades() {
-	lab := b.Units[terran.BarracksTechLab].First(scl.Ready, scl.Idle)
+	lab := b.Units.My[terran.BarracksTechLab].First(scl.Ready, scl.Idle)
 	if lab != nil {
 		b.RequestAvailableAbilities(true, lab) // todo: request true each frame -> HasTrueAbility?
 		if !b.Upgrades[ability.Research_ConcussiveShells] && b.PendingAliases(ability.Train_Marauder) >= 2 &&
@@ -481,7 +484,7 @@ func (b *bot) OrderUpgrades() {
 			lab.Command(ability.Research_ConcussiveShells)
 			return
 		}
-		if !b.Upgrades[ability.Research_CombatShield] && b.Units[terran.Marine].Len() >= 4 &&
+		if !b.Upgrades[ability.Research_CombatShield] && b.Units.My[terran.Marine].Len() >= 4 &&
 			lab.HasAbility(ability.Research_CombatShield) && b.CanBuy(ability.Research_CombatShield) {
 			lab.Command(ability.Research_CombatShield)
 			return
@@ -495,10 +498,10 @@ func (b *bot) OrderUpgrades() {
 		}
 	}
 
-	eng := b.Units[terran.EngineeringBay].First(scl.Ready, scl.Idle)
+	eng := b.Units.My[terran.EngineeringBay].First(scl.Ready, scl.Idle)
 	if eng != nil {
 		b.RequestAvailableAbilities(true, eng) // request abilities again because we want to ignore resource reqs
-		if b.Units[terran.Marine].Len()+b.Units[terran.Marauder].Len()*2+b.Units[terran.Reaper].Len()*2 >= 8 {
+		if b.Units.My[terran.Marine].Len()+b.Units.My[terran.Marauder].Len()*2+b.Units.My[terran.Reaper].Len()*2 >= 8 {
 			for _, a := range []api.AbilityID{
 				ability.Research_TerranInfantryWeaponsLevel1,
 				ability.Research_TerranInfantryArmorLevel1,
@@ -522,7 +525,7 @@ func (b *bot) OrderUpgrades() {
 				}
 			}
 		}
-		if !b.Upgrades[ability.Research_HiSecAutoTracking] && b.AllEnemyUnits[terran.Banshee].Exists() &&
+		if !b.Upgrades[ability.Research_HiSecAutoTracking] && b.Units.AllEnemy[terran.Banshee].Exists() &&
 			eng.HasAbility(ability.Research_HiSecAutoTracking) && b.CanBuy(ability.Research_HiSecAutoTracking) {
 			eng.Command(ability.Research_HiSecAutoTracking)
 			return
@@ -530,7 +533,7 @@ func (b *bot) OrderUpgrades() {
 	}
 
 	// todo: aliases
-	if arm := b.Units[terran.Armory].First(scl.Ready, scl.Idle); arm != nil && b.Units.OfType(terran.WidowMine,
+	if arm := b.Units.My[terran.Armory].First(scl.Ready, scl.Idle); arm != nil && b.Units.My.OfType(terran.WidowMine,
 		terran.Hellion, terran.Cyclone, terran.SiegeTank, terran.Raven, terran.Battlecruiser).Len() > 4 {
 		b.RequestAvailableAbilities(true, arm) // request abilities again because we want to ignore resource reqs
 		upgrades := []api.AbilityID{
@@ -541,7 +544,7 @@ func (b *bot) OrderUpgrades() {
 			ability.Research_TerranVehicleWeaponsLevel2,
 			ability.Research_TerranVehicleWeaponsLevel3,
 		}
-		if b.Units[terran.Battlecruiser].Exists() {
+		if b.Units.My[terran.Battlecruiser].Exists() {
 			upgrades = append([]api.AbilityID{
 				ability.Research_TerranShipWeaponsLevel1,
 				ability.Research_TerranShipWeaponsLevel2,
@@ -565,8 +568,8 @@ func (b *bot) OrderUpgrades() {
 		}
 	}
 
-	lab = b.Units[terran.FactoryTechLab].First(scl.Ready, scl.Idle)
-	if lab != nil && (b.Units[terran.Cyclone].Exists() || b.Units[terran.WidowMine].Exists()) {
+	lab = b.Units.My[terran.FactoryTechLab].First(scl.Ready, scl.Idle)
+	if lab != nil && (b.Units.My[terran.Cyclone].Exists() || b.Units.My[terran.WidowMine].Exists()) {
 		b.RequestAvailableAbilities(true, lab)
 		if b.PendingAliases(ability.Train_Cyclone) >= 2 &&
 			lab.HasAbility(ability.Research_CycloneResearchLockOnDamageUpgrade) &&
@@ -586,7 +589,7 @@ func (b *bot) OrderUpgrades() {
 		}
 	}
 
-	fc := b.Units[terran.FusionCore].First(scl.Ready, scl.Idle)
+	fc := b.Units.My[terran.FusionCore].First(scl.Ready, scl.Idle)
 	if fc != nil && b.Pending(ability.Train_Battlecruiser) > 0 &&
 		!b.Upgrades[ability.Research_BattlecruiserWeaponRefit] {
 		b.RequestAvailableAbilities(true, fc)
@@ -599,21 +602,21 @@ func (b *bot) OrderUpgrades() {
 }
 
 func (b *bot) Morph() {
-	cc := b.Units[terran.CommandCenter].First(scl.Ready, scl.Idle)
-	if cc != nil && b.Units[terran.Barracks].First(scl.Ready) != nil {
+	cc := b.Units.My[terran.CommandCenter].First(scl.Ready, scl.Idle)
+	if cc != nil && b.Units.My[terran.Barracks].First(scl.Ready) != nil {
 		if b.CanBuy(ability.Morph_OrbitalCommand) {
 			b.OrderTrain(cc, ability.Morph_OrbitalCommand)
-		} else if b.Units[terran.SCV].Len() >= 16 {
+		} else if b.Units.My[terran.SCV].Len() >= 16 {
 			b.DeductResources(ability.Morph_OrbitalCommand)
 		}
 	}
-	groundEnemies := b.AllEnemyUnits.Units().Filter(scl.NotFlying)
-	for _, supply := range b.Units[terran.SupplyDepot] {
+	groundEnemies := b.Units.AllEnemy.All().Filter(scl.NotFlying)
+	for _, supply := range b.Units.My[terran.SupplyDepot] {
 		if groundEnemies.CloserThan(4, supply).Empty() {
 			supply.Command(ability.Morph_SupplyDepot_Lower)
 		}
 	}
-	for _, supply := range b.Units[terran.SupplyDepotLowered] {
+	for _, supply := range b.Units.My[terran.SupplyDepotLowered] {
 		if groundEnemies.CloserThan(4, supply).Exists() {
 			supply.Command(ability.Morph_SupplyDepot_Raise)
 		}
@@ -621,21 +624,21 @@ func (b *bot) Morph() {
 }
 
 func (b *bot) Cast() {
-	cc := b.Units[terran.OrbitalCommand].
+	cc := b.Units.My[terran.OrbitalCommand].
 		Filter(func(unit *scl.Unit) bool { return unit.Energy >= 50 }).
 		Max(func(unit *scl.Unit) float64 { return float64(unit.Energy) })
 	if cc != nil {
 		// Scan
 		if b.Orders[ability.Effect_Scan] == 0 && b.EffectPoints(effect.ScannerSweep).Empty() {
-			allEnemies := b.AllEnemyUnits.Units()
+			allEnemies := b.Units.AllEnemy.All()
 			visibleEnemies := allEnemies.Filter(scl.PosVisible)
-			units := b.Units.Units()
+			units := b.Units.My.All()
 			// Reaper wants to see highground
-			if b.Units[terran.Raven].Empty() {
-				if reaper := b.Groups.Get(Reapers).Units.ClosestTo(b.EnemyStartLoc); reaper != nil {
+			if b.Units.My[terran.Raven].Empty() {
+				if reaper := b.Groups.Get(Reapers).Units.ClosestTo(b.Locs.EnemyStart); reaper != nil {
 					if enemy := allEnemies.CanAttack(reaper, 1).ClosestTo(reaper); enemy != nil {
 						if !b.IsVisible(enemy) && b.HeightAt(enemy) > b.HeightAt(reaper) {
-							pos := enemy.Towards(b.EnemyStartLoc, 8)
+							pos := enemy.Towards(b.Locs.EnemyStart, 8)
 							cc.CommandPos(ability.Effect_Scan, pos)
 							log.Debug("Reaper sight scan")
 							return
@@ -645,12 +648,12 @@ func (b *bot) Cast() {
 			}
 
 			// Vision for tanks
-			tanks := b.Units[terran.SiegeTankSieged]
-			tanks.OrderByDistanceTo(b.EnemyStartLoc, false)
+			tanks := b.Units.My[terran.SiegeTankSieged]
+			tanks.OrderByDistanceTo(b.Locs.EnemyStart, false)
 			for _, tank := range tanks {
 				targets := allEnemies.InRangeOf(tank, 0)
 				if targets.Exists() && visibleEnemies.InRangeOf(tank, 0).Empty() {
-					target := targets.ClosestTo(b.EnemyStartLoc)
+					target := targets.ClosestTo(b.Locs.EnemyStart)
 					cc.CommandPos(ability.Effect_Scan, target)
 					log.Debug("Tank sight scan")
 				}
@@ -659,14 +662,14 @@ func (b *bot) Cast() {
 			// Lurkers
 			if eps := b.EffectPoints(effect.LurkerSpines); eps.Exists() {
 				// todo: check if bot already sees the lurker using his position approximation
-				cc.CommandPos(ability.Effect_Scan, eps.ClosestTo(b.EnemyStartLoc))
+				cc.CommandPos(ability.Effect_Scan, eps.ClosestTo(b.Locs.EnemyStart))
 				log.Debug("Lurker scan")
 				return
 			}
 
 			// DTs
 			if b.EnemyRace == api.Race_Protoss {
-				dts := b.EnemyUnits[protoss.DarkTemplar]
+				dts := b.Units.Enemy[protoss.DarkTemplar]
 				hitByDT := units.First(func(unit *scl.Unit) bool {
 					return unit.HitsLost >= 41 && !unit.IsArmored() && !dts.CanAttack(unit, 0).Exists()
 				})
@@ -689,9 +692,9 @@ func (b *bot) Cast() {
 			}
 
 			// Recon scan at 4:00
-			pos := b.EnemyMainCenter
+			pos := b.Locs.EnemyMainCenter
 			if b.EnemyRace == api.Race_Zerg {
-				pos = b.EnemyStartLoc
+				pos = b.Locs.EnemyStart
 			}
 			if b.Loop >= 5376 && !b.IsExplored(pos) {
 				cc.CommandPos(ability.Effect_Scan, pos)
@@ -701,11 +704,11 @@ func (b *bot) Cast() {
 		}
 		// Mule
 		if cc.Energy >= 75 || (b.Loop < 4928 && cc.Energy >= 50) { // 3:40
-			ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand,
+			ccs := b.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand,
 				terran.PlanetaryFortress).Filter(scl.Ready)
 			ccs.OrderByDistanceTo(cc, false)
 			for _, target := range ccs {
-				homeMineral := b.MineralFields.Units().CloserThan(scl.ResourceSpreadDistance, target).
+				homeMineral := b.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, target).
 					Filter(func(unit *scl.Unit) bool { return unit.MineralContents > 400 }).
 					Max(func(unit *scl.Unit) float64 { return float64(unit.MineralContents) })
 				if homeMineral != nil {
@@ -721,8 +724,8 @@ func (b *bot) OrderUnits() {
 	if b.EnemyRace != api.Race_Zerg {
 		mech = true
 	}
-	if (workerRush /* || b.getEmptyBunker(scl.Pt0()) != nil*/) && b.CanBuy(ability.Train_Marine) {
-		if rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused); rax != nil {
+	if (WorkerRush /* || b.getEmptyBunker(scl.Pt0()) != nil*/) && b.CanBuy(ability.Train_Marine) {
+		if rax := b.Units.My[terran.Barracks].First(scl.Ready, scl.Unused); rax != nil {
 			if rax.HasReactor() && scl.UnitsOrders[rax.Tag].Loop+b.FramesPerOrder <= b.Loop {
 				rax.SpamCmds = true
 			}
@@ -730,20 +733,20 @@ func (b *bot) OrderUnits() {
 		}
 	}
 
-	ccs := b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+	ccs := b.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	cc := ccs.First(scl.Ready, scl.Idle)
-	refs := b.Units[terran.Refinery].Filter(func(unit *scl.Unit) bool {
+	refs := b.Units.My[terran.Refinery].Filter(func(unit *scl.Unit) bool {
 		return unit.IsReady() && unit.VespeneContents > 0
 	})
-	if cc != nil && b.Units[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70-refs.Len()) &&
-		b.CanBuy(ability.Train_SCV) && !workerRush {
+	if cc != nil && b.Units.My[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70-refs.Len()) &&
+		b.CanBuy(ability.Train_SCV) && !WorkerRush {
 		b.OrderTrain(cc, ability.Train_SCV)
 	}
 
-	starport := b.Units[terran.Starport].First(scl.Ready, scl.Unused, scl.HasTechlab)
+	starport := b.Units.My[terran.Starport].First(scl.Ready, scl.Unused, scl.HasTechlab)
 	if starport != nil {
 		ravens := b.Pending(ability.Train_Raven)
-		if b.Units[terran.FusionCore].First(scl.Ready) != nil {
+		if b.Units.My[terran.FusionCore].First(scl.Ready) != nil {
 			if b.CanBuy(ability.Train_Battlecruiser) {
 				b.OrderTrain(starport, ability.Train_Battlecruiser)
 			} else {
@@ -758,7 +761,7 @@ func (b *bot) OrderUnits() {
 			}
 		}
 	}
-	starport = b.Units[terran.Starport].First(scl.Ready, scl.Unused, func(unit *scl.Unit) bool {
+	starport = b.Units.My[terran.Starport].First(scl.Ready, scl.Unused, func(unit *scl.Unit) bool {
 		return starport == nil || unit.Tag != starport.Tag // Don't select previously selected producer
 	})
 	if starport != nil {
@@ -766,7 +769,7 @@ func (b *bot) OrderUnits() {
 			starport.SpamCmds = true
 		}
 		medivacs := b.Pending(ability.Train_Medivac)
-		infantry := b.Units[terran.Marine].Len() + b.Units[terran.Marauder].Len()*2
+		infantry := b.Units.My[terran.Marine].Len() + b.Units.My[terran.Marauder].Len()*2
 		if (medivacs == 0 || medivacs*8 < infantry) && b.CanBuy(ability.Train_Medivac) {
 			b.OrderTrain(starport, ability.Train_Medivac)
 		} else if medivacs == 0 {
@@ -774,13 +777,13 @@ func (b *bot) OrderUnits() {
 		}
 	}
 
-	factory := b.Units[terran.Factory].First(scl.Ready, scl.Unused, scl.HasTechlab)
+	factory := b.Units.My[terran.Factory].First(scl.Ready, scl.Unused, scl.HasTechlab)
 	if factory != nil {
 		cyclones := b.PendingAliases(ability.Train_Cyclone)
 		tanks := b.PendingAliases(ability.Train_SiegeTank)
 
 		buyCyclones := b.EnemyProduction.Len(terran.Banshee) > 0 && cyclones == 0
-		buyTanks := playDefensive && tanks == 0
+		buyTanks := PlayDefensive && tanks == 0
 		if !buyCyclones && !buyTanks {
 			cyclonesScore := b.EnemyProduction.Score(protoss.WarpPrism, protoss.Phoenix, protoss.VoidRay,
 				protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.VikingFighter, terran.Medivac,
@@ -808,7 +811,7 @@ func (b *bot) OrderUnits() {
 		}
 	}
 
-	factory = b.Units[terran.Factory].First(func(unit *scl.Unit) bool {
+	factory = b.Units.My[terran.Factory].First(func(unit *scl.Unit) bool {
 		return unit.IsReady() && unit.IsUnused() && !unit.HasTechlab() && (factory == nil || unit.Tag != factory.Tag)
 	})
 	if factory != nil {
@@ -844,7 +847,7 @@ func (b *bot) OrderUnits() {
 		}
 	}
 
-	rax := b.Units[terran.Barracks].First(scl.Ready, scl.Unused, scl.HasTechlab)
+	rax := b.Units.My[terran.Barracks].First(scl.Ready, scl.Unused, scl.HasTechlab)
 	if rax != nil {
 		marines := b.PendingAliases(ability.Train_Marine)
 		marauders := b.PendingAliases(ability.Train_Marauder)
@@ -865,7 +868,7 @@ func (b *bot) OrderUnits() {
 			}
 		}
 	}
-	rax = b.Units[terran.Barracks].First(scl.Ready, scl.Unused, func(unit *scl.Unit) bool {
+	rax = b.Units.My[terran.Barracks].First(scl.Ready, scl.Unused, func(unit *scl.Unit) bool {
 		return rax == nil || unit.Tag != rax.Tag // Don't select previously selected producer
 	})
 	if rax != nil {
@@ -875,7 +878,7 @@ func (b *bot) OrderUnits() {
 		// Until 4:00
 		// b.Loop < 5376 && (b.Pending(ability.Train_Reaper) < 2 || b.EnemyRace == api.Race_Zerg) &&
 		// before 2:40 or if they are not dying until 4:00
-		if !lingRush && (b.Loop < 3584 || (b.Loop < 5376 && b.Pending(ability.Train_Reaper) > b.Loop/1344)) &&
+		if !LingRush && (b.Loop < 3584 || (b.Loop < 5376 && b.Pending(ability.Train_Reaper) > b.Loop/1344)) &&
 			b.CanBuy(ability.Train_Reaper) {
 			b.OrderTrain(rax, ability.Train_Reaper)
 		} else if b.Loop >= 2688 && b.CanBuy(ability.Train_Marine) { // 2:00
@@ -886,8 +889,8 @@ func (b *bot) OrderUnits() {
 
 func (b *bot) ReserveSCVs() {
 	// Fast first supply
-	if b.Units.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).Empty() && b.Groups.Get(ScvReserve).Tags.Empty() {
-		pos := buildPos[scl.S2x2][0]
+	if b.Units.My.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).Empty() && b.Groups.Get(ScvReserve).Tags.Empty() {
+		pos := BuildPos[scl.S2x2][0]
 		scv := b.GetSCV(pos, 0, 45) // Get SCV but don't change its group
 		if scv != nil && scv.FramesToPos(pos)*b.MineralsPerFrame+float64(b.Minerals)+20 >= 100 {
 			b.Groups.Add(ScvReserve, scv)
@@ -895,9 +898,9 @@ func (b *bot) ReserveSCVs() {
 		}
 	}
 	// Fast expansion
-	if b.Units.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).Len() == 1 &&
-		b.Minerals >= 350 && b.Groups.Get(ScvReserve).Tags.Empty() /*&& !playDefensive*/ && !workerRush {
-		pos := b.ExpLocs[0]
+	if b.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).Len() == 1 &&
+		b.Minerals >= 350 && b.Groups.Get(ScvReserve).Tags.Empty() /*&& !PlayDefensive*/ && !WorkerRush {
+		pos := b.Locs.MyExps[0]
 		if scv := b.GetSCV(pos, ScvReserve, 45); scv != nil {
 			scv.CommandPos(ability.Move, pos)
 		}
@@ -905,12 +908,12 @@ func (b *bot) ReserveSCVs() {
 }
 
 func (b *bot) Macro() {
-	if !buildTurrets && b.EnemyUnits.OfType(terran.Banshee, terran.Ghost, terran.WidowMine, terran.Medivac,
+	if !BuildTurrets && b.Units.Enemy.OfType(terran.Banshee, terran.Ghost, terran.WidowMine, terran.Medivac,
 		terran.VikingFighter, terran.Liberator, terran.Battlecruiser, terran.Starport, zerg.Mutalisk, zerg.LurkerMP,
 		zerg.Corruptor, zerg.Spire, zerg.GreaterSpire, protoss.DarkTemplar, protoss.WarpPrism, protoss.Phoenix,
 		protoss.VoidRay, protoss.Oracle, protoss.Tempest, protoss.Carrier, protoss.Stargate, protoss.DarkShrine).
 		Exists() {
-		buildTurrets = true
+		BuildTurrets = true
 	}
 	if findTurretPositionFor != nil {
 		b.FindTurretPosition(findTurretPositionFor)
