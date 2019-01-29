@@ -48,9 +48,11 @@ type Bot struct {
 	LingRush       bool
 	PlayDefensive  bool
 	DefensiveRange float64
+	BuildTurrets   bool
+	LastBuildLoop  int
 
 	BuildPos              map[scl.BuildingSize]scl.Points
-	FirstBarrackBuildPos  scl.Points
+	FirstBarrack          scl.Points
 	TurretsPos            scl.Points
 	BunkersPos            scl.Points
 	FindTurretPositionFor *scl.Unit

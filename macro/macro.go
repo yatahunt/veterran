@@ -30,9 +30,6 @@ type BuildNodes []BuildNode
 func BuildOne(b *bot) int { return 1 }
 func Yes(b *bot) bool     { return true }
 
-var BuildTurrets = false
-var LastBuildLoop = 0
-
 var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
 	ability.Build_CommandCenter:  scl.S5x5,
 	ability.Build_SupplyDepot:    scl.S2x2,
@@ -248,13 +245,13 @@ var RaxBuildOrder = BuildNodes{
 		Method: func(b *bot) {
 			// todo: group?
 			if rax := b.Units.My[terran.BarracksFlying].First(); rax != nil {
-				rax.CommandPos(ability.Build_Reactor_Barracks, FirstBarrackBuildPos[1])
+				rax.CommandPos(ability.Build_Reactor_Barracks, FirstBarrack[1])
 				return
 			}
 
 			rax := b.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
-			if rax.IsCloserThan(3, FirstBarrackBuildPos[0]) {
-				if FirstBarrackBuildPos[0] != FirstBarrackBuildPos[1] {
+			if rax.IsCloserThan(3, FirstBarrack[0]) {
+				if FirstBarrack[0] != FirstBarrack[1] {
 					if b.Units.Enemy.All().CloserThan(safeBuildRange, rax).Exists() {
 						return
 					}
@@ -278,7 +275,7 @@ var RaxBuildOrder = BuildNodes{
 		Active: BuildOne,
 		Method: func(b *bot) {
 			rax := b.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
-			if rax.IsCloserThan(3, FirstBarrackBuildPos[0]) {
+			if rax.IsCloserThan(3, FirstBarrack[0]) {
 				return
 			}
 			rax.Command(ability.Build_TechLab_Barracks)
@@ -407,7 +404,9 @@ func (b *bot) Build(aid api.AbilityID) scl.Point {
 		if !b.IsPosOk(pos, size, 0, scl.IsBuildable, scl.IsNoCreep) {
 			continue
 		}
-		if enemies.CloserThan(safeBuildRange, pos).Exists() {
+		if enemies.CloserThan(safeBuildRange, pos).Exists() || enemies.First(func(unit *scl.Unit) bool {
+			return unit.IsCloserThan(unit.GroundRange()+4, pos)
+		}) != nil {
 			continue
 		}
 		if PlayDefensive && aid == ability.Build_CommandCenter && pos.IsFurtherThan(DefensiveRange, b.Locs.MyStart) {
@@ -427,7 +426,7 @@ func (b *bot) Build(aid api.AbilityID) scl.Point {
 }
 
 func (b *bot) BuildFirstBarrack() {
-	pos := FirstBarrackBuildPos[0]
+	pos := FirstBarrack[0]
 	scv := b.Units.My[terran.SCV].ClosestTo(pos)
 	if scv != nil {
 		b.Groups.Add(Builders, scv)

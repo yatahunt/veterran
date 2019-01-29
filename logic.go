@@ -6,68 +6,6 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/terran"
 )
 
-// todo: здания строятся рядом с керриерами и сразу уничтожаются
-// todo: отступающе отстреливающиеся геллионы слишком легко дохнут
-// todo: не строить аддоны, если рядом враги
-// todo: ? иногда бот не отменяет строящиеся добиваемые здания?
-// todo: надо выбирать цели в соответствии с типом брони и снаряда
-// todo: минки боятся рабочих, забегают в угол и тупят -> отслеживать время взрыва и закапывать если по пути к лечению
-// todo: ? хрень с хайграундом на автоматоне, юниты идут не туда и дохнут
-// todo: надо как-то определять какие здания не стоит чинить, т.к. рабочий будет убит (по числу ranged?)
-// todo: строить первый CC на хайграунде если опасно?
-// todo: если есть апгрейд для минок, закапывать их, если за ними гонится кто-то быстрее их
-// todo: детект спидлингов + крип
-// todo: юниты в углах карты могут отвлекать минки
-// todo: убрать лишний скан после того как снаряды от убитой баньши долетают до цели
-// todo: use dead units events
-// todo: анализировать неуспешные попытки строительства, зарытые линги мешают поставить СС -> ставить башню рядом?
-
-var isRealtime = false
-var workerRush = false
-var lingRush = false
-var buildTurrets = false
-var playDefensive = true
-var defensiveRange = 0.0
-var buildPos = map[scl.BuildingSize]scl.Points{}
-var firstBarrackBuildPos = scl.Points{}
-var turretsPos = scl.Points{}
-var bunkersPos = scl.Points{}
-var findTurretPositionFor *scl.Unit
-var lastBuildLoop = 0
-var doubleHealers []scl.GroupID
-
-const (
-	Miners scl.GroupID = iota + 1
-	// MinersRetreat
-	Builders
-	Repairers
-	ScvHealer
-	UnitHealers
-	WorkerRushDefenders
-	Scout
-	ScoutBase
-	ScvReserve
-	Marines
-	Marauders
-	Reapers
-	ReapersRetreat
-	Cyclones
-	WidowMines
-	WidowMinesRetreat
-	Hellions
-	Tanks
-	TanksOnExps
-	Medivacs
-	Ravens
-	Battlecruisers
-	MechRetreat
-	MechHealing
-	UnderConstruction
-	Buildings
-	MaxGroup
-)
-const safeBuildRange = 7
-
 func (b *bot) FindMainBuildingTypesPositions(startLoc scl.Point) (scl.Points, scl.Points, scl.Points) {
 	var pf2x2, pf3x3, pf5x3 scl.Points
 	slh := b.HeightAt(startLoc)
@@ -107,11 +45,11 @@ func (b *bot) FindMainBuildingTypesPositions(startLoc scl.Point) (scl.Points, sc
 func (b *bot) FindBuildingsPositions() {
 	// Positions for first 2 supplies and barrack
 	rp2x2 := b.FindRamp2x2Positions(b.MainRamp)
-	firstBarrackBuildPos = b.FindRampBarracksPositions(b.MainRamp)
-	if firstBarrackBuildPos.Len() > 1 && rp2x2.Len() > 1 {
+	FirstBarrack = b.FindRampBarracksPositions(b.MainRamp)
+	if FirstBarrack.Len() > 1 && rp2x2.Len() > 1 {
 		points := []scl.Points{
-			b.GetBuildingPoints(firstBarrackBuildPos[0], scl.S3x3),
-			b.GetBuildingPoints(firstBarrackBuildPos[1], scl.S5x3), // Take second position with addon
+			b.GetBuildingPoints(FirstBarrack[0], scl.S3x3),
+			b.GetBuildingPoints(FirstBarrack[1], scl.S5x3), // Take second position with addon
 			b.GetBuildingPoints(rp2x2[0], scl.S2x2),
 			b.GetBuildingPoints(rp2x2[1], scl.S2x2),
 		}
@@ -184,7 +122,7 @@ func (b *bot) FindBuildingsPositions() {
 		pos := pf2x2.FurthestTo(b.MainRamp.Top)
 		pf2x2 = append(scl.Points{pos}, append(rp2x2, pf2x2...)...)
 		// Use closest 5x3 position for first barracks
-		firstBarrackBuildPos[0] = pf5x3.FurthestTo(b.MainRamp.Top)
+		FirstBarrack[0] = pf5x3.FurthestTo(b.MainRamp.Top)
 	} else {*/
 	pf2x2 = append(rp2x2, pf2x2...)
 	//}

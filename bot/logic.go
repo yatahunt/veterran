@@ -46,11 +46,11 @@ func FindMainBuildingTypesPositions(startLoc scl.Point) (scl.Points, scl.Points,
 func FindBuildingsPositions() {
 	// Positions for first 2 supplies and barrack
 	rp2x2 := B.FindRamp2x2Positions(B.Ramps.My)
-	FirstBarrackBuildPos = B.FindRampBarracksPositions(B.Ramps.My)
-	if FirstBarrackBuildPos.Len() > 1 && rp2x2.Len() > 1 {
+	FirstBarrack = B.FindRampBarracksPositions(B.Ramps.My)
+	if FirstBarrack.Len() > 1 && rp2x2.Len() > 1 {
 		points := []scl.Points{
-			B.GetBuildingPoints(FirstBarrackBuildPos[0], scl.S3x3),
-			B.GetBuildingPoints(FirstBarrackBuildPos[1], scl.S5x3), // Take second position with addon
+			B.GetBuildingPoints(FirstBarrack[0], scl.S3x3),
+			B.GetBuildingPoints(FirstBarrack[1], scl.S5x3), // Take second position with addon
 			B.GetBuildingPoints(rp2x2[0], scl.S2x2),
 			B.GetBuildingPoints(rp2x2[1], scl.S2x2),
 		}
@@ -123,7 +123,7 @@ func FindBuildingsPositions() {
 		pos := pf2x2.FurthestTo(B.Ramps.My.Top)
 		pf2x2 = append(scl.Points{pos}, append(rp2x2, pf2x2...)...)
 		// Use closest 5x3 position for first barracks
-		FirstBarrackBuildPos[0] = pf5x3.FurthestTo(B.Ramps.My.Top)
+		FirstBarrack[0] = pf5x3.FurthestTo(B.Ramps.My.Top)
 	} else {*/
 	pf2x2 = append(rp2x2, pf2x2...)
 	//}

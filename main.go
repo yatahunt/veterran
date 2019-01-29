@@ -2,7 +2,6 @@ package main
 
 import (
 	"bitbucket.org/aisee/minilog"
-	"bitbucket.org/aisee/sc2lib"
 	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/client"
@@ -11,6 +10,7 @@ import (
 	"time"
 )
 
+// todo: здания строятся рядом с керриерами и сразу уничтожаются
 // todo: отступающе отстреливающиеся геллионы слишком легко дохнут
 // todo: не строить аддоны, если рядом враги
 // todo: ? иногда бот не отменяет строящиеся добиваемые здания?
