@@ -32,7 +32,7 @@ func BattlecruisersLogic(us scl.Units) {
 	for _, u := range us {
 		bc := NewBattlecruiser(u)
 		bc.YamatoTargets = yamatoTargets
-		bc.Logic()
+		bc.Logic(bc)
 	}
 }
 

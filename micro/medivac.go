@@ -40,7 +40,7 @@ func MedivacsLogic(us scl.Units) {
 		m := NewMedivac(u)
 		m.Injured = injured
 		m.FirstPatient = firstPatient
-		m.Logic()
+		m.Logic(m)
 	}
 }
 

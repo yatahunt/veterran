@@ -251,7 +251,9 @@ func ReconBase() {
 
 	vec := (scv.Point() - B.Locs.EnemyStart).Norm().Rotate(math.Pi / 10)
 	pos := B.Locs.EnemyStart + vec*10
-	scv.CommandPos(ability.Move, pos)
+	if (pos - scv.TargetPos()).Len() >= 1 {
+		scv.CommandPos(ability.Move, pos)
+	}
 }
 
 func Mine() {

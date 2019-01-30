@@ -23,6 +23,7 @@ func ReapersLogic(us scl.Units) {
 
 	var mfsPos, basePos scl.Point
 	// For exp recon before 4:00
+	// log.Info(B.DefensiveRange, B.Enemies.All)
 	if B.Loop < 5376 && B.Enemies.All.CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty() {
 		mfsPos = B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, B.Locs.EnemyExps[0]).Center()
 		basePos = B.Locs.EnemyStart
@@ -32,7 +33,8 @@ func ReapersLogic(us scl.Units) {
 		r := NewReaper(u)
 		r.MfsPos = mfsPos
 		r.BasePos = basePos
-		r.Logic()
+		// log.Info(r)
+		r.Logic(r)
 	}
 }
 

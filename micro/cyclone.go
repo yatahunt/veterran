@@ -16,7 +16,8 @@ func NewCyclone(u *scl.Unit) *Cyclone {
 
 func CyclonesLogic(us scl.Units) {
 	for _, u := range us {
-		NewCyclone(u).Logic()
+		c := NewCyclone(u)
+		c.Logic(c)
 	}
 }
 

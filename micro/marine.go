@@ -18,7 +18,8 @@ func NewMarine(u *scl.Unit) *Marine {
 
 func MarinesLogic(us scl.Units) {
 	for _, u := range us {
-		NewMarine(u).Logic()
+		m := NewMarine(u)
+		m.Logic(m)
 	}
 }
 
@@ -57,7 +58,7 @@ func (u *Marine) Cast() bool {
 }
 
 func (u *Marine) Attack() bool {
-	if Targets.Armed.Exists() || Targets.All.Exists() {
+	if Targets.All.Exists() {
 		ics := B.Units.Enemy[protoss.Interceptor]
 		if ics.Exists() {
 			u.CommandPos(ability.Attack_Attack_23, ics.ClosestTo(u))

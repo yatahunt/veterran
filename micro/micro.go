@@ -10,8 +10,7 @@ import (
 	"math"
 )
 
-var B = bot.B
-var Targets struct {
+type TargetsTypes struct {
 	All         scl.Units
 	Flying      scl.Units
 	Ground      scl.Units
@@ -24,7 +23,11 @@ var Targets struct {
 	ForYamato   scl.Units
 }
 
+var B = bot.B
+var Targets TargetsTypes
+
 func InitTargets() {
+	Targets = TargetsTypes{}
 	for _, u := range B.Enemies.All {
 		if u.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
 			continue

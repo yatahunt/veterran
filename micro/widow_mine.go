@@ -18,7 +18,8 @@ func NewWidowMine(u *scl.Unit) *WidowMine {
 
 func WidowMinesLogic(us scl.Units) {
 	for _, u := range us {
-		NewWidowMine(u).Logic()
+		w := NewWidowMine(u)
+		w.Logic(w)
 	}
 }
 

@@ -7,7 +7,7 @@ import (
 const version = "VeTerran v2.0.0 (glhf)"
 
 type Bot struct {
-	*scl.Bot
+	scl.Bot
 
 	Logic func()
 
@@ -123,6 +123,7 @@ func Step() {
 
 	B.Cmds.Process(&B.Actions)
 	if len(B.Actions) > 0 {
+		// log.Info(B.Loop, len(B.Actions), B.Actions)
 		B.Info.SendActions(B.Actions)
 		B.Actions = nil
 	}

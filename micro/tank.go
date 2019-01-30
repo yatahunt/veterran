@@ -17,7 +17,8 @@ func NewTank(u *scl.Unit) *Tank {
 
 func TanksLogic(us scl.Units) {
 	for _, u := range us {
-		NewTank(u).Logic()
+		t := NewTank(u)
+		t.Logic(t)
 	}
 }
 

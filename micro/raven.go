@@ -45,7 +45,7 @@ func RavensLogic(us scl.Units) {
 		r := NewRaven(u)
 		r.Friend = friend
 		r.EnemiesCenter = enemiesCenter
-		r.Logic()
+		r.Logic(r)
 	}
 }
 

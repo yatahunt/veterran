@@ -17,7 +17,8 @@ func NewHellion(u *scl.Unit) *Hellion {
 
 func HellionsLogic(us scl.Units) {
 	for _, u := range us {
-		NewHellion(u).Logic()
+		h := NewHellion(u)
+		h.Logic(h)
 	}
 }
 

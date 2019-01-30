@@ -16,7 +16,8 @@ func NewMarauder(u *scl.Unit) *Marauder {
 
 func MaraudersLogic(us scl.Units) {
 	for _, u := range us {
-		NewMarauder(u).Logic()
+		m := NewMarauder(u)
+		m.Logic(m)
 	}
 }
 

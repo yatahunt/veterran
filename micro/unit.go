@@ -11,6 +11,13 @@ import (
 type Unit struct {
 	*scl.Unit
 }
+type TerranUnit interface {
+	Retreat() bool
+	Maneuver() bool
+	Cast() bool
+	Attack() bool
+	Explore() bool
+}
 
 func NewUnit(u *scl.Unit) *Unit {
 	return &Unit{u}
@@ -41,7 +48,7 @@ func (u *Unit) Cast() bool {
 }
 
 func (u *Unit) Attack() bool {
-	if Targets.Armed.Exists() || Targets.All.Exists() {
+	if Targets.All.Exists() {
 		u.AttackCustom(scl.DefaultAttackFunc, scl.DefaultMoveFunc, Targets.Armed, Targets.All)
 		return true
 	}
@@ -73,10 +80,10 @@ func (u *Unit) Explore() bool {
 	return true
 }
 
-func (u *Unit) Logic() {
-	for _, f := range []func() bool{u.Retreat, u.Maneuver, u.Cast, u.Attack, u.Explore} {
+func (u *Unit) Logic(t TerranUnit) {
+	for _, f := range []func() bool{t.Retreat, t.Maneuver, t.Cast, t.Attack, t.Explore} {
 		if f() {
-			continue
+			break
 		}
 	}
 }
