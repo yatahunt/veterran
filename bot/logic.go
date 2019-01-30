@@ -2,6 +2,7 @@ package bot
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/veterran/macro"
 	"bitbucket.org/aisee/veterran/micro"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/terran"
@@ -46,11 +47,11 @@ func FindMainBuildingTypesPositions(startLoc scl.Point) (scl.Points, scl.Points,
 func FindBuildingsPositions() {
 	// Positions for first 2 supplies and barrack
 	rp2x2 := B.FindRamp2x2Positions(B.Ramps.My)
-	FirstBarrack = B.FindRampBarracksPositions(B.Ramps.My)
-	if FirstBarrack.Len() > 1 && rp2x2.Len() > 1 {
+	B.FirstBarrack = B.FindRampBarracksPositions(B.Ramps.My)
+	if B.FirstBarrack.Len() > 1 && rp2x2.Len() > 1 {
 		points := []scl.Points{
-			B.GetBuildingPoints(FirstBarrack[0], scl.S3x3),
-			B.GetBuildingPoints(FirstBarrack[1], scl.S5x3), // Take second position with addon
+			B.GetBuildingPoints(B.FirstBarrack[0], scl.S3x3),
+			B.GetBuildingPoints(B.FirstBarrack[1], scl.S5x3), // Take second position with addon
 			B.GetBuildingPoints(rp2x2[0], scl.S2x2),
 			B.GetBuildingPoints(rp2x2[1], scl.S2x2),
 		}
@@ -64,7 +65,7 @@ func FindBuildingsPositions() {
 		closeSupply := rp2x2.ClosestTo(B.Locs.MyStart)
 		pos := B.FindClosestPos(closeSupply, scl.S2x2, 0, 2, 2, scl.IsBuildable, scl.IsPathable)
 		if pos != 0 {
-			TurretsPos.Add(pos.S2x2Fix())
+			B.TurretsPos.Add(pos.S2x2Fix())
 		}
 	}
 
@@ -137,15 +138,15 @@ func FindBuildingsPositions() {
 	pf3x3 = append(pf3x3, pf3x3a...)
 	pf5x3 = append(pf5x3, pf5x3a...)
 
-	BuildPos[scl.S2x2] = pf2x2
-	BuildPos[scl.S3x3] = pf3x3
-	BuildPos[scl.S5x3] = pf5x3
-	BuildPos[scl.S5x5] = B.Locs.MyExps
+	B.BuildPos[scl.S2x2] = pf2x2
+	B.BuildPos[scl.S3x3] = pf3x3
+	B.BuildPos[scl.S5x3] = pf5x3
+	B.BuildPos[scl.S5x5] = B.Locs.MyExps
 
-	/*B.Debug2x2Buildings(BuildPos[scl.S2x2]...)
-	B.Debug3x3Buildings(BuildPos[scl.S3x3]...)
-	B.Debug5x3Buildings(BuildPos[scl.S5x3]...)
-	B.Debug3x3Buildings(BuildPos[scl.S5x5]...)
+	/*B.Debug2x2Buildings(B.BuildPos[scl.S2x2]...)
+	B.Debug3x3Buildings(B.BuildPos[scl.S3x3]...)
+	B.Debug5x3Buildings(B.BuildPos[scl.S5x3]...)
+	B.Debug3x3Buildings(B.BuildPos[scl.S5x5]...)
 	B.DebugSend()*/
 }
 
@@ -174,8 +175,8 @@ func FindTurretPosition(cc *scl.Unit) {
 		return
 	}
 	pos = pos.S2x2Fix()
-	if !TurretsPos.Has(pos) {
-		TurretsPos.Add(pos)
+	if !B.TurretsPos.Has(pos) {
+		B.TurretsPos.Add(pos)
 	}
 	/*B.Debug2x2Buildings(TurretsPos...)
 	B.DebugSend()*/
@@ -198,19 +199,19 @@ func FindBunkerPosition(ptr scl.Pointer) {
 	vec := (mfs.Center() - ccPos).Norm()
 	for x := 3.0; x < 8; x++ {
 		pos = (ccPos - vec.Mul(x)).Floor()
-		if BunkersPos.Has(pos) {
+		if B.BunkersPos.Has(pos) {
 			return // There is already position for one bunker
 		}
 		if B.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep) {
-			BunkersPos.Add(pos)
+			B.BunkersPos.Add(pos)
 			break
 		}
 	}
-	/*B.Debug3x3Buildings(BunkersPos...)
+	/*B.Debug3x3Buildings(B.BunkersPos...)
 	B.DebugSend()*/
 }
 
-func getEmptyBunker(ptr scl.Pointer) *scl.Unit {
+func GetEmptyBunker(ptr scl.Pointer) *scl.Unit {
 	bunkers := B.Units.My[terran.Bunker].Filter(func(unit *scl.Unit) bool {
 		return unit.CargoSpaceTaken < unit.CargoSpaceMax
 	})
@@ -225,10 +226,10 @@ func RecalcEnemyStartLoc(np scl.Point) {
 }
 
 func EnableDefensivePlay() {
-	if PlayDefensive {
+	if B.PlayDefensive {
 		return
 	}
-	PlayDefensive = true
+	B.PlayDefensive = true
 	for _, cc := range B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress) {
 		if cc.IsCloserThan(1, B.Locs.MyStart) {
 			continue
@@ -238,23 +239,23 @@ func EnableDefensivePlay() {
 }
 
 func DisableDefensivePlay() {
-	if !PlayDefensive {
+	if !B.PlayDefensive {
 		return
 	}
-	PlayDefensive = false
-	BunkersPos = nil
+	B.PlayDefensive = false
+	B.BunkersPos = nil
 	if bunkers := B.Units.My[terran.Bunker]; bunkers.Exists() {
 		bunkers.Command(ability.UnloadAll_Bunker)
 		// bunkers.CommandQueue(ability.Effect_Salvage)
 	}
-	if tanks := B.Groups.Get(TanksOnExps).Units; tanks.Exists() {
-		B.Groups.Add(Tanks, tanks...)
+	if tanks := B.Groups.Get(micro.TanksOnExps).Units; tanks.Exists() {
+		B.Groups.Add(micro.Tanks, tanks...)
 	}
 }
 
 func DefensivePlayCheck() {
 	armyScore := B.Units.My.All().Filter(scl.NotWorker).Sum(scl.CmpFood)
-	enemyScore := B.Units.AllEnemy.All().Filter(scl.NotWorker).Sum(scl.CmpFood)
+	enemyScore := B.Enemies.All.Filter(scl.NotWorker).Sum(scl.CmpFood)
 	if armyScore > enemyScore*1.5 && B.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 || B.FoodUsed > 180 {
 		DisableDefensivePlay()
 	} else if armyScore*1.5 < enemyScore {
@@ -270,11 +271,11 @@ func DefensivePlayCheck() {
 	/*if B.Loop < 4480 && B.Units.AllEnemy[protoss.Stalker].Len() > 2 { // 3:20
 		B.EnableDefensivePlay()
 	}*/
-	if PlayDefensive {
-		buildings := append(B.Groups.Get(Buildings).Units, B.Groups.Get(UnderConstruction).Units...)
+	if B.PlayDefensive {
+		buildings := append(B.Groups.Get(micro.Buildings).Units, B.Groups.Get(micro.UnderConstruction).Units...)
 		farBuilding := buildings.FurthestTo(B.Locs.MyStart)
 		if farBuilding != nil {
-			DefensiveRange = farBuilding.Dist(B.Locs.MyStart) + 20
+			B.DefensiveRange = farBuilding.Dist(B.Locs.MyStart) + 20
 		}
 	}
 }
@@ -282,8 +283,7 @@ func DefensivePlayCheck() {
 func Logic() {
 	// time.Sleep(time.Millisecond * 10)
 	DefensivePlayCheck()
-	B.Roles()
-	B.Macro()
-	B.Micro()
-	micro.Do()
+	micro.Roles()
+	macro.Macro()
+	micro.Micro()
 }

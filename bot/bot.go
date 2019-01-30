@@ -3,42 +3,12 @@ package bot
 import (
 	"bitbucket.org/aisee/minilog"
 	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/veterran/micro"
 	"github.com/chippydip/go-sc2ai/client"
 	"strings"
 )
 
 const version = "VeTerran v1.4.0 (glhf)"
-const SafeBuildRange = 7
-const (
-	Miners scl.GroupID = iota + 1
-	// MinersRetreat
-	Builders
-	Repairers
-	ScvHealer
-	UnitHealers
-	WorkerRushDefenders
-	Scout
-	ScoutBase
-	ScvReserve
-	Marines
-	Marauders
-	Reapers
-	ReapersRetreat
-	Cyclones
-	WidowMines
-	WidowMinesRetreat
-	Hellions
-	Tanks
-	TanksOnExps
-	Medivacs
-	Ravens
-	Battlecruisers
-	MechRetreat
-	MechHealing
-	UnderConstruction
-	Buildings
-	MaxGroup
-)
 
 type Bot struct {
 	*scl.Bot
@@ -49,13 +19,12 @@ type Bot struct {
 	PlayDefensive  bool
 	DefensiveRange float64
 	BuildTurrets   bool
-	LastBuildLoop  int
 
-	BuildPos              map[scl.BuildingSize]scl.Points
-	FirstBarrack          scl.Points
-	TurretsPos            scl.Points
-	BunkersPos            scl.Points
-	FindTurretPositionFor *scl.Unit
+	BuildPos         map[scl.BuildingSize]scl.Points
+	FirstBarrack     scl.Points
+	TurretsPos       scl.Points
+	BunkersPos       scl.Points
+	FindTurretPosFor *scl.Unit
 
 	DoubleHealers []scl.GroupID
 }
@@ -68,12 +37,12 @@ var B = &Bot{
 func RunAgent(info client.AgentInfo) {
 	B.Info = info
 	B.FramesPerOrder = 3
-	B.MaxGroup = MaxGroup
+	B.MaxGroup = micro.MaxGroup
 	if B.Info.IsRealtime() {
 		B.FramesPerOrder = 6
 		log.Info("Realtime mode")
 	}
-	B.UnitCreatedCallback = B.OnUnitCreated
+	B.UnitCreatedCallback = micro.OnUnitCreated
 
 	for B.Info.IsInGame() {
 		Step()
@@ -134,7 +103,7 @@ func InitBot() {
 func GGCheck() bool {
 	return B.Minerals < 50 &&
 		B.Units.My.All().First(func(unit *scl.Unit) bool { return !unit.IsStructure() }) == nil &&
-		B.Units.AllEnemy.All().First(scl.DpsGt5) != nil
+		B.Enemies.All.First(scl.DpsGt5) != nil
 }
 
 // OnStep is called each game step (every game update by default)
