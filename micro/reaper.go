@@ -112,7 +112,7 @@ func (u *Reaper) Maneuver() bool {
 }
 
 func (u *Reaper) Attack() bool {
-	closeTargets := Targets.ReaperGood.InRangeOf(u.Unit.Unit, 0)
+	closeTargets := Targets.ReaperGood.InRangeOf(u.Unit.Unit, 2)
 	if u.MfsPos != 0 && !B.IsExplored(u.MfsPos) && closeTargets.Empty() {
 		u.CommandPos(ability.Move, u.MfsPos)
 		return true
