@@ -2,6 +2,7 @@ package micro
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 )
 
@@ -21,9 +22,9 @@ func MedivacsLogic(us scl.Units) {
 		return
 	}
 
-	patients := append(B.Groups.Get(Marines).Units, B.Groups.Get(Marauders).Units...)
+	patients := append(B.Groups.Get(bot.Marines).Units, B.Groups.Get(bot.Marauders).Units...)
 	if patients.Empty() {
-		patients = B.Groups.Get(Miners).Units
+		patients = B.Groups.Get(bot.Miners).Units
 	}
 	if patients.Empty() {
 		return

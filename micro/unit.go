@@ -2,6 +2,7 @@ package micro
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 	"math/rand"
@@ -17,7 +18,7 @@ func NewUnit(u *scl.Unit) *Unit {
 
 func (u *Unit) Retreat() bool {
 	if u.Hits < u.HitsMax/2 {
-		B.Groups.Add(MechRetreat, u.Unit)
+		B.Groups.Add(bot.MechRetreat, u.Unit)
 		return true
 	}
 	return false

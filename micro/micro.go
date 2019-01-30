@@ -10,37 +10,6 @@ import (
 	"math"
 )
 
-const (
-	Miners scl.GroupID = iota + 1
-	// MinersRetreat
-	Builders
-	Repairers
-	ScvHealer
-	UnitHealers
-	WorkerRushDefenders
-	Scout
-	ScoutBase
-	ScvReserve
-	Marines
-	Marauders
-	Reapers
-	ReapersRetreat
-	Cyclones
-	WidowMines
-	WidowMinesRetreat
-	Hellions
-	Tanks
-	TanksOnExps
-	Medivacs
-	Ravens
-	Battlecruisers
-	MechRetreat
-	MechHealing
-	UnderConstruction
-	Buildings
-	MaxGroup
-)
-
 var B = bot.B
 var Targets struct {
 	All         scl.Units
@@ -130,24 +99,24 @@ func WorkerRushDefence() {
 		B.WorkerRush = false
 	}
 
-	army := B.Groups.Get(WorkerRushDefenders).Units
+	army := B.Groups.Get(bot.WorkerRushDefenders).Units
 	if army.Exists() && enemies.Empty() {
-		B.Groups.Add(Miners, army...)
+		B.Groups.Add(bot.Miners, army...)
 		return
 	}
 
 	balance := army.Sum(scl.CmpGroundScore) / enemies.Sum(scl.CmpGroundScore)
 	if alert && balance < 1 {
-		worker := bot.GetSCV(B.Locs.MyStart, WorkerRushDefenders, 20)
+		worker := bot.GetSCV(B.Locs.MyStart, bot.WorkerRushDefenders, 20)
 		if worker != nil {
 			army.Add(worker)
-			B.Groups.Add(WorkerRushDefenders, worker)
+			B.Groups.Add(bot.WorkerRushDefenders, worker)
 		}
 	}
 
 	for _, unit := range army {
 		if unit.Hits < 11 {
-			B.Groups.Add(Miners, unit)
+			B.Groups.Add(bot.Miners, unit)
 			continue
 		}
 
@@ -163,7 +132,7 @@ func WorkerRushDefence() {
 	}
 
 	if B.WorkerRush && B.Minerals >= 75 {
-		workers := B.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
+		workers := B.Groups.Get(bot.Miners).Units.Filter(func(unit *scl.Unit) bool {
 			return unit.Hits < 11 && unit.IsGathering()
 		})
 		if workers.Len() >= 2 {
@@ -176,7 +145,7 @@ func WorkerRushDefence() {
 }
 
 func DoMechRetreat() {
-	us := B.Groups.Get(MechRetreat).Units
+	us := B.Groups.Get(bot.MechRetreat).Units
 	if us.Empty() {
 		return
 	}
@@ -196,7 +165,7 @@ func DoMechRetreat() {
 
 	for _, u := range us {
 		if u.Health == u.HealthMax {
-			OnUnitCreated(u) // Add to corresponding group
+			bot.OnUnitCreated(u) // Add to corresponding group
 			continue
 		}
 
@@ -218,7 +187,7 @@ func DoMechRetreat() {
 		}
 		if u.IsCloserThan(4, healingPoint) {
 			u.CommandPos(ability.Move, healingPoint) // For battlecruisers
-			B.Groups.Add(MechHealing, u)
+			B.Groups.Add(bot.MechHealing, u)
 			continue
 		}
 		if u.UnitType == terran.Cyclone && u.HasAbility(ability.Effect_LockOn) {
@@ -295,18 +264,18 @@ func Micro() {
 	WorkerRushDefence()
 
 	for group, logic := range map[scl.GroupID]func(units scl.Units){
-		Marines:           MarinesLogic,
-		Marauders:         MaraudersLogic,
-		Reapers:           ReapersLogic,
-		ReapersRetreat:    ReapersRetreatLogic,
-		Cyclones:          CyclonesLogic,
-		WidowMines:        WidowMinesLogic,
-		WidowMinesRetreat: WidowMinesRetreatLogic,
-		Hellions:          HellionsLogic,
-		Tanks:             TanksLogic,
-		Medivacs:          MedivacsLogic,
-		Ravens:            RavensLogic,
-		Battlecruisers:    BattlecruisersLogic,
+		bot.Marines:           MarinesLogic,
+		bot.Marauders:         MaraudersLogic,
+		bot.Reapers:           ReapersLogic,
+		bot.ReapersRetreat:    ReapersRetreatLogic,
+		bot.Cyclones:          CyclonesLogic,
+		bot.WidowMines:        WidowMinesLogic,
+		bot.WidowMinesRetreat: WidowMinesRetreatLogic,
+		bot.Hellions:          HellionsLogic,
+		bot.Tanks:             TanksLogic,
+		bot.Medivacs:          MedivacsLogic,
+		bot.Ravens:            RavensLogic,
+		bot.Battlecruisers:    BattlecruisersLogic,
 	} {
 		logic(B.Groups.Get(group).Units)
 	}

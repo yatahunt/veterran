@@ -3,10 +3,13 @@ package main
 import (
 	"bitbucket.org/aisee/minilog"
 	"bitbucket.org/aisee/veterran/bot"
+	"bitbucket.org/aisee/veterran/macro"
+	"bitbucket.org/aisee/veterran/micro"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/client"
 	"github.com/chippydip/go-sc2ai/runner"
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -41,7 +44,37 @@ func run() {
 	// runner.Set("realtime", "true")
 
 	// Create the agent and then start the game
-	runner.RunAgent(client.NewParticipant(api.Race_Terran, client.AgentFunc(bot.RunAgent), ""))
+	runner.RunAgent(client.NewParticipant(api.Race_Terran, client.AgentFunc(RunAgent), ""))
+}
+
+func RunAgent(info client.AgentInfo) {
+	B := bot.B
+	B.Info = info
+	B.FramesPerOrder = 3
+	B.MaxGroup = bot.MaxGroup
+	if B.Info.IsRealtime() {
+		B.FramesPerOrder = 6
+		log.Info("Realtime mode")
+	}
+	B.UnitCreatedCallback = bot.OnUnitCreated
+	B.Logic = func() {
+		// time.Sleep(time.Millisecond * 10)
+		bot.DefensivePlayCheck()
+		micro.Roles()
+		macro.Macro()
+		micro.Micro()
+	}
+
+	for B.Info.IsInGame() {
+		bot.Step()
+
+		if err := B.Info.Step(1); err != nil {
+			log.Error(err)
+			if strings.Contains(err.Error(), "An existing connection was forcibly closed by the remote host.") {
+				return
+			}
+		}
+	}
 }
 
 func main() {

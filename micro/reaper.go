@@ -40,7 +40,7 @@ func ReapersRetreatLogic(us scl.Units) {
 	for _, u := range us {
 		r := NewReaper(u)
 		if r.Hits > r.HitsMax/2+10 {
-			B.Groups.Add(Reapers, r.Unit.Unit)
+			B.Groups.Add(bot.Reapers, r.Unit.Unit)
 			continue
 		}
 
@@ -83,7 +83,7 @@ func (u *Reaper) ThrowMine(targets scl.Units) bool {
 
 func (u *Reaper) Retreat() bool {
 	if u.Hits < u.HitsMax/2 {
-		B.Groups.Add(ReapersRetreat, u.Unit.Unit)
+		B.Groups.Add(bot.ReapersRetreat, u.Unit.Unit)
 		return true
 	}
 	return false

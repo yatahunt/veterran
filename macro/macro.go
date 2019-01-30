@@ -4,7 +4,6 @@ import (
 	"bitbucket.org/aisee/minilog"
 	"bitbucket.org/aisee/sc2lib"
 	"bitbucket.org/aisee/veterran/bot"
-	"bitbucket.org/aisee/veterran/micro"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/effect"
@@ -387,7 +386,7 @@ func Build(aid api.AbilityID) scl.Point {
 	}
 
 	var buildersTargets scl.Points
-	for _, builder := range B.Groups.Get(micro.Builders).Units {
+	for _, builder := range B.Groups.Get(bot.Builders).Units {
 		buildersTargets.Add(builder.TargetPos())
 	}
 
@@ -420,7 +419,7 @@ func Build(aid api.AbilityID) scl.Point {
 			continue
 		}
 
-		scv := bot.GetSCV(pos, micro.Builders, 45)
+		scv := bot.GetSCV(pos, bot.Builders, 45)
 		if scv != nil {
 			OrderBuild(scv, pos, aid)
 			return pos
@@ -436,20 +435,20 @@ func BuildFirstBarrack() {
 	pos := B.FirstBarrack[0]
 	scv := B.Units.My[terran.SCV].ClosestTo(pos)
 	if scv != nil {
-		B.Groups.Add(micro.Builders, scv)
+		B.Groups.Add(bot.Builders, scv)
 		OrderBuild(scv, pos, ability.Build_Barracks)
 	}
 }
 
 func BuildRefinery(cc *scl.Unit) {
 	// Find first geyser that is close to selected cc, but it doesn't have Refinery on top of it
-	builders := B.Groups.Get(micro.Builders).Units
+	builders := B.Groups.Get(bot.Builders).Units
 	geyser := B.Units.Geysers.All().CloserThan(10, cc).First(func(unit *scl.Unit) bool {
 		return B.Units.My[terran.Refinery].CloserThan(1, unit).Len() == 0 &&
 			unit.FindAssignedBuilder(builders) == nil
 	})
 	if geyser != nil {
-		scv := bot.GetSCV(geyser, micro.Builders, 45)
+		scv := bot.GetSCV(geyser, bot.Builders, 45)
 		if scv != nil {
 			scv.CommandTag(ability.Build_Refinery, geyser.Tag)
 			B.DeductResources(ability.Build_Refinery)
@@ -641,7 +640,7 @@ func Cast() {
 			units := B.Units.My.All()
 			// Reaper wants to see highground
 			if B.Units.My[terran.Raven].Empty() {
-				if reaper := B.Groups.Get(micro.Reapers).Units.ClosestTo(B.Locs.EnemyStart); reaper != nil {
+				if reaper := B.Groups.Get(bot.Reapers).Units.ClosestTo(B.Locs.EnemyStart); reaper != nil {
 					if enemy := allEnemies.CanAttack(reaper, 1).ClosestTo(reaper); enemy != nil {
 						if !B.IsVisible(enemy) && B.HeightAt(enemy) > B.HeightAt(reaper) {
 							pos := enemy.Towards(B.Locs.EnemyStart, 8)
@@ -895,19 +894,19 @@ func OrderUnits() {
 func ReserveSCVs() {
 	// Fast first supply
 	if B.Units.My.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).Empty() &&
-		B.Groups.Get(micro.ScvReserve).Tags.Empty() {
+		B.Groups.Get(bot.ScvReserve).Tags.Empty() {
 		pos := B.BuildPos[scl.S2x2][0]
 		scv := bot.GetSCV(pos, 0, 45) // Get SCV but don't change its group
 		if scv != nil && scv.FramesToPos(pos)*B.MineralsPerFrame+float64(B.Minerals)+20 >= 100 {
-			B.Groups.Add(micro.ScvReserve, scv)
+			B.Groups.Add(bot.ScvReserve, scv)
 			scv.CommandPos(ability.Move, pos)
 		}
 	}
 	// Fast expansion
 	if B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).Len() == 1 &&
-		B.Minerals >= 350 && B.Groups.Get(micro.ScvReserve).Tags.Empty() /*&& !PlayDefensive*/ && !B.WorkerRush {
+		B.Minerals >= 350 && B.Groups.Get(bot.ScvReserve).Tags.Empty() /*&& !PlayDefensive*/ && !B.WorkerRush {
 		pos := B.Locs.MyExps[0]
-		if scv := bot.GetSCV(pos, micro.ScvReserve, 45); scv != nil {
+		if scv := bot.GetSCV(pos, bot.ScvReserve, 45); scv != nil {
 			scv.CommandPos(ability.Move, pos)
 		}
 	}

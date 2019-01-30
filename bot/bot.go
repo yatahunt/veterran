@@ -1,17 +1,15 @@
 package bot
 
 import (
-	"bitbucket.org/aisee/minilog"
 	"bitbucket.org/aisee/sc2lib"
-	"bitbucket.org/aisee/veterran/micro"
-	"github.com/chippydip/go-sc2ai/client"
-	"strings"
 )
 
-const version = "VeTerran v1.4.0 (glhf)"
+const version = "VeTerran v2.0.0 (glhf)"
 
 type Bot struct {
 	*scl.Bot
+
+	Logic func()
 
 	IsRealtime     bool
 	WorkerRush     bool
@@ -32,28 +30,6 @@ type Bot struct {
 var B = &Bot{
 	PlayDefensive: true,
 	BuildPos:      map[scl.BuildingSize]scl.Points{},
-}
-
-func RunAgent(info client.AgentInfo) {
-	B.Info = info
-	B.FramesPerOrder = 3
-	B.MaxGroup = micro.MaxGroup
-	if B.Info.IsRealtime() {
-		B.FramesPerOrder = 6
-		log.Info("Realtime mode")
-	}
-	B.UnitCreatedCallback = micro.OnUnitCreated
-
-	for B.Info.IsInGame() {
-		Step()
-
-		if err := B.Info.Step(1); err != nil {
-			log.Error(err)
-			if strings.Contains(err.Error(), "An existing connection was forcibly closed by the remote host.") {
-				return
-			}
-		}
-	}
 }
 
 func InitBot() {
@@ -143,7 +119,7 @@ func Step() {
 		return
 	}
 
-	Logic()
+	B.Logic()
 
 	B.Cmds.Process(&B.Actions)
 	if len(B.Actions) > 0 {

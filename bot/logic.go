@@ -2,8 +2,6 @@ package bot
 
 import (
 	"bitbucket.org/aisee/sc2lib"
-	"bitbucket.org/aisee/veterran/macro"
-	"bitbucket.org/aisee/veterran/micro"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 )
@@ -248,8 +246,8 @@ func DisableDefensivePlay() {
 		bunkers.Command(ability.UnloadAll_Bunker)
 		// bunkers.CommandQueue(ability.Effect_Salvage)
 	}
-	if tanks := B.Groups.Get(micro.TanksOnExps).Units; tanks.Exists() {
-		B.Groups.Add(micro.Tanks, tanks...)
+	if tanks := B.Groups.Get(TanksOnExps).Units; tanks.Exists() {
+		B.Groups.Add(Tanks, tanks...)
 	}
 }
 
@@ -272,18 +270,10 @@ func DefensivePlayCheck() {
 		B.EnableDefensivePlay()
 	}*/
 	if B.PlayDefensive {
-		buildings := append(B.Groups.Get(micro.Buildings).Units, B.Groups.Get(micro.UnderConstruction).Units...)
+		buildings := append(B.Groups.Get(Buildings).Units, B.Groups.Get(UnderConstruction).Units...)
 		farBuilding := buildings.FurthestTo(B.Locs.MyStart)
 		if farBuilding != nil {
 			B.DefensiveRange = farBuilding.Dist(B.Locs.MyStart) + 20
 		}
 	}
-}
-
-func Logic() {
-	// time.Sleep(time.Millisecond * 10)
-	DefensivePlayCheck()
-	micro.Roles()
-	macro.Macro()
-	micro.Micro()
 }

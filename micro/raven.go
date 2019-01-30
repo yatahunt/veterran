@@ -2,6 +2,7 @@ package micro
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 )
 
@@ -21,17 +22,17 @@ func RavensLogic(us scl.Units) {
 		return
 	}
 
-	friends := append(B.Groups.Get(Tanks).Units, B.Groups.Get(Cyclones).Units...)
-	friends = append(friends, B.Groups.Get(Marines).Units...)
-	friends = append(friends, B.Groups.Get(Marauders).Units...)
+	friends := append(B.Groups.Get(bot.Tanks).Units, B.Groups.Get(bot.Cyclones).Units...)
+	friends = append(friends, B.Groups.Get(bot.Marines).Units...)
+	friends = append(friends, B.Groups.Get(bot.Marauders).Units...)
 	if friends.Empty() {
-		friends = B.Groups.Get(WidowMines).Units
+		friends = B.Groups.Get(bot.WidowMines).Units
 	}
 	if friends.Empty() {
-		friends = B.Groups.Get(Battlecruisers).Units
+		friends = B.Groups.Get(bot.Battlecruisers).Units
 	}
 	if friends.Empty() {
-		friends = B.Groups.Get(Reapers).Units
+		friends = B.Groups.Get(bot.Reapers).Units
 	}
 	if friends.Empty() {
 		return
@@ -54,7 +55,7 @@ func (u *Raven) Retreat() bool {
 	}
 
 	if u.Hits < u.HitsMax/2 {
-		B.Groups.Add(MechRetreat, u.Unit.Unit)
+		B.Groups.Add(bot.MechRetreat, u.Unit.Unit)
 		return true
 	}
 	return false

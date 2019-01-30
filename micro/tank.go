@@ -2,6 +2,7 @@ package micro
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 )
@@ -22,7 +23,7 @@ func TanksLogic(us scl.Units) {
 
 func (u *Tank) Retreat() bool {
 	if u.UnitType == terran.SiegeTank && u.Hits < u.HitsMax/2 {
-		B.Groups.Add(MechRetreat, u.Unit.Unit)
+		B.Groups.Add(bot.MechRetreat, u.Unit.Unit)
 		return true
 	}
 	return false

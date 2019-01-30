@@ -11,64 +11,9 @@ import (
 	"math"
 )
 
-func OnUnitCreated(unit *scl.Unit) {
-	if unit.UnitType == terran.SCV {
-		B.Groups.Add(Miners, unit)
-		return
-	}
-	if unit.UnitType == terran.Marine {
-		B.Groups.Add(Marines, unit)
-		return
-	}
-	if unit.UnitType == terran.Marauder {
-		B.Groups.Add(Marauders, unit)
-		return
-	}
-	if unit.UnitType == terran.Reaper {
-		B.Groups.Add(Reapers, unit)
-		return
-	}
-	if unit.UnitType == terran.WidowMine {
-		B.Groups.Add(WidowMines, unit)
-		return
-	}
-	if unit.UnitType == terran.Hellion || unit.UnitType == terran.HellionTank {
-		B.Groups.Add(Hellions, unit)
-		return
-	}
-	if unit.UnitType == terran.Cyclone {
-		B.Groups.Add(Cyclones, unit)
-		return
-	}
-	if unit.UnitType == terran.SiegeTank || unit.UnitType == terran.SiegeTankSieged {
-		B.Groups.Add(Tanks, unit)
-		return
-	}
-	if unit.UnitType == terran.Medivac {
-		B.Groups.Add(Medivacs, unit)
-		return
-	}
-	if unit.UnitType == terran.Raven {
-		B.Groups.Add(Ravens, unit)
-		return
-	}
-	if unit.UnitType == terran.Battlecruiser {
-		B.Groups.Add(Battlecruisers, unit)
-		return
-	}
-	if unit.UnitType == terran.CommandCenter {
-		B.FindTurretPosFor = unit
-		// No return! Add it to UnderConstruction group if needed
-	}
-	if unit.IsStructure() && unit.BuildProgress < 1 {
-		B.Groups.Add(UnderConstruction, unit)
-		return
-	}
-}
-
 func BuildingsCheck() {
-	builders := B.Groups.Get(Builders).Units
-	buildings := B.Groups.Get(UnderConstruction).Units
+	builders := B.Groups.Get(bot.Builders).Units
+	buildings := B.Groups.Get(bot.UnderConstruction).Units
 	enemies := B.Enemies.Visible.Filter(scl.DpsGt5)
 	// This is const. Move somewhere else?
 	addonsTypes := append(scl.UnitAliases.For(terran.Reactor), scl.UnitAliases.For(terran.TechLab)...)
@@ -79,9 +24,9 @@ func BuildingsCheck() {
 				fallthrough
 			case terran.Factory:
 				building.CommandPos(ability.Rally_Building, B.Ramps.My.Top+B.Ramps.My.Vec*3)
-				B.Groups.Add(Buildings, building)
+				B.Groups.Add(bot.Buildings, building)
 			default:
-				B.Groups.Add(Buildings, building) // And remove from current group
+				B.Groups.Add(bot.Buildings, building) // And remove from current group
 			}
 			continue
 		}
@@ -96,7 +41,7 @@ func BuildingsCheck() {
 		if building.FindAssignedBuilder(builders) == nil &&
 			enemies.CanAttack(building, 0).Empty() &&
 			!addonsTypes.Contain(building.UnitType) {
-			scv := bot.GetSCV(building, Builders, 45)
+			scv := bot.GetSCV(building, bot.Builders, 45)
 			if scv != nil {
 				scv.CommandTag(ability.Smart, building.Tag)
 			}
@@ -110,7 +55,7 @@ func BuildingsCheck() {
 }
 
 func Build() {
-	builders := B.Groups.Get(Builders).Units
+	builders := B.Groups.Get(bot.Builders).Units
 	enemies := B.Enemies.Visible
 	for _, u := range builders {
 		enemy := enemies.First(func(unit *scl.Unit) bool {
@@ -123,19 +68,19 @@ func Build() {
 	}
 
 	// Move idle or misused builders into miners
-	idleBuilder := B.Groups.Get(Builders).Units.First(func(unit *scl.Unit) bool {
+	idleBuilder := B.Groups.Get(bot.Builders).Units.First(func(unit *scl.Unit) bool {
 		return unit.IsIdle() || unit.IsGathering() || unit.IsReturning() || (unit.IsMoving() && unit.TargetTag() != 0)
 	})
 	if idleBuilder != nil {
-		B.Groups.Add(Miners, idleBuilder)
+		B.Groups.Add(bot.Miners, idleBuilder)
 	}
 }
 
 func Repair() {
-	reps := append(B.Groups.Get(Repairers).Units, B.Groups.Get(UnitHealers).Units...)
+	reps := append(B.Groups.Get(bot.Repairers).Units, B.Groups.Get(bot.UnitHealers).Units...)
 	for _, u := range reps {
 		if u.Hits < 25 || u.IsIdle() || u.IsGathering() || u.IsReturning() || (u.IsMoving() && u.TargetTag() != 0) {
-			B.Groups.Add(Miners, u)
+			B.Groups.Add(bot.Miners, u)
 		}
 	}
 
@@ -144,7 +89,7 @@ func Repair() {
 	}
 
 	// Repairers
-	buildings := append(B.Groups.Get(Buildings).Units, B.Groups.Get(TanksOnExps).Units...)
+	buildings := append(B.Groups.Get(bot.Buildings).Units, B.Groups.Get(bot.TanksOnExps).Units...)
 	for _, building := range buildings {
 		ars := building.FindAssignedRepairers(reps)
 		maxArs := int(building.Radius * 3)
@@ -154,7 +99,7 @@ func Repair() {
 		lessThanMaxAssigned := ars.Len() < maxArs
 		healthDecreasing := building.HPS > 0
 		if buildingIsDamaged && (noReps || (allRepairing && lessThanMaxAssigned && healthDecreasing)) {
-			rep := bot.GetSCV(building, Repairers, 45)
+			rep := bot.GetSCV(building, bot.Repairers, 45)
 			if rep != nil {
 				rep.CommandTag(ability.Effect_Repair_SCV, building.Tag)
 			}
@@ -163,32 +108,32 @@ func Repair() {
 
 	// ScvHealer
 	ccs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
-	healer := B.Groups.Get(ScvHealer).Units.First()
+	healer := B.Groups.Get(bot.ScvHealer).Units.First()
 	damagedSCVs := B.Units.My[terran.SCV].Filter(func(unit *scl.Unit) bool {
 		return unit.Health < unit.HealthMax && ccs.CloserThan(scl.ResourceSpreadDistance, unit).Exists()
 	})
 	if damagedSCVs.Exists() && damagedSCVs[0] != healer {
 		if healer == nil {
-			healer = bot.GetSCV(damagedSCVs.Center(), ScvHealer, 45)
+			healer = bot.GetSCV(damagedSCVs.Center(), bot.ScvHealer, 45)
 		}
 		if healer != nil && healer.TargetAbility() != ability.Effect_Repair_SCV {
 			healer.CommandTag(ability.Effect_Repair_SCV, damagedSCVs.ClosestTo(healer).Tag)
 		}
 	} else if healer != nil {
-		B.Groups.Add(Miners, healer)
+		B.Groups.Add(bot.Miners, healer)
 	}
 
 	// UnitHealers
-	mechs := B.Groups.Get(MechHealing).Units
+	mechs := B.Groups.Get(bot.MechHealing).Units
 	for _, mech := range mechs {
 		if mech.Health == mech.HealthMax {
-			OnUnitCreated(mech) // Add to corresponding group
+			bot.OnUnitCreated(mech) // Add to corresponding group
 			continue
 		}
 		ars := mech.FindAssignedRepairers(reps)
 		maxArs := int(mech.Radius * 4)
 		if ars.Len() < maxArs {
-			rep := bot.GetSCV(mech, UnitHealers, 45)
+			rep := bot.GetSCV(mech, bot.UnitHealers, 45)
 			if rep != nil {
 				rep.CommandTag(ability.Effect_Repair_SCV, mech.Tag)
 			}
@@ -202,7 +147,7 @@ func DoubleHeal() {
 		if scvs.Len() < 2 || (scvs[0].Hits == 45 && scvs[1].Hits == 45) ||
 			scvs[0].TargetAbility() != ability.Effect_Repair_SCV ||
 			scvs[1].TargetAbility() != ability.Effect_Repair_SCV {
-			B.Groups.Add(Miners, scvs...)
+			B.Groups.Add(bot.Miners, scvs...)
 			if len(B.DoubleHealers) > key+1 {
 				B.DoubleHealers = append(B.DoubleHealers[:key], B.DoubleHealers[key+1:]...)
 			} else {
@@ -213,9 +158,9 @@ func DoubleHeal() {
 }
 
 func Recon() {
-	scv := B.Groups.Get(Scout).Units.First()
+	scv := B.Groups.Get(bot.Scout).Units.First()
 	if B.Locs.EnemyStarts.Len() > 1 && scv == nil && B.Loop < 60 {
-		scv = bot.GetSCV(B.Locs.EnemyStarts[0], Scout, 45)
+		scv = bot.GetSCV(B.Locs.EnemyStarts[0], bot.Scout, 45)
 		if scv != nil {
 			scv.CommandPos(ability.Move, B.Locs.EnemyStarts[0])
 		}
@@ -225,7 +170,7 @@ func Recon() {
 	if scv != nil {
 		// Workers rush
 		if B.Units.Enemy.OfType(terran.SCV, zerg.Drone, protoss.Probe).FurtherThan(40, B.Locs.EnemyStart).Len() > 3 {
-			B.Groups.Add(Miners, scv)
+			B.Groups.Add(bot.Miners, scv)
 			return
 		}
 
@@ -240,8 +185,8 @@ func Recon() {
 			}
 			// If N-1 checked and not found, then N is EnemyStartLoc
 			bot.RecalcEnemyStartLoc(B.Locs.EnemyStarts[B.Locs.EnemyStarts.Len()-1])
-			B.Groups.Add(ScoutBase, scv) // promote scout
-			bot.EnableDefensivePlay()    // we don't know what enemy is doing
+			B.Groups.Add(bot.ScoutBase, scv) // promote scout
+			bot.EnableDefensivePlay()        // we don't know what enemy is doing
 			return
 		}
 
@@ -249,7 +194,7 @@ func Recon() {
 			for _, p := range B.Locs.EnemyStarts[:B.Locs.EnemyStarts.Len()-1] {
 				if buildings.CloserThan(20, p).Exists() {
 					bot.RecalcEnemyStartLoc(p)
-					B.Groups.Add(ScoutBase, scv) // promote scout
+					B.Groups.Add(bot.ScoutBase, scv) // promote scout
 					return
 				}
 			}
@@ -262,12 +207,12 @@ func ReconBase() {
 		return
 	}
 
-	scv := B.Groups.Get(ScoutBase).Units.First()
+	scv := B.Groups.Get(bot.ScoutBase).Units.First()
 	if B.Locs.EnemyStarts.Len() <= 1 && scv == nil && !B.WorkerRush /*&& !PlayDefensive*/ && B.Loop > 896 && B.Loop < 906 {
 		// 0:50
-		scv = bot.GetSCV(B.Locs.EnemyStart, Scout, 45)
+		scv = bot.GetSCV(B.Locs.EnemyStart, bot.Scout, 45)
 		if scv != nil {
-			B.Groups.Add(ScoutBase, scv)
+			B.Groups.Add(bot.ScoutBase, scv)
 		}
 	}
 	if scv == nil {
@@ -276,13 +221,13 @@ func ReconBase() {
 
 	// Workers rush
 	if B.Units.Enemy.OfType(terran.SCV, zerg.Drone, protoss.Probe).FurtherThan(40, B.Locs.EnemyStart).Len() > 3 {
-		B.Groups.Add(Miners, scv)
+		B.Groups.Add(bot.Miners, scv)
 		return
 	}
 
 	enemies := B.Enemies.All.Filter(scl.DpsGt5)
 	if enemies.Exists() || B.Loop > 2240 { // 1:40
-		B.Groups.Add(Miners, scv) // dismiss scout
+		B.Groups.Add(bot.Miners, scv) // dismiss scout
 
 		if B.EnemyRace == api.Race_Terran {
 			if B.Units.AllEnemy[terran.Barracks].Len() >= 3 {
@@ -311,18 +256,18 @@ func ReconBase() {
 
 func Mine() {
 	enemies := B.Enemies.Visible.Filter(scl.DpsGt5)
-	miners := B.Groups.Get(Miners).Units
+	miners := B.Groups.Get(bot.Miners).Units
 	/*for _, miner := range miners {
 		if enemies.CloserThan(safeBuildRange, miner).Sum(scl.CmpGroundDamage) > miner.Hits {
-			B.Groups.Add(MinersRetreat, miner)
+			B.Groups.Add(bot.MinersRetreat, miner)
 		}
 	}
 
 	// Retreat
-	mrs := B.Groups.Get(MinersRetreat).Units
+	mrs := B.Groups.Get(bot.MinersRetreat).Units
 	for _, miner := range mrs {
 		if enemies.CanAttack(miner, safeBuildRange).Empty() {
-			B.Groups.Add(Miners, miner)
+			B.Groups.Add(bot.Miners, miner)
 			continue
 		}
 		miner.GroundFallback(enemies, 2, B.HomePaths)
@@ -333,7 +278,7 @@ func Mine() {
 		return
 	}
 	// Std miners handler
-	miners = B.Groups.Get(Miners).Units
+	miners = B.Groups.Get(bot.Miners).Units
 	ccs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).
 		Filter(func(unit *scl.Unit) bool {
 			return unit.IsReady() && enemies.CanAttack(unit, 0).Empty()
@@ -347,7 +292,7 @@ func Mine() {
 		if ref != nil {
 			// Get scv gathering minerals
 			mfs := B.Units.Minerals.All()
-			scv := B.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
+			scv := B.Groups.Get(bot.Miners).Units.Filter(func(unit *scl.Unit) bool {
 				return unit.IsGathering() && unit.IsCloserThan(scl.ResourceSpreadDistance, ref) &&
 					mfs.ByTag(unit.TargetTag()) != nil
 			}).ClosestTo(ref)
@@ -358,7 +303,7 @@ func Mine() {
 	} else if B.Vespene > scl.MinInt(5, ccs.Len())*100 && B.Minerals < B.Vespene/2 && refs.Exists() {
 		cc := ccs.Filter(func(unit *scl.Unit) bool { return unit.AssignedHarvesters < unit.IdealHarvesters })
 		if cc != nil {
-			scv := B.Groups.Get(Miners).Units.First(func(unit *scl.Unit) bool {
+			scv := B.Groups.Get(bot.Miners).Units.First(func(unit *scl.Unit) bool {
 				tag := unit.TargetTag()
 				return unit.IsGathering() && refs.ByTag(tag) != nil
 			})
@@ -371,13 +316,13 @@ func Mine() {
 }
 
 func TanksOnExpansions() {
-	tanks := B.Groups.Get(TanksOnExps).Units
+	tanks := B.Groups.Get(bot.TanksOnExps).Units
 	tanksSieged := tanks.Filter(func(unit *scl.Unit) bool { return unit.UnitType == terran.SiegeTankSieged })
 	tanksUnsieged := tanks.Filter(func(unit *scl.Unit) bool { return unit.UnitType == terran.SiegeTank })
 	if !B.PlayDefensive {
 		// Move all unsieged tanks back to army
 		for _, tank := range tanksUnsieged {
-			B.Groups.Add(Tanks, tank)
+			B.Groups.Add(bot.Tanks, tank)
 		}
 		return
 	}
@@ -391,7 +336,7 @@ func TanksOnExpansions() {
 	}).ClosestTo(B.Locs.MyStart)
 	for _, tank := range tanksUnsieged {
 		if bunker == nil {
-			B.Groups.Add(Tanks, tank)
+			B.Groups.Add(bot.Tanks, tank)
 			continue
 		}
 		ccs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
@@ -404,10 +349,10 @@ func TanksOnExpansions() {
 		}
 	}
 
-	candidates := B.Groups.Get(Tanks).Units
+	candidates := B.Groups.Get(bot.Tanks).Units
 	if tanks.Len() < bunkers.Len() && candidates.Exists() && bunker != nil {
 		tank := candidates.ClosestTo(bunker)
-		B.Groups.Add(TanksOnExps, tank)
+		B.Groups.Add(bot.TanksOnExps, tank)
 	}
 }
 

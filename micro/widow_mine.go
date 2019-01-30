@@ -2,6 +2,7 @@ package micro
 
 import (
 	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/effect"
 	"math/rand"
@@ -25,11 +26,11 @@ func WidowMinesRetreatLogic(us scl.Units) {
 	for _, u := range us {
 		m := NewWidowMine(u)
 		if m.Hits < m.HitsMax {
-			B.Groups.Add(MechRetreat, m.Unit.Unit)
+			B.Groups.Add(bot.MechRetreat, m.Unit.Unit)
 			continue
 		}
 		if m.IsBurrowed && m.HasAbility(ability.Smart) {
-			B.Groups.Add(WidowMines, m.Unit.Unit)
+			B.Groups.Add(bot.WidowMines, m.Unit.Unit)
 			continue
 		}
 		if m.IsIdle() {
@@ -79,9 +80,9 @@ func (u *WidowMine) Maneuver() bool {
 		Targets.ForMines.CloserThan(10, u).Empty() && attackers.Empty()) {
 		// No targets or enemies around
 		if u.Hits < u.HitsMax/2 {
-			B.Groups.Add(MechRetreat, u.Unit.Unit)
+			B.Groups.Add(bot.MechRetreat, u.Unit.Unit)
 		} else {
-			B.Groups.Add(WidowMinesRetreat, u.Unit.Unit)
+			B.Groups.Add(bot.WidowMinesRetreat, u.Unit.Unit)
 		}
 		u.Command(ability.BurrowUp_WidowMine)
 		return true
