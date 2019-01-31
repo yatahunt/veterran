@@ -17,6 +17,7 @@ type Bot struct {
 	PlayDefensive  bool
 	DefensiveRange float64
 	BuildTurrets   bool
+	MechPriority   bool
 
 	BuildPos         map[scl.BuildingSize]scl.Points
 	FirstBarrack     scl.Points

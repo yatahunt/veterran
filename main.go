@@ -5,6 +5,7 @@ import (
 	"bitbucket.org/aisee/veterran/bot"
 	"bitbucket.org/aisee/veterran/macro"
 	"bitbucket.org/aisee/veterran/micro"
+	"bitbucket.org/aisee/veterran/roles"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/client"
 	"github.com/chippydip/go-sc2ai/runner"
@@ -62,7 +63,7 @@ func RunAgent(info client.AgentInfo) {
 	B.Logic = func() {
 		// time.Sleep(time.Millisecond * 10)
 		bot.DefensivePlayCheck()
-		micro.Roles()
+		roles.Roles()
 		macro.Macro()
 		micro.Micro()
 	}
