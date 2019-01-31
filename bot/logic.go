@@ -111,7 +111,7 @@ func FindBuildingsPositions() {
 		}
 	}
 
-	pf2x2.OrderByDistanceTo(B.Locs.MyStart, false)
+	pf2x2.OrderByDistanceTo(B.Locs.MyStart, true) // todo: test far supply locations
 	pf3x3.OrderByDistanceTo(B.Locs.MyStart, false)
 	pf5x3.OrderByDistanceTo(B.Locs.MyStart, false)
 
