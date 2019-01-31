@@ -65,7 +65,8 @@ func CycloneManeuver(u *scl.Unit) bool {
 
 func CycloneAttack(u *scl.Unit) bool {
 	if Targets.All.Exists() {
-		u.AttackCustom(CycloneAttackFunc, CycloneMoveFunc, Targets.ArmedFlying, Targets.Armed, Targets.All)
+		u.AttackCustom(CycloneAttackFunc, CycloneMoveFunc, Targets.ArmedFlyingArmored, Targets.ArmedFlying,
+			Targets.ArmedArmored, Targets.Armed, Targets.All)
 		return true
 	}
 	return false

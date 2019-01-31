@@ -114,7 +114,7 @@ func OrderUnits() {
 		if B.Units.My[terran.FusionCore].First(scl.Ready) != nil {
 			if B.CanBuy(ability.Train_Battlecruiser) {
 				OrderTrain(starport, ability.Train_Battlecruiser, usedFactories)
-			} else if ravens > 0 {
+			} else if ravens > 0 && B.Units.AllEnemy[zerg.Ultralisk].Empty() {
 				B.DeductResources(ability.Train_Battlecruiser) // Gather money
 			}
 		}

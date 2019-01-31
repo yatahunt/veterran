@@ -18,8 +18,16 @@ func HellionMorph(u *scl.Unit) bool {
 	return false
 }
 
+func HellionAttack(u *scl.Unit) bool {
+	if Targets.Ground.Exists() {
+		u.Attack(Targets.ArmedGroundLight, Targets.ArmedGround, Targets.Ground)
+		return true
+	}
+	return false
+}
+
 func HellionsLogic(us scl.Units) {
 	for _, u := range us {
-		_ = DefaultRetreat(u) || DefaultManeuver(u) || HellionMorph(u) || DefaultGroundAttack(u) || DefaultExplore(u)
+		_ = DefaultRetreat(u) || DefaultManeuver(u) || HellionMorph(u) || HellionAttack(u) || DefaultExplore(u)
 	}
 }

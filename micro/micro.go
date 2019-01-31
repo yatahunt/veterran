@@ -11,16 +11,20 @@ import (
 )
 
 type TargetsTypes struct {
-	All         scl.Units
-	Flying      scl.Units
-	Ground      scl.Units
-	Armed       scl.Units
-	ArmedFlying scl.Units
-	ArmedGround scl.Units
-	ReaperOk    scl.Units
-	ReaperGood  scl.Units
-	ForMines    scl.Units
-	ForYamato   scl.Units
+	All                scl.Units
+	Flying             scl.Units
+	Ground             scl.Units
+	Armed              scl.Units
+	ArmedArmored       scl.Units
+	ArmedFlying        scl.Units
+	ArmedFlyingArmored scl.Units
+	ArmedGround        scl.Units
+	ArmedGroundArmored scl.Units
+	ArmedGroundLight   scl.Units
+	ReaperOk           scl.Units
+	ReaperGood         scl.Units
+	ForMines           scl.Units
+	ForYamato          scl.Units
 }
 
 var B = bot.B
@@ -46,16 +50,27 @@ func InitTargets() {
 		Targets.All.Add(u)
 		if u.IsArmed() {
 			Targets.Armed.Add(u)
+			if u.IsArmored() {
+				Targets.ArmedArmored.Add(u)
+			}
 		}
 		if u.IsFlying {
 			Targets.Flying.Add(u)
 			if u.IsArmed() {
 				Targets.ArmedFlying.Add(u)
+				if u.IsArmored() {
+					Targets.ArmedFlyingArmored.Add(u)
+				}
 			}
 		} else {
 			Targets.Ground.Add(u)
 			if u.IsArmed() {
 				Targets.ArmedGround.Add(u)
+				if u.IsArmored() {
+					Targets.ArmedGroundArmored.Add(u)
+				} else if u.IsLight() {
+					Targets.ArmedGroundLight.Add(u)
+				}
 			}
 		}
 		if !u.IsStructure() {

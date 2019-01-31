@@ -15,8 +15,16 @@ func MarauderStim(u *scl.Unit) bool {
 	return false
 }
 
+func MarauderAttack(u *scl.Unit) bool {
+	if Targets.Ground.Exists() {
+		u.Attack(Targets.ArmedGroundArmored, Targets.ArmedGround, Targets.Ground)
+		return true
+	}
+	return false
+}
+
 func MaraudersLogic(us scl.Units) {
 	for _, u := range us {
-		_ = DefaultManeuver(u) || MarauderStim(u) || DefaultGroundAttack(u) || DefaultExplore(u)
+		_ = DefaultManeuver(u) || MarauderStim(u) || MarauderAttack(u) || DefaultExplore(u)
 	}
 }

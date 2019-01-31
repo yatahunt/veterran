@@ -63,9 +63,12 @@ func TankMorph(u *scl.Unit) bool {
 func TankAttack(u *scl.Unit) bool {
 	if Targets.Ground.Exists() {
 		if u.UnitType == terran.SiegeTank {
-			u.Attack(Targets.ArmedGround, Targets.Ground)
+			u.Attack(Targets.ArmedGroundArmored, Targets.ArmedGround, Targets.Ground)
 		} else if u.UnitType == terran.SiegeTankSieged {
-			targets := Targets.ArmedGround.InRangeOf(u, 0)
+			targets := Targets.ArmedGroundArmored.InRangeOf(u, 0)
+			if targets.Empty() {
+				targets = Targets.ArmedGround.InRangeOf(u, 0)
+			}
 			if targets.Empty() {
 				targets = Targets.Ground.InRangeOf(u, 0)
 			}

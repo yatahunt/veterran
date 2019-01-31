@@ -36,14 +36,6 @@ func DefaultAttack(u *scl.Unit) bool {
 	return false
 }
 
-func DefaultGroundAttack(u *scl.Unit) bool {
-	if Targets.Ground.Exists() {
-		u.Attack(Targets.ArmedGround, Targets.Ground)
-		return true
-	}
-	return false
-}
-
 func DefaultExplore(u *scl.Unit) bool {
 	if B.PlayDefensive {
 		pos := B.Ramps.My.Top
