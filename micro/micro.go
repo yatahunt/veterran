@@ -147,7 +147,7 @@ func WorkerRushDefence() {
 	}
 }
 
-func DoMechRetreat() {
+func MechRetreat() {
 	us := B.Groups.Get(bot.MechRetreat).Units
 	if us.Empty() {
 		return
@@ -283,7 +283,7 @@ func Micro() {
 		logic(B.Groups.Get(group).Units)
 	}
 
-	DoMechRetreat()
+	MechRetreat()
 	StaticDefense()
 	FlyingBuildings()
 }

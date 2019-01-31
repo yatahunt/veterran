@@ -6,17 +6,6 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/ability"
 )
 
-type Medivac struct {
-	*Unit
-
-	Injured      scl.Units
-	FirstPatient *scl.Unit
-}
-
-func NewMedivac(u *scl.Unit) *Medivac {
-	return &Medivac{Unit: NewUnit(u)}
-}
-
 func MedivacsLogic(us scl.Units) {
 	if us.Empty() {
 		return
@@ -37,42 +26,32 @@ func MedivacsLogic(us scl.Units) {
 	firstPatient := patients.ClosestTo(enemiesCenter)
 
 	for _, u := range us {
-		m := NewMedivac(u)
-		m.Injured = injured
-		m.FirstPatient = firstPatient
-		m.Logic(m)
-	}
-}
+		DefaultRetreat(u)
 
-func (u *Medivac) Maneuver() bool {
-	// This should be most damaged unit
-	closeInjured := u.Injured.CloserThan(float64(u.Radius)+4, u).First()
-	if closeInjured == nil {
-		closeInjured = u.Injured.ClosestTo(u)
-	}
-	if u.Energy >= 5 && u.HasAbility(ability.Effect_Heal) && closeInjured != nil {
-		if closeInjured.IsFurtherThan(8, u) &&
-			u.HasAbility(ability.Effect_MedivacIgniteAfterburners) {
-			u.Command(ability.Effect_MedivacIgniteAfterburners)
-			u.CommandTagQueue(ability.Effect_Heal, closeInjured.Tag)
-		} else {
-			u.CommandTag(ability.Effect_Heal, closeInjured.Tag)
+		// This should be most damaged unit
+		closeInjured := injured.CloserThan(float64(u.Radius)+4, u).First()
+		if closeInjured == nil {
+			closeInjured = injured.ClosestTo(u)
 		}
-		return true
-	}
-	if closeInjured == nil {
-		closeInjured = u.FirstPatient
-	}
+		if u.Energy >= 5 && u.HasAbility(ability.Effect_Heal) && closeInjured != nil {
+			if closeInjured.IsFurtherThan(8, u) &&
+				u.HasAbility(ability.Effect_MedivacIgniteAfterburners) {
+				u.Command(ability.Effect_MedivacIgniteAfterburners)
+				u.CommandTagQueue(ability.Effect_Heal, closeInjured.Tag)
+			} else {
+				u.CommandTag(ability.Effect_Heal, closeInjured.Tag)
+			}
+			continue
+		}
+		if closeInjured == nil {
+			closeInjured = firstPatient
+		}
 
-	pos, safe := u.AirEvade(B.Enemies.AllReady.CanAttack(u.Unit.Unit, 2), 2, closeInjured)
-	if !safe {
-		u.CommandPos(ability.Move, pos)
-	} else {
-		u.CommandTag(ability.Move, closeInjured.Tag)
+		pos, safe := u.AirEvade(B.Enemies.AllReady.CanAttack(u, 2), 2, closeInjured)
+		if !safe {
+			u.CommandPos(ability.Move, pos)
+		} else {
+			u.CommandTag(ability.Move, closeInjured.Tag)
+		}
 	}
-	return true
-}
-
-func (u *Medivac) Attack() bool {
-	return false
 }

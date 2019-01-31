@@ -8,30 +8,7 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/protoss"
 )
 
-type Marine struct {
-	*Unit
-}
-
-func NewMarine(u *scl.Unit) *Marine {
-	return &Marine{Unit: NewUnit(u)}
-}
-
-func MarinesLogic(us scl.Units) {
-	for _, u := range us {
-		m := NewMarine(u)
-		m.Logic(m)
-	}
-}
-
-func (u *Marine) Retreat() bool {
-	return false
-}
-
-func (u *Marine) Maneuver() bool {
-	if u.Unit.Maneuver() {
-		return true
-	}
-
+func LoadInBunker(u *scl.Unit) bool {
 	// Load into a bunker
 	if B.PlayDefensive && u.CanAttack(Targets.Armed, 0).Empty() {
 		bunker := bot.GetEmptyBunker(u)
@@ -44,11 +21,10 @@ func (u *Marine) Maneuver() bool {
 			return true
 		}
 	}
-
 	return false
 }
 
-func (u *Marine) Cast() bool {
+func MarineStim(u *scl.Unit) bool {
 	if B.Upgrades[ability.Research_Stimpack] && u.HasAbility(ability.Effect_Stim_Marine) &&
 		!u.HasBuff(buff.Stimpack) && u.CanAttack(Targets.Armed, 2).Sum(scl.CmpHits) >= 200 {
 		u.Command(ability.Effect_Stim_Marine)
@@ -57,15 +33,22 @@ func (u *Marine) Cast() bool {
 	return false
 }
 
-func (u *Marine) Attack() bool {
+func MarineAttack(u *scl.Unit) bool {
 	if Targets.All.Exists() {
 		ics := B.Units.Enemy[protoss.Interceptor]
 		if ics.Exists() {
 			u.CommandPos(ability.Attack_Attack_23, ics.ClosestTo(u))
 		} else {
-			u.AttackCustom(scl.DefaultAttackFunc, scl.DefaultMoveFunc, Targets.Armed, Targets.All)
+			u.Attack(Targets.Armed, Targets.All)
 		}
 		return true
 	}
 	return false
+}
+
+func MarinesLogic(us scl.Units) {
+	for _, u := range us {
+		// If something returns true - break chain
+		_ = DefaultManeuver(u) || LoadInBunker(u) || MarineStim(u) || MarineAttack(u) || DefaultExplore(u)
+	}
 }

@@ -7,33 +7,18 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/terran"
 )
 
-type Tank struct {
-	*Unit
-}
-
-func NewTank(u *scl.Unit) *Tank {
-	return &Tank{Unit: NewUnit(u)}
-}
-
-func TanksLogic(us scl.Units) {
-	for _, u := range us {
-		t := NewTank(u)
-		t.Logic(t)
-	}
-}
-
-func (u *Tank) Retreat() bool {
+func TankRetreat(u *scl.Unit) bool {
 	if u.UnitType == terran.SiegeTank && u.Hits < u.HitsMax/2 {
-		B.Groups.Add(bot.MechRetreat, u.Unit.Unit)
+		B.Groups.Add(bot.MechRetreat, u)
 		return true
 	}
 	return false
 }
 
-func (u *Tank) Maneuver() bool {
-	if u.UnitType == terran.SiegeTank && !u.IsCool() {
-		attackers := B.Enemies.AllReady.CanAttack(u.Unit.Unit, 2)
-		closeTargets := Targets.ArmedGround.InRangeOf(u.Unit.Unit, -0.5)
+func TankManeuver(u *scl.Unit) bool {
+	if u.UnitType == terran.SiegeTank && !u.IsHalfCool() {
+		attackers := B.Enemies.AllReady.CanAttack(u, 2)
+		closeTargets := Targets.ArmedGround.InRangeOf(u, -0.5)
 		if attackers.Exists() || closeTargets.Exists() {
 			u.GroundFallback(attackers, 2, B.HomePaths)
 			return true
@@ -42,29 +27,29 @@ func (u *Tank) Maneuver() bool {
 	return false
 }
 
-func (u *Tank) Cast() bool {
+func TankMorph(u *scl.Unit) bool {
 	if u.UnitType == terran.SiegeTank {
-		targets := Targets.ArmedGround.InRangeOf(u.Unit.Unit, 0)
+		targets := Targets.ArmedGround.InRangeOf(u, 0)
 		if targets.Empty() {
-			targets = Targets.Ground.InRangeOf(u.Unit.Unit, 0)
+			targets = Targets.Ground.InRangeOf(u, 0)
 		}
-		farTargets := Targets.ArmedGround.InRangeOf(u.Unit.Unit, 13-7) // Sieged range - mobile range
+		farTargets := Targets.ArmedGround.InRangeOf(u, 13-7) // Sieged range - mobile range
 		if farTargets.Empty() {
-			farTargets = Targets.Ground.InRangeOf(u.Unit.Unit, 13-7)
+			farTargets = Targets.Ground.InRangeOf(u, 13-7)
 		}
 
-		if targets.Empty() && farTargets.Exists() && B.Enemies.AllReady.CanAttack(u.Unit.Unit, 2).Exists() {
+		if targets.Empty() && farTargets.Exists() && B.Enemies.AllReady.CanAttack(u, 2).Exists() {
 			u.Command(ability.Morph_SiegeMode)
 			return true
 		}
 	}
 	if u.UnitType == terran.SiegeTankSieged {
-		farTargets := Targets.ArmedGround.InRangeOf(u.Unit.Unit, 2).Filter(func(unit *scl.Unit) bool {
+		farTargets := Targets.ArmedGround.InRangeOf(u, 2).Filter(func(unit *scl.Unit) bool {
 			return unit.IsFurtherThan(float64(u.Radius+unit.Radius+2), u)
 		})
-		targets := farTargets.InRangeOf(u.Unit.Unit, 0)
+		targets := farTargets.InRangeOf(u, 0)
 		if targets.Empty() {
-			targets = Targets.Ground.InRangeOf(u.Unit.Unit, 0)
+			targets = Targets.Ground.InRangeOf(u, 0)
 		}
 		// Unsiege if can't attack and only buildings are close to max range
 		if targets.Empty() && farTargets.Filter(func(unit *scl.Unit) bool { return !unit.IsStructure() }).Empty() {
@@ -75,20 +60,26 @@ func (u *Tank) Cast() bool {
 	return false
 }
 
-func (u *Tank) Attack() bool {
+func TankAttack(u *scl.Unit) bool {
 	if Targets.Ground.Exists() {
 		if u.UnitType == terran.SiegeTank {
-			u.AttackCustom(scl.DefaultAttackFunc, scl.DefaultMoveFunc, Targets.ArmedGround, Targets.Ground)
+			u.Attack(Targets.ArmedGround, Targets.Ground)
 		} else if u.UnitType == terran.SiegeTankSieged {
-			targets := Targets.ArmedGround.InRangeOf(u.Unit.Unit, 0)
+			targets := Targets.ArmedGround.InRangeOf(u, 0)
 			if targets.Empty() {
-				targets = Targets.Ground.InRangeOf(u.Unit.Unit, 0)
+				targets = Targets.Ground.InRangeOf(u, 0)
 			}
 			if targets.Exists() {
-				u.AttackCustom(scl.DefaultAttackFunc, scl.DefaultMoveFunc, targets)
+				u.Attack(targets)
 			}
 		}
 		return true
 	}
 	return false
+}
+
+func TanksLogic(us scl.Units) {
+	for _, u := range us {
+		_ = TankRetreat(u) || TankManeuver(u) || TankMorph(u) || TankAttack(u) || DefaultExplore(u)
+	}
 }

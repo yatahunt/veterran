@@ -7,14 +7,41 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/ability"
 )
 
-type Battlecruiser struct {
-	*Unit
-
-	YamatoTargets map[api.UnitTag]int
+func BattlecruiserRetreat(u *scl.Unit) bool {
+	if (u.HasAbility(ability.Effect_TacticalJump) && u.Hits < 100) ||
+		(!u.HasAbility(ability.Effect_TacticalJump) && u.Hits < u.HitsMax/2) {
+		B.Groups.Add(bot.MechRetreat, u)
+		return true
+	}
+	return false
 }
 
-func NewBattlecruiser(u *scl.Unit) *Battlecruiser {
-	return &Battlecruiser{Unit: NewUnit(u)}
+func BattlecruiserCast(u *scl.Unit, yamatoTargets map[api.UnitTag]int) bool {
+	if Targets.ForYamato.Exists() && u.HasAbility(ability.Effect_YamatoGun) {
+		targets := Targets.ForYamato.InRangeOf(u, 4).Filter(func(unit *scl.Unit) bool {
+			return unit.Hits-float64(yamatoTargets[unit.Tag]*240) > 0
+		})
+		if targets.Exists() {
+			target := targets.Filter(func(unit *scl.Unit) bool {
+				return unit.Hits-float64(yamatoTargets[unit.Tag]*240) <= 240
+			}).Max(scl.CmpHits)
+			if target == nil {
+				target = targets.Max(scl.CmpHits)
+			}
+			u.CommandTag(ability.Effect_YamatoGun, target.Tag)
+			yamatoTargets[target.Tag]++
+			return true
+		}
+	}
+	return false
+}
+
+func BattlecruisersAttack(u *scl.Unit) bool {
+	if Targets.All.Exists() {
+		u.Attack(Targets.ForYamato, Targets.Armed, Targets.All)
+		return true
+	}
+	return false
 }
 
 func BattlecruisersLogic(us scl.Units) {
@@ -30,41 +57,7 @@ func BattlecruisersLogic(us scl.Units) {
 	}
 
 	for _, u := range us {
-		bc := NewBattlecruiser(u)
-		bc.YamatoTargets = yamatoTargets
-		bc.Logic(bc)
+		_ = BattlecruiserRetreat(u) || BattlecruiserCast(u, yamatoTargets) || BattlecruisersAttack(u) ||
+			DefaultExplore(u)
 	}
-}
-
-func (u *Battlecruiser) Retreat() bool {
-	if (u.HasAbility(ability.Effect_TacticalJump) && u.Hits < 100) ||
-		(!u.HasAbility(ability.Effect_TacticalJump) && u.Hits < u.HitsMax/2) {
-		B.Groups.Add(bot.MechRetreat, u.Unit.Unit)
-		return true
-	}
-	return false
-}
-
-func (u *Battlecruiser) Maneuver() bool {
-	return false
-}
-
-func (u *Battlecruiser) Cast() bool {
-	if Targets.ForYamato.Exists() && u.HasAbility(ability.Effect_YamatoGun) {
-		targets := Targets.ForYamato.InRangeOf(u.Unit.Unit, 4).Filter(func(unit *scl.Unit) bool {
-			return unit.Hits-float64(u.YamatoTargets[unit.Tag]*240) > 0
-		})
-		if targets.Exists() {
-			target := targets.Filter(func(unit *scl.Unit) bool {
-				return unit.Hits-float64(u.YamatoTargets[unit.Tag]*240) <= 240
-			}).Max(scl.CmpHits)
-			if target == nil {
-				target = targets.Max(scl.CmpHits)
-			}
-			u.CommandTag(ability.Effect_YamatoGun, target.Tag)
-			u.YamatoTargets[target.Tag]++
-			return true
-		}
-	}
-	return false
 }

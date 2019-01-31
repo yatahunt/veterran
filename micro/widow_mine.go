@@ -8,61 +8,8 @@ import (
 	"math/rand"
 )
 
-type WidowMine struct {
-	*Unit
-}
-
-func NewWidowMine(u *scl.Unit) *WidowMine {
-	return &WidowMine{Unit: NewUnit(u)}
-}
-
-func WidowMinesLogic(us scl.Units) {
-	for _, u := range us {
-		w := NewWidowMine(u)
-		w.Logic(w)
-	}
-}
-
-func WidowMinesRetreatLogic(us scl.Units) {
-	for _, u := range us {
-		m := NewWidowMine(u)
-		if m.Hits < m.HitsMax {
-			B.Groups.Add(bot.MechRetreat, m.Unit.Unit)
-			continue
-		}
-		if m.IsBurrowed && m.HasAbility(ability.Smart) {
-			B.Groups.Add(bot.WidowMines, m.Unit.Unit)
-			continue
-		}
-		if m.IsIdle() {
-			vec := (B.Locs.EnemyStart - m.Point()).Norm()
-			p1 := m.Point() - vec*20
-			p2 := p1
-			if rand.Intn(2) == 1 {
-				vec *= 1i
-			} else {
-				vec *= -1i
-			}
-			for {
-				if !B.IsPathable(p2 + vec*10) {
-					break
-				}
-				p2 += vec * 10
-			}
-
-			m.CommandPos(ability.Move, p1)
-			m.CommandPosQueue(ability.Move, p2)
-			m.CommandQueue(ability.BurrowDown_WidowMine)
-		}
-	}
-}
-
-func (u *WidowMine) Retreat() bool {
-	return false
-}
-
-func (u *WidowMine) Maneuver() bool {
-	attackers := B.Enemies.AllReady.CanAttack(u.Unit.Unit, 2)
+func WidowMineManeuver(u *scl.Unit) bool {
+	attackers := B.Enemies.AllReady.CanAttack(u, 2)
 	// Someone is attacking mine, but it can't attack anyone
 	detected := false
 	if u.HPS > 0 {
@@ -81,9 +28,9 @@ func (u *WidowMine) Maneuver() bool {
 		Targets.ForMines.CloserThan(10, u).Empty() && attackers.Empty()) {
 		// No targets or enemies around
 		if u.Hits < u.HitsMax/2 {
-			B.Groups.Add(bot.MechRetreat, u.Unit.Unit)
+			B.Groups.Add(bot.MechRetreat, u)
 		} else {
-			B.Groups.Add(bot.WidowMinesRetreat, u.Unit.Unit)
+			B.Groups.Add(bot.WidowMinesRetreat, u)
 		}
 		u.Command(ability.BurrowUp_WidowMine)
 		return true
@@ -108,6 +55,41 @@ func (u *WidowMine) Maneuver() bool {
 	return false
 }
 
-func (u *WidowMine) Attack() bool {
-	return false
+func WidowMinesLogic(us scl.Units) {
+	for _, u := range us {
+		_ = WidowMineManeuver(u) || DefaultExplore(u)
+	}
+}
+
+func WidowMinesRetreatLogic(us scl.Units) {
+	for _, u := range us {
+		if u.Hits < u.HitsMax {
+			B.Groups.Add(bot.MechRetreat, u)
+			continue
+		}
+		if u.IsBurrowed && u.HasAbility(ability.Smart) {
+			B.Groups.Add(bot.WidowMines, u)
+			continue
+		}
+		if u.IsIdle() {
+			vec := (B.Locs.EnemyStart - u.Point()).Norm()
+			p1 := u.Point() - vec*20
+			p2 := p1
+			if rand.Intn(2) == 1 {
+				vec *= 1i
+			} else {
+				vec *= -1i
+			}
+			for {
+				if !B.IsPathable(p2 + vec*10) {
+					break
+				}
+				p2 += vec * 10
+			}
+
+			u.CommandPos(ability.Move, p1)
+			u.CommandPosQueue(ability.Move, p2)
+			u.CommandQueue(ability.BurrowDown_WidowMine)
+		}
+	}
 }

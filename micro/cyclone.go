@@ -6,21 +6,6 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/ability"
 )
 
-type Cyclone struct {
-	*Unit
-}
-
-func NewCyclone(u *scl.Unit) *Cyclone {
-	return &Cyclone{Unit: NewUnit(u)}
-}
-
-func CyclonesLogic(us scl.Units) {
-	for _, u := range us {
-		c := NewCyclone(u)
-		c.Logic(c)
-	}
-}
-
 func CycloneAttackFunc(u *scl.Unit, priority int, targets scl.Units) bool {
 	hasLockOn := u.HasAbility(ability.Effect_LockOn)
 	visibleTargets := targets.Filter(scl.Visible)
@@ -56,8 +41,8 @@ func CycloneMoveFunc(u *scl.Unit, target *scl.Unit) {
 	}
 }
 
-func (u *Cyclone) Maneuver() bool {
-	attackers := B.Enemies.AllReady.CanAttack(u.Unit.Unit, 2)
+func CycloneManeuver(u *scl.Unit) bool {
+	attackers := B.Enemies.AllReady.CanAttack(u, 2)
 	canLock := u.HasAbility(ability.Effect_LockOn)
 	/*target := allEnemies.ByTag(cyclone.EngagedTargetTag)
 	isLocked := !canLock && target != nil
@@ -68,8 +53,8 @@ func (u *Cyclone) Maneuver() bool {
 			u.GroundFallback(attackers, 2, B.HomePaths)
 			return true
 		}
-	} else if !u.IsCool() {
-		closeTargets := Targets.Armed.InRangeOf(u.Unit.Unit, -0.5)
+	} else if !u.IsHalfCool() {
+		closeTargets := Targets.Armed.InRangeOf(u, -0.5)
 		if attackers.Exists() || closeTargets.Exists() {
 			u.GroundFallback(attackers, 2, B.HomePaths)
 			return true
@@ -78,10 +63,16 @@ func (u *Cyclone) Maneuver() bool {
 	return false
 }
 
-func (u *Cyclone) Attack() bool {
+func CycloneAttack(u *scl.Unit) bool {
 	if Targets.All.Exists() {
 		u.AttackCustom(CycloneAttackFunc, CycloneMoveFunc, Targets.ArmedFlying, Targets.Armed, Targets.All)
 		return true
 	}
 	return false
+}
+
+func CyclonesLogic(us scl.Units) {
+	for _, u := range us {
+		_ = DefaultRetreat(u) || CycloneManeuver(u) || CycloneAttack(u) || DefaultExplore(u)
+	}
 }

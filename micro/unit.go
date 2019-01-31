@@ -8,33 +8,18 @@ import (
 	"math/rand"
 )
 
-type Unit struct {
-	*scl.Unit
-}
-type TerranUnit interface {
-	Retreat() bool
-	Maneuver() bool
-	Cast() bool
-	Attack() bool
-	Explore() bool
-}
-
-func NewUnit(u *scl.Unit) *Unit {
-	return &Unit{u}
-}
-
-func (u *Unit) Retreat() bool {
+func DefaultRetreat(u *scl.Unit) bool {
 	if u.Hits < u.HitsMax/2 {
-		B.Groups.Add(bot.MechRetreat, u.Unit)
+		B.Groups.Add(bot.MechRetreat, u)
 		return true
 	}
 	return false
 }
 
-func (u *Unit) Maneuver() bool {
-	if !u.IsCool() {
-		attackers := B.Enemies.AllReady.CanAttack(u.Unit, 2)
-		closeTargets := Targets.Armed.InRangeOf(u.Unit, -0.5)
+func DefaultManeuver(u *scl.Unit) bool {
+	if !u.IsHalfCool() {
+		attackers := B.Enemies.AllReady.CanAttack(u, 2)
+		closeTargets := Targets.Armed.InRangeOf(u, -0.5)
 		if attackers.Exists() || closeTargets.Exists() {
 			u.GroundFallback(attackers, 2, B.HomePaths)
 			return true
@@ -43,19 +28,23 @@ func (u *Unit) Maneuver() bool {
 	return false
 }
 
-func (u *Unit) Cast() bool {
-	return false
-}
-
-func (u *Unit) Attack() bool {
+func DefaultAttack(u *scl.Unit) bool {
 	if Targets.All.Exists() {
-		u.AttackCustom(scl.DefaultAttackFunc, scl.DefaultMoveFunc, Targets.Armed, Targets.All)
+		u.Attack(Targets.Armed, Targets.All)
 		return true
 	}
 	return false
 }
 
-func (u *Unit) Explore() bool {
+func DefaultGroundAttack(u *scl.Unit) bool {
+	if Targets.Ground.Exists() {
+		u.Attack(Targets.ArmedGround, Targets.Ground)
+		return true
+	}
+	return false
+}
+
+func DefaultExplore(u *scl.Unit) bool {
 	if B.PlayDefensive {
 		pos := B.Ramps.My.Top
 		bunkers := B.Units.My[terran.Bunker]
@@ -78,12 +67,4 @@ func (u *Unit) Explore() bool {
 		}
 	}
 	return true
-}
-
-func (u *Unit) Logic(t TerranUnit) {
-	for _, f := range []func() bool{t.Retreat, t.Maneuver, t.Cast, t.Attack, t.Explore} {
-		if f() {
-			break
-		}
-	}
 }
