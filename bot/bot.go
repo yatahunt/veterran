@@ -4,7 +4,7 @@ import (
 	"bitbucket.org/aisee/sc2lib"
 )
 
-const version = "VeTerran v2.0.0 (glhf)"
+const version = "VeTerran v2.0.1 (glhf)"
 
 type Bot struct {
 	scl.Bot
