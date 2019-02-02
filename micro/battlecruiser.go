@@ -38,7 +38,7 @@ func BattlecruiserCast(u *scl.Unit, yamatoTargets map[api.UnitTag]int) bool {
 
 func BattlecruisersAttack(u *scl.Unit) bool {
 	if Targets.All.Exists() {
-		u.Attack(Targets.ForYamato, Targets.Armed, Targets.All)
+		u.Attack(Targets.ForYamato, Targets.AntiAir, Targets.Armed, Targets.All)
 		return true
 	}
 	return false

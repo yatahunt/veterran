@@ -118,8 +118,8 @@ func Cast() {
 				return
 			}
 		}
-		// Mule
-		if cc.Energy >= 75 || (B.Loop < 4928 && cc.Energy >= 50) { // 3:40
+		// Mule on 50 energy until 4:00, until 7:00 if vs zerg
+		if cc.Energy >= 75 || ((B.Loop < 5376 || B.Loop < 9408 && B.EnemyRace == api.Race_Zerg) && cc.Energy >= 50) {
 			ccs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand,
 				terran.PlanetaryFortress).Filter(scl.Ready)
 			ccs.OrderByDistanceTo(cc, false)

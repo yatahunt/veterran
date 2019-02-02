@@ -21,6 +21,7 @@ type TargetsTypes struct {
 	ArmedGround        scl.Units
 	ArmedGroundArmored scl.Units
 	ArmedGroundLight   scl.Units
+	AntiAir            scl.Units
 	ReaperOk           scl.Units
 	ReaperGood         scl.Units
 	ForMines           scl.Units
@@ -52,6 +53,9 @@ func InitTargets() {
 			Targets.Armed.Add(u)
 			if u.IsArmored() {
 				Targets.ArmedArmored.Add(u)
+			}
+			if u.AirDamage() > 0 {
+				Targets.AntiAir.Add(u)
 			}
 		}
 		if u.IsFlying {
