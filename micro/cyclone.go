@@ -44,9 +44,6 @@ func CycloneMoveFunc(u *scl.Unit, target *scl.Unit) {
 func CycloneManeuver(u *scl.Unit) bool {
 	attackers := B.Enemies.AllReady.CanAttack(u, 2)
 	canLock := u.HasAbility(ability.Effect_LockOn)
-	/*target := allEnemies.ByTag(cyclone.EngagedTargetTag)
-	isLocked := !canLock && target != nil
-	canAttack := !isLocked && cyclone.IsCool()*/
 	if !canLock {
 		target := Targets.Armed.ClosestTo(u)
 		if target != nil && u.InRange(target, 4) {

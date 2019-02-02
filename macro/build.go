@@ -79,6 +79,9 @@ var RootBuildOrder = BuildNodes{
 				B.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Len() == 1 {
 				return false // Wait for a second cc
 			}
+			if B.Loop < 1344 && B.FoodUsed < 14 /*&& B.EnemyRace != api.Race_Protoss*/ {
+				return false // Train SCVs without delay /*if no worker rush is possible*/
+			}
 			return B.FoodLeft < 6+B.FoodUsed/20 && B.FoodCap < 200
 		},
 		Limit:  func() int { return 30 },

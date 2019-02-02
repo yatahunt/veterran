@@ -18,10 +18,9 @@ func DefaultRetreat(u *scl.Unit) bool {
 
 func DefaultManeuver(u *scl.Unit) bool {
 	if !u.IsHalfCool() {
-		attackers := B.Enemies.AllReady.CanAttack(u, 2)
 		closeTargets := Targets.Armed.InRangeOf(u, -0.5)
-		if attackers.Exists() || closeTargets.Exists() {
-			u.GroundFallback(attackers, 2, B.HomePaths)
+		if closeTargets.Exists() {
+			u.GroundFallback(B.Enemies.AllReady, 2, B.HomePaths)
 			return true
 		}
 	}

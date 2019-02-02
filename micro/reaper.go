@@ -45,20 +45,16 @@ func ReaperManeuver(u *scl.Unit) bool {
 			// And it is closer than shooting distance -0.5
 			if u.InRange(closestEnemy, -0.5) {
 				// Retreat a little
-				attackers := B.Enemies.AllReady.CanAttack(u, 2)
-				u.GroundFallback(attackers, -0.5, B.HomeReaperPaths)
+				u.GroundFallback(B.Enemies.AllReady, -0.5, B.HomeReaperPaths)
 				return true
 			}
 		}
-	}
-	// iscool vs lings
-	if !u.IsCool() {
+	} else if !u.IsCool() { // iscool vs lings
 		if closestEnemy := Targets.ReaperGood.Filter(scl.Visible).ClosestTo(u); closestEnemy != nil {
 			// And it is closer than shooting distance -2
 			if u.InRange(closestEnemy, -2) {
 				// Retreat
-				attackers := B.Enemies.AllReady.CanAttack(u, 2)
-				u.GroundFallback(attackers, -2, B.HomeReaperPaths)
+				u.GroundFallback(B.Enemies.AllReady, -2, B.HomeReaperPaths)
 				return true
 			}
 		}

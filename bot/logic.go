@@ -256,7 +256,7 @@ func DefensivePlayCheck() {
 	enemyScore := B.Enemies.All.Filter(scl.NotWorker).Sum(scl.CmpFood)
 	if armyScore > enemyScore*1.5 && B.Obs.Score.ScoreDetails.FoodUsed.Army >= 50 || B.FoodUsed > 180 {
 		DisableDefensivePlay()
-	} else if armyScore*1.5 < enemyScore {
+	} else if armyScore < enemyScore {
 		EnableDefensivePlay()
 	}
 	/*if B.Loop >= 3584 && B.Loop < 3594 { // 2:40

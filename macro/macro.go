@@ -28,12 +28,12 @@ func Morph() {
 	}
 	groundEnemies := B.Enemies.All.Filter(scl.NotFlying)
 	for _, supply := range B.Units.My[terran.SupplyDepot].Filter(scl.Ready) {
-		if groundEnemies.CloserThan(4, supply).Empty() {
+		if groundEnemies.CloserThan(5, supply).Empty() {
 			supply.Command(ability.Morph_SupplyDepot_Lower)
 		}
 	}
 	for _, supply := range B.Units.My[terran.SupplyDepotLowered] {
-		if groundEnemies.CloserThan(4, supply).Exists() {
+		if groundEnemies.CloserThan(5, supply).Exists() {
 			supply.Command(ability.Morph_SupplyDepot_Raise)
 		}
 	}
@@ -50,7 +50,7 @@ func Cast() {
 			visibleEnemies := allEnemies.Filter(scl.PosVisible)
 			units := B.Units.My.All()
 			// Reaper wants to see highground
-			if B.Units.My[terran.Raven].Empty() {
+			/*if B.Units.My[terran.Raven].Empty() {
 				if reaper := B.Groups.Get(bot.Reapers).Units.ClosestTo(B.Locs.EnemyStart); reaper != nil {
 					if enemy := allEnemies.CanAttack(reaper, 1).ClosestTo(reaper); enemy != nil {
 						if !B.IsVisible(enemy) && B.HeightAt(enemy) > B.HeightAt(reaper) {
@@ -61,7 +61,7 @@ func Cast() {
 						}
 					}
 				}
-			}
+			}*/
 
 			// Vision for tanks
 			tanks := B.Units.My[terran.SiegeTankSieged]
@@ -141,7 +141,7 @@ func ReserveSCVs() {
 		B.Groups.Get(bot.ScvReserve).Tags.Empty() {
 		pos := B.BuildPos[scl.S2x2][0]
 		scv := bot.GetSCV(pos, 0, 45) // Get SCV but don't change its group
-		if scv != nil && scv.FramesToPos(pos)*B.MineralsPerFrame+float64(B.Minerals)+20 >= 100 {
+		if scv != nil && scv.FramesToPos(pos)*B.MineralsPerFrame+float64(B.Minerals) >= 100 {
 			B.Groups.Add(bot.ScvReserve, scv)
 			scv.CommandPos(ability.Move, pos)
 		}
