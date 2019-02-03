@@ -180,7 +180,7 @@ func OrderUnits() {
 		hellionsScore := B.EnemyProduction.Score(zerg.Zergling, zerg.Baneling, zerg.SwarmHostMP) + 1
 		buyMines := minesScore/float64(mines+1) >= hellionsScore/float64(hellions+1)
 
-		if buyMines {
+		if buyMines && (mines == 0 || hellions != 0) {
 			if B.CanBuy(ability.Train_WidowMine) {
 				OrderTrain(factory, ability.Train_WidowMine, usedFactories)
 			} else if mines == 0 || B.MechPriority {

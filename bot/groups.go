@@ -24,6 +24,7 @@ const (
 	WidowMines
 	WidowMinesRetreat
 	Hellions
+	HellionScout
 	Tanks
 	TanksOnExps
 	Medivacs

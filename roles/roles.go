@@ -258,6 +258,36 @@ func ReconBase() {
 	}
 }
 
+func ReconHellion() {
+	hellion := B.Groups.Get(bot.HellionScout).Units.First()
+	if hellion == nil {
+		hellions := B.Groups.Get(bot.Hellions).Units
+		if hellions.Exists() && (!B.LingRush || hellions.Len() > 2) {
+			hellion = hellions.ClosestTo(B.Locs.EnemyStart)
+			B.Groups.Add(bot.HellionScout, hellion)
+		} else {
+			return
+		}
+	}
+	if hellion.UnitType == terran.HellionTank {
+		hellion.Command(ability.Morph_Hellion)
+		return
+	}
+	if hellion.IsIdle() {
+		// todo: what if all locs are taken?
+		// todo: order by dist? Make shortest route?
+		// todo: evade enemy forces, but harass workers if no defense
+		for _, pos := range B.Locs.EnemyExps {
+			if B.IsVisible(pos) ||
+				B.Enemies.Visible.CloserThan(3, pos).Exists() ||
+				B.Units.My.All().CloserThan(3, pos).Exists() {
+				continue
+			}
+			hellion.CommandPosQueue(ability.Move, pos)
+		}
+	}
+}
+
 func Mine() {
 	enemies := B.Enemies.Visible.Filter(scl.DpsGt5)
 	miners := B.Groups.Get(bot.Miners).Units
@@ -366,6 +396,7 @@ func Roles() {
 	DoubleHeal()
 	Recon()
 	ReconBase()
+	ReconHellion()
 	Mine()
 	TanksOnExpansions()
 	BuildingsCheck()
