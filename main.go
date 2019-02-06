@@ -14,6 +14,10 @@ import (
 	"time"
 )
 
+// todo: нельзя перестраивать маршруты когда меняется pathing grid, иначе образуются неправильные пути
+// todo: против протосов не ставится второй барак, м.б. очень жадное развитие, это м.б. опасно
+// todo: постройка цц и бункера не отменилась даже когда позиции оказались на экспе чизерга были разведаны рабочими. И после этого вообще всё заглючило и экспы больше не ставились (наверное, близость врага вообще отменяет строительство экспов)
+// todo: Подбитые закопанные перезарядившиеся мины остаются на месте навсегда
 // todo: Если много минералов (потому что не можешь выйти на 3-ю), переходить в био
 // todo: иногда рабочих запирает между зданиями -> поднять здание, которое не может построить аддон?
 // todo: уклонение от эффектов не работает, если цель движения не попадает в эффект
@@ -41,7 +45,7 @@ func run() {
 
 	rand.Seed(time.Now().UnixNano())
 	runner.Set("map", maps[rand.Intn(len(maps))]+".SC2Map")
-	// runner.Set("map", "DarknessSanctuaryLE.SC2Map")
+	runner.Set("map", "BlueshiftLE.SC2Map")
 	runner.Set("ComputerOpponent", "true")
 	runner.Set("ComputerRace", "random")           // terran zerg protoss random
 	runner.Set("ComputerDifficulty", "CheatMoney") // CheatInsane CheatMoney VeryHard

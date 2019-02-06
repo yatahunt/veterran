@@ -259,7 +259,7 @@ func ReconBase() {
 }
 
 func ReconHellion() {
-	hellion := B.Groups.Get(bot.HellionScout).Units.First()
+	/*hellion := B.Groups.Get(bot.HellionScout).Units.First()
 	if hellion == nil {
 		hellions := B.Groups.Get(bot.Hellions).Units
 		if hellions.Exists() && (!B.LingRush || hellions.Len() > 2) {
@@ -285,7 +285,7 @@ func ReconHellion() {
 			}
 			hellion.CommandPosQueue(ability.Move, pos)
 		}
-	}
+	}*/
 }
 
 func Mine() {

@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"bitbucket.org/aisee/minilog"
 	"bitbucket.org/aisee/sc2lib"
 )
 
@@ -52,11 +51,12 @@ func InitBot() {
 		B.Debug3x3Buildings(B.FindRampBarracksPositions(ramp))
 	}*/
 
-	/*start := time.Now()
+	/*start = time.Now()
 	for x := 1; x < 100; x++ {
-		B.Path(B.Ramps.My.Top, B.EnemyRamp.Top)
+		B.Path(B.Ramps.My.Top, B.Ramps.Enemy.Top)
 	}
-	path, dist := B.Path(B.Ramps.My.Top, B.EnemyRamp.Top)
+	log.Info(time.Now().Sub(start))*/
+	/*path, dist := B.Path(B.Ramps.My.Top, B.EnemyRamp.Top)
 	log.Info(time.Now().Sub(start), dist, path)
 	B.DebugPath(path)
 	B.DebugSend()*/
@@ -73,29 +73,13 @@ func InitBot() {
 	log.Info(time.Now().Sub(start))
 	B.DebugPath(path)
 	B.DebugSend()*/
-
-	wpm := B.FindWaypointsMap()
-	wps := scl.Points{}
-	lines := scl.Lines{}
-	for p, ns := range wpm {
-		wps = append(wps, p.Point)
-		for _, n := range ns {
-			lines.Add(scl.Line{A: p.Point, B: n.Point})
-		}
-	}
-	path, dist := B.NavPath(wpm, B.Ramps.My.Top, B.Ramps.Enemy.Top)
-	log.Info(dist, path)
-	B.DebugMap()
-	B.DebugPath(wps, scl.White)
-	B.DebugLines(lines, scl.White)
-	B.DebugPath(path, scl.Yellow)
-	B.DebugSend()
 }
 
 func GGCheck() bool {
-	return B.Minerals < 50 &&
+	return (B.Minerals < 50 &&
 		B.Units.My.All().First(func(unit *scl.Unit) bool { return !unit.IsStructure() }) == nil &&
-		B.Enemies.All.First(scl.DpsGt5) != nil
+		B.Enemies.All.First(scl.DpsGt5) != nil) ||
+		B.Units.My.All().Filter(scl.Structure, scl.NotFlying).Empty()
 }
 
 // OnStep is called each game step (every game update by default)
