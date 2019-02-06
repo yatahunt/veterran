@@ -1,10 +1,11 @@
 package bot
 
 import (
+	"bitbucket.org/aisee/minilog"
 	"bitbucket.org/aisee/sc2lib"
 )
 
-const version = "VeTerran v2.0.3 (glhf)"
+const version = "VeTerran v2.0.4 (glhf)"
 
 type Bot struct {
 	scl.Bot
@@ -73,8 +74,22 @@ func InitBot() {
 	B.DebugPath(path)
 	B.DebugSend()*/
 
-	/*B.DebugMap()
-	B.DebugSend()*/
+	wpm := B.FindWaypointsMap()
+	wps := scl.Points{}
+	lines := scl.Lines{}
+	for p, ns := range wpm {
+		wps = append(wps, p.Point)
+		for _, n := range ns {
+			lines.Add(scl.Line{A: p.Point, B: n.Point})
+		}
+	}
+	path, dist := B.NavPath(wpm, B.Ramps.My.Top, B.Ramps.Enemy.Top)
+	log.Info(dist, path)
+	B.DebugMap()
+	B.DebugPath(wps, scl.White)
+	B.DebugLines(lines, scl.White)
+	B.DebugPath(path, scl.Yellow)
+	B.DebugSend()
 }
 
 func GGCheck() bool {
