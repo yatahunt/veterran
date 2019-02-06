@@ -6,13 +6,6 @@ import (
 	"github.com/chippydip/go-sc2ai/enums/ability"
 )
 
-func ReaperMoveFunc(u *scl.Unit, target *scl.Unit) {
-	// Unit need to be closer to the target to shoot?
-	if !u.InRange(target, -0.1) || !target.IsVisible() {
-		u.AttackMove(target, bot.B.HomeReaperPaths)
-	}
-}
-
 func ThrowMine(u *scl.Unit, targets scl.Units) bool {
 	closestEnemy := targets.ClosestTo(u)
 	if closestEnemy != nil && u.HasAbility(ability.Effect_KD8Charge) {
@@ -73,7 +66,7 @@ func ReaperAttack(u *scl.Unit, mfsPos, basePos scl.Point) bool {
 		return true
 	}
 	if Targets.ReaperOk.Exists() {
-		u.AttackCustom(scl.DefaultAttackFunc, ReaperMoveFunc, Targets.ReaperGood, Targets.ReaperOk)
+		u.Attack(Targets.ReaperGood, Targets.ReaperOk)
 		return true
 	}
 	return false
@@ -109,7 +102,7 @@ func ReapersRetreatLogic(us scl.Units) {
 		closeGoodTargets := Targets.ReaperGood.InRangeOf(u, 0)
 		// Use attack if enemy is close but can't attack reaper
 		if u.IsCool() && (closeGoodTargets.Exists() || closeOkTargets.Exists()) && attackers.Empty() {
-			u.AttackCustom(scl.DefaultAttackFunc, ReaperMoveFunc, closeGoodTargets, closeOkTargets)
+			u.Attack(closeGoodTargets, closeOkTargets)
 			continue
 		}
 		// Throw mine

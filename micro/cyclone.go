@@ -2,7 +2,6 @@ package micro
 
 import (
 	"bitbucket.org/aisee/sc2lib"
-	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 )
 
@@ -37,7 +36,7 @@ func CycloneAttackFunc(u *scl.Unit, priority int, targets scl.Units) bool {
 func CycloneMoveFunc(u *scl.Unit, target *scl.Unit) {
 	// Unit need to be closer to the target to shoot? (lock-on range)
 	if !u.InRange(target, 2-0.1) || !target.IsVisible() {
-		u.AttackMove(target, bot.B.HomePaths)
+		u.AttackMove(target)
 	}
 }
 
