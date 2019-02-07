@@ -128,6 +128,9 @@ func Step() {
 		B.Actions = nil
 	}
 
+	B.DebugOrders()
+	B.DebugSend()
+
 	/*if B.Loop % 20 == 0 {
 		B.DebugMap()
 		B.DebugSend()
