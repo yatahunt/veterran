@@ -72,6 +72,7 @@ func RunAgent(info client.AgentInfo) {
 		macro.Macro()
 		micro.Micro()
 	}
+	B.Init() // todo: Move init into lib
 
 	for B.Info.IsInGame() {
 		bot.Step()

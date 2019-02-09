@@ -1,7 +1,7 @@
 package roles
 
 import (
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
@@ -179,7 +179,7 @@ func Recon() {
 		if scv.IsIdle() {
 			// Check N-1 positions
 			for _, p := range B.Locs.EnemyStarts[:B.Locs.EnemyStarts.Len()-1] {
-				if B.IsExplored(p) {
+				if B.Grid.IsExplored(p) {
 					continue
 				}
 				scv.CommandPos(ability.Move, p)

@@ -2,7 +2,8 @@ package macro
 
 import (
 	"bitbucket.org/aisee/minilog"
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/point"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
@@ -355,14 +356,14 @@ var StarportBuildOrder = BuildNodes{
 	},
 }
 
-func OrderBuild(scv *scl.Unit, pos scl.Point, aid api.AbilityID) {
+func OrderBuild(scv *scl.Unit, pos point.Point, aid api.AbilityID) {
 	scv.CommandPos(aid, pos)
 	// scv.Orders = append(scv.Orders, &api.UnitOrder{AbilityId: aid}) // todo: move in commands
 	B.DeductResources(aid)
 	log.Debugf("%d: Building %v", B.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
 }
 
-func Build(aid api.AbilityID) scl.Point {
+func Build(aid api.AbilityID) point.Point {
 	size, ok := BuildingsSizes[aid]
 	if !ok {
 		log.Alertf("Can't find size for %v", scl.Types[scl.AbilityUnit[aid]].Name)
@@ -374,7 +375,7 @@ func Build(aid api.AbilityID) scl.Point {
 		return 0 // Not available because of tech reqs, like: supply is needed for barracks
 	}
 
-	var buildersTargets scl.Points
+	var buildersTargets point.Points
 	for _, builder := range B.Groups.Get(bot.Builders).Units {
 		buildersTargets.Add(builder.TargetPos())
 	}

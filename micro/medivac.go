@@ -1,7 +1,7 @@
 package micro
 
 import (
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 )

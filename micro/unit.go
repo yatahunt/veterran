@@ -1,7 +1,7 @@
 package micro
 
 import (
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/terran"
@@ -48,7 +48,7 @@ func DefaultExplore(u *scl.Unit) bool {
 		}
 		return true
 	}
-	if !B.IsExplored(B.Locs.EnemyStart) {
+	if !B.Grid.IsExplored(B.Locs.EnemyStart) {
 		u.CommandPos(ability.Attack, B.Locs.EnemyStart)
 	} else {
 		// Search for other bases

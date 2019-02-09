@@ -1,12 +1,13 @@
 package bot
 
 import (
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/point"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"github.com/chippydip/go-sc2ai/api"
 )
 
 // Pass assignGroup = 0 to skip group assignement
-func GetSCV(ptr scl.Pointer, assignGroup scl.GroupID, minHits float64) *scl.Unit {
+func GetSCV(ptr point.Pointer, assignGroup scl.GroupID, minHits float64) *scl.Unit {
 	// refs := B.Units.My.OfType(terran.Refinery, terran.RefineryRich)
 	scv1 := B.Groups.Get(ScvReserve).Units.ClosestTo(ptr)
 	scv2 := B.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {

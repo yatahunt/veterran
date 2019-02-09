@@ -1,7 +1,7 @@
 package micro
 
 import (
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/effect"
@@ -81,7 +81,7 @@ func WidowMinesRetreatLogic(us scl.Units) {
 				vec *= -1i
 			}
 			for {
-				if !B.IsPathable(p2 + vec*10) {
+				if !B.Grid.IsPathable(p2 + vec*10) {
 					break
 				}
 				p2 += vec * 10

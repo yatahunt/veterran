@@ -1,7 +1,7 @@
 package micro
 
 import (
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/terran"
@@ -11,7 +11,7 @@ import (
 func HellionMorph(u *scl.Unit) bool {
 	// Transform into hellbats vs zerg in defense, armory exists, not on main base
 	if B.EnemyRace == api.Race_Zerg && u.UnitType == terran.Hellion /*&& PlayDefensive*/ &&
-		B.Units.My[terran.Armory].First(scl.Ready) != nil && B.HeightAt(u) != B.HeightAt(B.Locs.MyStart) {
+		B.Units.My[terran.Armory].First(scl.Ready) != nil && B.Grid.HeightAt(u) != B.Grid.HeightAt(B.Locs.MyStart) {
 		u.Command(ability.Morph_Hellbat)
 		return true
 	}

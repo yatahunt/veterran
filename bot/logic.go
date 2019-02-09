@@ -1,20 +1,21 @@
 package bot
 
 import (
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/point"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 )
 
-func FindMainBuildingTypesPositions(startLoc scl.Point) (scl.Points, scl.Points, scl.Points) {
-	var pf2x2, pf3x3, pf5x3 scl.Points
-	slh := B.HeightAt(startLoc)
+func FindMainBuildingTypesPositions(startLoc point.Point) (point.Points, point.Points, point.Points) {
+	var pf2x2, pf3x3, pf5x3 point.Points
+	slh := B.Grid.HeightAt(startLoc)
 	start := startLoc + 9
 
 	for y := -3.0; y <= 3; y++ {
 		for x := -9.0; x <= 9; x++ {
-			pos := start + scl.Pt(3, 2).Mul(x) + scl.Pt(-6, 8).Mul(y)
-			if B.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S3x3, 2, scl.IsBuildable) {
+			pos := start + point.Pt(3, 2).Mul(x) + point.Pt(-6, 8).Mul(y)
+			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S3x3, 2, scl.IsBuildable) {
 				if B.IsPosOk(pos+2-1i, scl.S2x2, 2, scl.IsBuildable) {
 					pf5x3.Add(pos)
 				} else {
@@ -22,7 +23,7 @@ func FindMainBuildingTypesPositions(startLoc scl.Point) (scl.Points, scl.Points,
 				}
 			}
 			pos += 2 - 3i
-			if B.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S3x3, 2, scl.IsBuildable) {
+			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S3x3, 2, scl.IsBuildable) {
 				if B.IsPosOk(pos+2-1i, scl.S2x2, 2, scl.IsBuildable) {
 					pf5x3.Add(pos)
 				} else {
@@ -30,11 +31,11 @@ func FindMainBuildingTypesPositions(startLoc scl.Point) (scl.Points, scl.Points,
 				}
 			}
 			pos += 1 - 3i
-			if B.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S2x2, 2, scl.IsBuildable) {
+			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S2x2, 2, scl.IsBuildable) {
 				pf2x2.Add(pos)
 			}
 			pos += 2
-			if B.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S2x2, 2, scl.IsBuildable) {
+			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S2x2, 2, scl.IsBuildable) {
 				pf2x2.Add(pos)
 			}
 		}
@@ -44,10 +45,11 @@ func FindMainBuildingTypesPositions(startLoc scl.Point) (scl.Points, scl.Points,
 
 func FindBuildingsPositions() {
 	// Positions for first 2 supplies and barrack
+	// todo: grid := grid.New(B.Grid.StartRaw, B.Grid.MapState)
 	rp2x2 := B.FindRamp2x2Positions(B.Ramps.My)
 	B.FirstBarrack = B.FindRampBarracksPositions(B.Ramps.My)
 	if B.FirstBarrack.Len() > 1 && rp2x2.Len() > 1 {
-		points := []scl.Points{
+		points := []point.Points{
 			B.GetBuildingPoints(B.FirstBarrack[0], scl.S3x3),
 			B.GetBuildingPoints(B.FirstBarrack[1], scl.S5x3), // Take second position with addon
 			B.GetBuildingPoints(rp2x2[0], scl.S2x2),
@@ -55,8 +57,8 @@ func FindBuildingsPositions() {
 		}
 		for _, ps := range points {
 			for _, p := range ps {
-				B.SetBuildable(p, false)
-				B.SetPathable(p, false)
+				B.Grid.SetBuildable(p, false)
+				B.Grid.SetPathable(p, false)
 			}
 		}
 		// Position for turret
@@ -71,7 +73,7 @@ func FindBuildingsPositions() {
 	pf2x2, pf3x3, pf5x3 := FindMainBuildingTypesPositions(B.Locs.MyStart)
 
 	// Mark buildings positions as non-buildable
-	for size, poses := range map[scl.BuildingSize]scl.Points{
+	for size, poses := range map[scl.BuildingSize]point.Points{
 		scl.S2x2: append(rp2x2, pf2x2...),
 		scl.S3x3: pf3x3,
 		scl.S5x3: pf5x3,
@@ -79,8 +81,8 @@ func FindBuildingsPositions() {
 	} {
 		for _, pos := range poses {
 			for _, p := range B.GetBuildingPoints(pos, size) {
-				B.SetBuildable(p, false)
-				B.SetPathable(p, false)
+				B.Grid.SetBuildable(p, false)
+				B.Grid.SetPathable(p, false)
 			}
 		}
 	}
@@ -90,7 +92,7 @@ func FindBuildingsPositions() {
 	if mfs.Exists() {
 		for y := -12.0; y <= 12; y++ {
 			for x := -12.0; x <= 12; x++ {
-				vec := scl.Pt(x, y)
+				vec := point.Pt(x, y)
 				dist := vec.Len()
 				if dist <= 8 || dist >= 12 {
 					continue
@@ -104,8 +106,8 @@ func FindBuildingsPositions() {
 				}
 				pf3x3.Add(pos)
 				for _, p := range B.GetBuildingPoints(pos, scl.S3x3) {
-					B.SetBuildable(p, false)
-					B.SetPathable(p, false)
+					B.Grid.SetBuildable(p, false)
+					B.Grid.SetPathable(p, false)
 				}
 			}
 		}
@@ -120,7 +122,7 @@ func FindBuildingsPositions() {
 	/*if B.EnemyRace == api.Race_Protoss {
 		// Insert supplies for wall after pos that is closest to base
 		pos := pf2x2.FurthestTo(B.Ramps.My.Top)
-		pf2x2 = append(scl.Points{pos}, append(rp2x2, pf2x2...)...)
+		pf2x2 = append(point.Points{pos}, append(rp2x2, pf2x2...)...)
 		// Use closest 5x3 position for first barracks
 		FirstBarrack[0] = pf5x3.FurthestTo(B.Ramps.My.Top)
 	} else {*/
@@ -157,10 +159,10 @@ func FindTurretPosition(cc *scl.Unit) {
 	}
 
 	for _, p := range B.GetBuildingPoints(cc, scl.S5x5) {
-		B.SetBuildable(p, false)
+		B.Grid.SetBuildable(p, false)
 	}
 
-	var pos scl.Point
+	var pos point.Point
 	vec := (mfs.Center() - cc.Point()).Norm()
 	for x := 3.0; x < 8; x++ {
 		pos = (cc.Point() + vec.Mul(x)).Floor()
@@ -180,7 +182,7 @@ func FindTurretPosition(cc *scl.Unit) {
 	B.DebugSend()*/
 }
 
-func FindBunkerPosition(ptr scl.Pointer) {
+func FindBunkerPosition(ptr point.Pointer) {
 	ccPos := ptr.Point().Floor()
 	mfs := B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, ccPos)
 	vesps := B.Units.Geysers.All().CloserThan(scl.ResourceSpreadDistance, ccPos)
@@ -190,10 +192,10 @@ func FindBunkerPosition(ptr scl.Pointer) {
 	}
 
 	for _, p := range B.GetBuildingPoints(ccPos, scl.S5x5) {
-		B.SetBuildable(p, false)
+		B.Grid.SetBuildable(p, false)
 	}
 
-	var pos scl.Point
+	var pos point.Point
 	vec := (mfs.Center() - ccPos).Norm()
 	for x := 3.0; x < 8; x++ {
 		pos = (ccPos - vec.Mul(x)).Floor()
@@ -209,14 +211,14 @@ func FindBunkerPosition(ptr scl.Pointer) {
 	B.DebugSend()*/
 }
 
-func GetEmptyBunker(ptr scl.Pointer) *scl.Unit {
+func GetEmptyBunker(ptr point.Pointer) *scl.Unit {
 	bunkers := B.Units.My[terran.Bunker].Filter(func(unit *scl.Unit) bool {
 		return unit.CargoSpaceTaken < unit.CargoSpaceMax
 	})
 	return bunkers.Min(func(unit *scl.Unit) float64 { return unit.Dist2(ptr) })
 }
 
-func RecalcEnemyStartLoc(np scl.Point) {
+func RecalcEnemyStartLoc(np point.Point) {
 	B.Locs.EnemyStart = np
 	B.Locs.EnemyMainCenter = B.FindBaseCenter(B.Locs.EnemyStart)
 	B.FindExpansions()

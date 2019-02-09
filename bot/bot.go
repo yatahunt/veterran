@@ -1,7 +1,8 @@
 package bot
 
 import (
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/point"
+	"bitbucket.org/aisee/sc2lib/scl"
 )
 
 const version = "VeTerran v2.0.4 (glhf)"
@@ -19,10 +20,10 @@ type Bot struct {
 	BuildTurrets   bool
 	MechPriority   bool
 
-	BuildPos         map[scl.BuildingSize]scl.Points
-	FirstBarrack     scl.Points
-	TurretsPos       scl.Points
-	BunkersPos       scl.Points
+	BuildPos         map[scl.BuildingSize]point.Points
+	FirstBarrack     point.Points
+	TurretsPos       point.Points
+	BunkersPos       point.Points
 	FindTurretPosFor *scl.Unit
 
 	DoubleHealers []scl.GroupID
@@ -30,10 +31,11 @@ type Bot struct {
 
 var B = &Bot{
 	PlayDefensive: true,
-	BuildPos:      map[scl.BuildingSize]scl.Points{},
+	BuildPos:      map[scl.BuildingSize]point.Points{},
 }
 
 func InitBot() {
+	// todo: lib init, bot init
 	scl.InitUnits(B.Info.Data().Units)
 	scl.InitUpgrades(B.Info.Data().Upgrades)
 	scl.InitEffects(B.Info.Data().Effects)
@@ -128,8 +130,8 @@ func Step() {
 		B.Actions = nil
 	}
 
-	B.DebugOrders()
-	B.DebugSend()
+	/*B.DebugOrders()
+	B.DebugSend()*/
 
 	/*if B.Loop % 20 == 0 {
 		B.DebugMap()

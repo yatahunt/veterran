@@ -1,7 +1,8 @@
 package micro
 
 import (
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/point"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 )
@@ -55,13 +56,13 @@ func ReaperManeuver(u *scl.Unit) bool {
 	return false
 }
 
-func ReaperAttack(u *scl.Unit, mfsPos, basePos scl.Point) bool {
+func ReaperAttack(u *scl.Unit, mfsPos, basePos point.Point) bool {
 	closeTargets := Targets.ReaperGood.InRangeOf(u, 2)
-	if mfsPos != 0 && !B.IsExplored(mfsPos) && closeTargets.Empty() {
+	if mfsPos != 0 && !B.Grid.IsExplored(mfsPos) && closeTargets.Empty() {
 		u.CommandPos(ability.Move, mfsPos)
 		return true
 	}
-	if basePos != 0 && !B.IsExplored(basePos) && closeTargets.Empty() {
+	if basePos != 0 && !B.Grid.IsExplored(basePos) && closeTargets.Empty() {
 		u.CommandPos(ability.Move, basePos)
 		return true
 	}
@@ -77,7 +78,7 @@ func ReapersLogic(us scl.Units) {
 		return
 	}
 
-	var mfsPos, basePos scl.Point
+	var mfsPos, basePos point.Point
 	// For exp recon before 4:00
 	if B.Loop < 5376 && B.Enemies.All.CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty() {
 		mfsPos = B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, B.Locs.EnemyExps[0]).Center()
@@ -85,8 +86,7 @@ func ReapersLogic(us scl.Units) {
 	}
 
 	for _, u := range us {
-		_ = ReaperRetreat(u) || ReaperManeuver(u) || MarauderStim(u) || ReaperAttack(u, mfsPos, basePos) ||
-			DefaultExplore(u)
+		_ = ReaperRetreat(u) || ReaperManeuver(u) || ReaperAttack(u, mfsPos, basePos) || DefaultExplore(u)
 	}
 }
 

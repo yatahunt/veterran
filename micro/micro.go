@@ -1,7 +1,8 @@
 package micro
 
 import (
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/point"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/enums/ability"
 	"github.com/chippydip/go-sc2ai/enums/protoss"
@@ -193,7 +194,7 @@ func MechRetreat() {
 
 		// Find closest healing point
 		var healingExp int
-		var healingPoint scl.Point
+		var healingPoint point.Point
 		dist := math.Inf(1)
 		for _, expNum := range healingPoints {
 			newDist := u.Dist2(B.Locs.MyExps[expNum])

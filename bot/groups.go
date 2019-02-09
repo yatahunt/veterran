@@ -1,7 +1,7 @@
 package bot
 
 import (
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"github.com/chippydip/go-sc2ai/enums/terran"
 )
 

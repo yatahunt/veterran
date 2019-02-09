@@ -2,7 +2,7 @@ package macro
 
 import (
 	"bitbucket.org/aisee/minilog"
-	"bitbucket.org/aisee/sc2lib"
+	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
 	"github.com/chippydip/go-sc2ai/api"
 	"github.com/chippydip/go-sc2ai/enums/ability"
@@ -53,7 +53,7 @@ func Cast() {
 			/*if B.Units.My[terran.Raven].Empty() {
 				if reaper := B.Groups.Get(bot.Reapers).Units.ClosestTo(B.Locs.EnemyStart); reaper != nil {
 					if enemy := allEnemies.CanAttack(reaper, 1).ClosestTo(reaper); enemy != nil {
-						if !B.IsVisible(enemy) && B.HeightAt(enemy) > B.HeightAt(reaper) {
+						if !B.IsVisible(enemy) && B.Grid.HeightAt(enemy) > B.Grid.HeightAt(reaper) {
 							pos := enemy.Towards(B.Locs.EnemyStart, 8)
 							cc.CommandPos(ability.Effect_Scan, pos)
 							log.Debug("Reaper sight scan")
@@ -112,7 +112,7 @@ func Cast() {
 			if B.EnemyRace == api.Race_Zerg {
 				pos = B.Locs.EnemyStart
 			}
-			if B.Loop >= 5376 && !B.IsExplored(pos) {
+			if B.Loop >= 5376 && !B.Grid.IsExplored(pos) {
 				cc.CommandPos(ability.Effect_Scan, pos)
 				log.Debug("Recon scan")
 				return
