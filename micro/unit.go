@@ -20,7 +20,7 @@ func DefaultManeuver(u *scl.Unit) bool {
 	if !u.IsHalfCool() {
 		closeTargets := Targets.Armed.InRangeOf(u, -0.5)
 		if closeTargets.Exists() {
-			u.GroundFallback(B.Enemies.AllReady, 2, B.HomePaths)
+			u.GroundFallback(B.Enemies.AllReady, 2, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
 			return true
 		}
 	}

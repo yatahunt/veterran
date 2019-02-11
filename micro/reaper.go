@@ -39,7 +39,7 @@ func ReaperManeuver(u *scl.Unit) bool {
 			// And it is closer than shooting distance -0.5
 			if u.InRange(closestEnemy, -0.5) {
 				// Retreat a little
-				u.GroundFallback(B.Enemies.AllReady, -0.5, B.HomeReaperPaths)
+				u.GroundFallback(B.Enemies.AllReady, -0.5, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
 				return true
 			}
 		}
@@ -48,7 +48,7 @@ func ReaperManeuver(u *scl.Unit) bool {
 			// And it is closer than shooting distance -2
 			if u.InRange(closestEnemy, -2) {
 				// Retreat
-				u.GroundFallback(B.Enemies.AllReady, -2, B.HomeReaperPaths)
+				u.GroundFallback(B.Enemies.AllReady, -2, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
 				return true
 			}
 		}
@@ -110,6 +110,6 @@ func ReapersRetreatLogic(us scl.Units) {
 			continue
 		}
 
-		u.GroundFallback(attackers, 2, B.HomeReaperPaths)
+		u.GroundFallback(attackers, 2, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
 	}
 }

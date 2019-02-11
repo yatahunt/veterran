@@ -193,13 +193,11 @@ func MechRetreat() {
 		}
 
 		// Find closest healing point
-		var healingExp int
 		var healingPoint point.Point
 		dist := math.Inf(1)
 		for _, expNum := range healingPoints {
 			newDist := u.Dist2(B.Locs.MyExps[expNum])
 			if newDist < dist {
-				healingExp = expNum
 				healingPoint = B.Locs.MyExps[expNum] - B.Locs.MyStartMinVec*3
 				dist = newDist
 			}
@@ -241,7 +239,7 @@ func MechRetreat() {
 			pos, _ := u.AirEvade(enemies, 2, healingPoint)
 			u.CommandPos(ability.Move, pos)
 		} else {
-			u.GroundFallback(enemies, 2, B.ExpPaths[healingExp])
+			u.GroundFallback(enemies, 2, healingPoint)
 		}
 	}
 }

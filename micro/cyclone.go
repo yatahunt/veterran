@@ -46,13 +46,13 @@ func CycloneManeuver(u *scl.Unit) bool {
 	if !canLock {
 		target := Targets.Armed.ClosestTo(u)
 		if target != nil && u.InRange(target, 4) {
-			u.GroundFallback(attackers, 2, B.HomePaths)
+			u.GroundFallback(attackers, 2, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
 			return true
 		}
 	} else if !u.IsHalfCool() {
 		closeTargets := Targets.Armed.InRangeOf(u, -0.5)
 		if attackers.Exists() || closeTargets.Exists() {
-			u.GroundFallback(attackers, 2, B.HomePaths)
+			u.GroundFallback(attackers, 2, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
 			return true
 		}
 	}

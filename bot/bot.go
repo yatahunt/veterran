@@ -5,7 +5,7 @@ import (
 	"bitbucket.org/aisee/sc2lib/scl"
 )
 
-const version = "VeTerran v2.0.4 (glhf)"
+const version = "VeTerran v2.1.0 (glhf)"
 
 type Bot struct {
 	scl.Bot
@@ -130,12 +130,10 @@ func Step() {
 		B.Actions = nil
 	}
 
-	/*B.DebugOrders()
-	B.DebugSend()*/
+	// B.DebugOrders()
+	// B.DebugMap()
+	// B.DebugWayMap(B.ReaperWayMap, true)
+	// B.DebugSend()
 
-	/*if B.Loop % 20 == 0 {
-		B.DebugMap()
-		B.DebugSend()
-	}*/
 	return
 }

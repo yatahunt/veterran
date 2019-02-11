@@ -37,6 +37,7 @@ import (
 // todo: убрать лишний скан после того как снаряды от убитой баньши долетают до цели
 // todo: use dead units events
 // todo: анализировать неуспешные попытки строительства, зарытые линги мешают поставить СС -> ставить башню рядом?
+// go tool pprof VeTerran.exe cpu.prof
 
 func run() {
 	log.SetConsoleLevel(log.L_info) // L_info L_debug
@@ -49,6 +50,7 @@ func run() {
 	runner.Set("ComputerOpponent", "true")
 	runner.Set("ComputerRace", "random")           // terran zerg protoss random
 	runner.Set("ComputerDifficulty", "CheatMoney") // CheatInsane CheatMoney VeryHard
+	client.MaxMessageSize = 10 * 1024 * 1024
 	// runner.Set("realtime", "true")
 
 	// Create the agent and then start the game
