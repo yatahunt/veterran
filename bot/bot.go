@@ -94,11 +94,11 @@ func Step() {
 	if B.Loop != 0 && B.Loop-B.LastLoop != 1 && !B.IsRealtime {
 		B.FramesPerOrder = 6
 		B.IsRealtime = true
-		B.ChatSend(version)
-		B.ChatSend("Realtime mode detected")
+		B.Actions.ChatSend(version)
+		B.Actions.ChatSend("Realtime mode detected")
 	}
 	if B.Loop == 8 && !B.IsRealtime {
-		B.ChatSend(version)
+		B.Actions.ChatSend(version)
 	}
 	if B.Loop != 0 && B.Loop == B.LastLoop {
 		return // Skip frame repeat
@@ -115,7 +115,7 @@ func Step() {
 	}
 
 	if GGCheck() {
-		B.ChatSend("(gg)")
+		B.Actions.ChatSend("(gg)")
 		B.Info.SendActions(B.Actions)
 		B.Info.LeaveGame()
 		return
@@ -128,6 +128,12 @@ func Step() {
 		// log.Info(B.Loop, len(B.Actions), B.Actions)
 		B.Info.SendActions(B.Actions)
 		B.Actions = nil
+	}
+
+	for _, cr := range B.Info.Observation().Chat {
+		if cr.Message == "s" {
+			B.SaveState()
+		}
 	}
 
 	// B.DebugOrders()
