@@ -24,6 +24,7 @@ func Benchmark_Pathing(b *testing.B) {
 
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
+		// B.FindWaypointsMap(B.Grid)
 		scl.NavPath(B.Grid, B.WayMap, B.Locs.MyStart-3, B.Locs.EnemyStart-3)
 	}
 }
