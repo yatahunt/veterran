@@ -114,6 +114,8 @@ func Step() {
 		InitBot()
 	}
 
+	B.FindClusters()
+
 	if GGCheck() {
 		B.Actions.ChatSend("(gg)")
 		B.Info.SendActions(B.Actions)
@@ -139,6 +141,8 @@ func Step() {
 	// B.DebugOrders()
 	// B.DebugMap()
 	// B.DebugWayMap(B.ReaperWayMap, true)
+	// B.DebugEnemyUnits()
+	// B.DebugClusters()
 	// B.DebugSend()
 
 	return
