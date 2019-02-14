@@ -34,47 +34,17 @@ var B = &Bot{
 	BuildPos:      map[scl.BuildingSize]point.Points{},
 }
 
-func InitBot() {
-	// todo: lib init, bot init
-	scl.InitUnits(B.Info.Data().Units)
-	scl.InitUpgrades(B.Info.Data().Upgrades)
-	scl.InitEffects(B.Info.Data().Effects)
-	B.InitLocations()
-	B.FindExpansions()
-	B.InitMining()
-	B.FindRamps()
-	B.InitRamps()
-	go B.RenewPaths()
-
-	FindBuildingsPositions()
-
-	/*for _, ramp := range B.Ramps {
-		B.Debug2x2Buildings(B.FindRamp2x2Positions(ramp)...)
-		B.Debug3x3Buildings(B.FindRampBarracksPositions(ramp))
-	}*/
-
-	/*start = time.Now()
-	for x := 1; x < 100; x++ {
-		B.Path(B.Ramps.My.Top, B.Ramps.Enemy.Top)
+// todo: better names -> Parse? Init everywhere
+func Init() {
+	B.ParseObservation()
+	B.ParseUnits()
+	B.ParseOrders()
+	B.DetectEnemyRace()
+	if B.Locs.MyExps.Len() == 0 {
+		B.Init()
+		FindBuildingsPositions()
 	}
-	log.Info(time.Now().Sub(start))*/
-	/*path, dist := B.Path(B.Ramps.My.Top, B.EnemyRamp.Top)
-	log.Info(time.Now().Sub(start), dist, path)
-	B.DebugPath(path)
-	B.DebugSend()*/
-
-	/*start := time.Now()
-	paths := B.FindPaths(B.Ramps.My.Top)
-	log.Info(time.Now().Sub(start), paths)
-	path := paths.From(B.EnemyRamp.Top)
-	B.DebugPath(path)
-	B.DebugSend()*/
-
-	/*start := time.Now()
-	path := B.HomePaths.From(B.EnemyRamp.Top)
-	log.Info(time.Now().Sub(start))
-	B.DebugPath(path)
-	B.DebugSend()*/
+	B.FindClusters()
 }
 
 func GGCheck() bool {
@@ -90,7 +60,7 @@ func Step() {
 
 	B.Cmds = &scl.CommandsStack{}
 	B.Obs = B.Info.Observation().Observation
-	B.ParseObservation()
+	B.Loop = int(B.Obs.GameLoop)
 	if B.Loop != 0 && B.Loop-B.LastLoop != 1 && !B.IsRealtime {
 		B.FramesPerOrder = 6
 		B.IsRealtime = true
@@ -106,15 +76,7 @@ func Step() {
 		B.LastLoop = B.Loop
 	}
 
-	B.ParseUnits()
-	B.ParseOrders()
-	B.DetectEnemyRace()
-
-	if B.Locs.MyExps.Len() == 0 {
-		InitBot()
-	}
-
-	B.FindClusters()
+	Init()
 
 	if GGCheck() {
 		B.Actions.ChatSend("(gg)")
