@@ -7,6 +7,7 @@ import (
 	"bitbucket.org/aisee/veterran/micro"
 	"bitbucket.org/aisee/veterran/roles"
 	"github.com/chippydip/go-sc2ai/api"
+	"github.com/chippydip/go-sc2ai/botutil"
 	"github.com/chippydip/go-sc2ai/client"
 	"github.com/chippydip/go-sc2ai/runner"
 	"math/rand"
@@ -41,20 +42,26 @@ import (
 
 func run() {
 	log.SetConsoleLevel(log.L_info) // L_info L_debug
-	maps := []string{"BlueshiftLE", "CeruleanFallLE", "ParaSiteLE",
-		"AutomatonLE", "KairosJunctionLE", "PortAleksanderLE", "StasisLE", "DarknessSanctuaryLE"}
+	maps := []string{
+		"DeathAura506",
+		"EternalEmpire506",
+		"EverDream506",
+		"GoldenWall506",
+		"IceandChrome506",
+		"PillarsofGold506",
+		"Submarine506",
+	}
 
 	rand.Seed(time.Now().UnixNano())
 	runner.Set("map", maps[rand.Intn(len(maps))]+".SC2Map")
-	runner.Set("map", "BlueshiftLE.SC2Map")
-	runner.Set("ComputerOpponent", "true")
-	runner.Set("ComputerRace", "random")           // terran zerg protoss random
-	runner.Set("ComputerDifficulty", "CheatMoney") // CheatInsane CheatMoney VeryHard
+	// runner.Set("map", "DeathAura506.SC2Map")
+	runner.SetComputer(api.Race_Random, api.Difficulty_CheatMoney, api.AIBuild_RandomBuild)
 	client.MaxMessageSize = 10 * 1024 * 1024
 	// runner.Set("realtime", "true")
+	botutil.SetGameVersion()
 
 	// Create the agent and then start the game
-	runner.RunAgent(client.NewParticipant(api.Race_Terran, client.AgentFunc(RunAgent), ""))
+	runner.RunAgent(client.NewParticipant(api.Race_Terran, client.AgentFunc(RunAgent), "VeTerran"))
 }
 
 func RunAgent(info client.AgentInfo) {

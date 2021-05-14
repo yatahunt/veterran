@@ -101,9 +101,9 @@ func OrderUpgrades() {
 	lab = B.Units.My[terran.FactoryTechLab].First(scl.Ready, scl.Idle)
 	if lab != nil && (B.Units.My[terran.Cyclone].Exists() || B.Units.My[terran.WidowMine].Exists()) {
 		if B.PendingAliases(ability.Train_Cyclone) >= 2 &&
-			lab.HasTrueAbility(ability.Research_CycloneResearchLockOnDamageUpgrade) &&
-			B.CanBuy(ability.Research_CycloneResearchLockOnDamageUpgrade) {
-			lab.Command(ability.Research_CycloneResearchLockOnDamageUpgrade)
+			lab.HasTrueAbility(ability.Research_CycloneLockOnDamage) &&
+			B.CanBuy(ability.Research_CycloneLockOnDamage) {
+			lab.Command(ability.Research_CycloneLockOnDamage)
 			return
 		}
 		if B.PendingAliases(ability.Train_WidowMine) >= 2 && lab.HasTrueAbility(ability.Research_DrillingClaws) &&

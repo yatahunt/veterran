@@ -102,6 +102,7 @@ func Step() {
 
 	// B.DebugOrders()
 	// B.DebugMap()
+	// B.DebugRamps()
 	// B.DebugWayMap(B.ReaperWayMap, true)
 	// B.DebugEnemyUnits()
 	// B.DebugClusters()

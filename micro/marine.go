@@ -37,7 +37,7 @@ func MarineAttack(u *scl.Unit) bool {
 	if Targets.All.Exists() {
 		ics := B.Units.Enemy[protoss.Interceptor]
 		if ics.Exists() {
-			u.CommandPos(ability.Attack_Attack_23, ics.ClosestTo(u))
+			u.CommandPos(ability.Attack_Attack, ics.ClosestTo(u))
 		} else {
 			u.Attack(Targets.Armed, Targets.All)
 		}

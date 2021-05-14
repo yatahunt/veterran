@@ -65,7 +65,7 @@ func Build() {
 		})
 		if enemy != nil || u.Hits < 21 {
 			u.Command(ability.Halt_TerranBuild)
-			u.CommandQueue(ability.Stop_Stop_4)
+			u.CommandQueue(ability.Stop_Stop)
 		}
 	}
 
@@ -343,7 +343,7 @@ func Mine() {
 			})
 			if scv != nil {
 				// scv.CommandTag(ability.Smart, mfs.ClosestTo(scv).Tag)
-				scv.Command(ability.Stop_Stop_4)
+				scv.Command(ability.Stop_Stop)
 			}
 		}
 	}

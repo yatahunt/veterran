@@ -27,7 +27,7 @@ func CycloneAttackFunc(u *scl.Unit, priority int, targets scl.Units) bool {
 		target := closeTargets.Min(func(unit *scl.Unit) float64 {
 			return unit.Hits
 		})
-		u.CommandTag(ability.Attack_Attack_23, target.Tag)
+		u.CommandTag(ability.Attack_Attack, target.Tag)
 		return true
 	}
 	return false
