@@ -34,8 +34,7 @@ var B = &Bot{
 	BuildPos:      map[scl.BuildingSize]point.Points{},
 }
 
-// todo: better names -> Parse? Init everywhere
-func Init() {
+func ParseData() {
 	B.ParseObservation()
 	B.ParseUnits()
 	B.ParseOrders()
@@ -76,7 +75,7 @@ func Step() {
 		B.LastLoop = B.Loop
 	}
 
-	Init()
+	ParseData()
 
 	if GGCheck() {
 		B.Actions.ChatSend("(gg)")
@@ -103,7 +102,8 @@ func Step() {
 	// B.DebugOrders()
 	// B.DebugMap()
 	// B.DebugRamps()
-	// B.DebugWayMap(B.ReaperWayMap, true)
+	// B.DebugSafeGrid(B.Grid, B.SafeGrid)
+	// B.DebugWayMap(B.SafeWayMap, true)
 	// B.DebugEnemyUnits()
 	// B.DebugClusters()
 	// B.DebugSend()

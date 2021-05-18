@@ -317,7 +317,7 @@ func Mine() {
 		Filter(func(unit *scl.Unit) bool {
 			return unit.IsReady() && enemies.CanAttack(unit, 0).Empty()
 		})
-	B.HandleMiners(miners, ccs, 1.5) // reserve more vespene
+	B.HandleMiners(miners, ccs, 2) // reserve more vespene
 
 	// If there is ready unsaturated refinery and an scv gathering, send it there
 	refs := B.Units.My[terran.Refinery]
