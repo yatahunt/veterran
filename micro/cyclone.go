@@ -1,8 +1,8 @@
 package micro
 
 import (
-	"bitbucket.org/aisee/sc2lib/scl"
-	"github.com/chippydip/go-sc2ai/enums/ability"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
 )
 
 func CycloneAttackFunc(u *scl.Unit, priority int, targets scl.Units) bool {

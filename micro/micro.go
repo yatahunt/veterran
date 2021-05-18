@@ -1,13 +1,13 @@
 package micro
 
 import (
-	"bitbucket.org/aisee/sc2lib/point"
-	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
-	"github.com/chippydip/go-sc2ai/enums/ability"
-	"github.com/chippydip/go-sc2ai/enums/protoss"
-	"github.com/chippydip/go-sc2ai/enums/terran"
-	"github.com/chippydip/go-sc2ai/enums/zerg"
+	"github.com/aiseeq/s2l/lib/point"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/protoss"
+	"github.com/aiseeq/s2l/protocol/enums/terran"
+	"github.com/aiseeq/s2l/protocol/enums/zerg"
 	"math"
 )
 
@@ -29,7 +29,7 @@ type TargetsTypes struct {
 	ForYamato          scl.Units
 }
 
-var B = bot.B
+var B *bot.Bot
 var Targets TargetsTypes
 
 func InitTargets() {
@@ -133,7 +133,6 @@ func WorkerRushDefence() {
 		worker := bot.GetSCV(B.Locs.MyStart, bot.WorkerRushDefenders, 20)
 		if worker != nil {
 			army.Add(worker)
-			B.Groups.Add(bot.WorkerRushDefenders, worker)
 		}
 	}
 
@@ -280,7 +279,9 @@ func FlyingBuildings() {
 	}
 }
 
-func Micro() {
+func Micro(b *bot.Bot) {
+	B = b // todo: better
+
 	InitTargets()
 	WorkerRushDefence()
 

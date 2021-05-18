@@ -1,17 +1,17 @@
 package roles
 
 import (
-	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
-	"github.com/chippydip/go-sc2ai/api"
-	"github.com/chippydip/go-sc2ai/enums/ability"
-	"github.com/chippydip/go-sc2ai/enums/protoss"
-	"github.com/chippydip/go-sc2ai/enums/terran"
-	"github.com/chippydip/go-sc2ai/enums/zerg"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/api"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/protoss"
+	"github.com/aiseeq/s2l/protocol/enums/terran"
+	"github.com/aiseeq/s2l/protocol/enums/zerg"
 	"math"
 )
 
-var B = bot.B
+var B *bot.Bot
 
 func BuildingsCheck() {
 	builders := B.Groups.Get(bot.Builders).Units
@@ -307,10 +307,10 @@ func Mine() {
 		miner.GroundFallback(enemies, 2, B.HomePaths)
 	}*/
 
-	if B.Loop%B.FramesPerOrder != 0 {
+	/*if B.Loop%B.FramesPerOrder != 0 {
 		// try to fix destribution bug. Might be caused by AssignedHarvesters lagging
 		return
-	}
+	}*/ // todo: is it needed?
 	// Std miners handler
 	miners = B.Groups.Get(bot.Miners).Units
 	ccs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).
@@ -390,7 +390,8 @@ func TanksOnExpansions() {
 	}
 }
 
-func Roles() {
+func Roles(b *bot.Bot) {
+	B = b // todo: better
 	Build()
 	Repair()
 	DoubleHeal()

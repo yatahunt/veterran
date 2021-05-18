@@ -1,10 +1,10 @@
 package micro
 
 import (
-	"bitbucket.org/aisee/sc2lib/point"
-	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
-	"github.com/chippydip/go-sc2ai/enums/ability"
+	"github.com/aiseeq/s2l/lib/point"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
 )
 
 func ThrowMine(u *scl.Unit, targets scl.Units) bool {

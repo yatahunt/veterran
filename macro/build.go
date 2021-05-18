@@ -2,12 +2,12 @@ package macro
 
 import (
 	"bitbucket.org/aisee/minilog"
-	"bitbucket.org/aisee/sc2lib/point"
-	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
-	"github.com/chippydip/go-sc2ai/api"
-	"github.com/chippydip/go-sc2ai/enums/ability"
-	"github.com/chippydip/go-sc2ai/enums/terran"
+	"github.com/aiseeq/s2l/lib/point"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/api"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/terran"
 	"math"
 )
 

@@ -1,9 +1,9 @@
 package micro
 
 import (
-	"bitbucket.org/aisee/sc2lib/scl"
-	"github.com/chippydip/go-sc2ai/enums/ability"
-	"github.com/chippydip/go-sc2ai/enums/buff"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/buff"
 )
 
 func MarauderStim(u *scl.Unit) bool {

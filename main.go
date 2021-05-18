@@ -6,12 +6,11 @@ import (
 	"bitbucket.org/aisee/veterran/macro"
 	"bitbucket.org/aisee/veterran/micro"
 	"bitbucket.org/aisee/veterran/roles"
-	"github.com/chippydip/go-sc2ai/api"
-	"github.com/chippydip/go-sc2ai/botutil"
-	"github.com/chippydip/go-sc2ai/client"
-	"github.com/chippydip/go-sc2ai/runner"
+	"github.com/aiseeq/s2l/lib/point"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/api"
+	"github.com/aiseeq/s2l/protocol/client"
 	"math/rand"
-	"strings"
 	"time"
 )
 
@@ -62,59 +61,54 @@ import (
 // todo: анализировать неуспешные попытки строительства, зарытые линги мешают поставить СС -> ставить башню рядом?
 // go tool pprof VeTerran.exe cpu.prof
 
-func run() {
-	log.SetConsoleLevel(log.L_info) // L_info L_debug
-	maps := []string{
-		"DeathAura506",
-		"EternalEmpire506",
-		"EverDream506",
-		"GoldenWall506",
-		"IceandChrome506",
-		"PillarsofGold506",
-		"Submarine506",
+func RunAgent(c *client.Client) {
+	B := &bot.Bot{
+		Bot:           scl.New(c, bot.OnUnitCreated),
+		PlayDefensive: true,
+		BuildPos:      map[scl.BuildingSize]point.Points{},
 	}
-
-	rand.Seed(time.Now().UnixNano())
-	runner.Set("map", maps[rand.Intn(len(maps))]+".SC2Map")
-	// runner.Set("map", "DeathAura506.SC2Map")
-	runner.SetComputer(api.Race_Random, api.Difficulty_CheatMoney, api.AIBuild_RandomBuild)
-	client.MaxMessageSize = 10 * 1024 * 1024
-	// runner.Set("realtime", "true")
-	botutil.SetGameVersion()
-
-	// Create the agent and then start the game
-	runner.RunAgent(client.NewParticipant(api.Race_Terran, client.AgentFunc(RunAgent), "VeTerran"))
-}
-
-func RunAgent(info client.AgentInfo) {
-	B := bot.B
-	B.Info = info
+	bot.B = B
 	B.FramesPerOrder = 3
 	B.MaxGroup = bot.MaxGroup
-	if B.Info.IsRealtime() {
+	/*if B.Client.Realtime {
 		B.FramesPerOrder = 6
 		log.Info("Realtime mode")
-	}
-	B.UnitCreatedCallback = bot.OnUnitCreated
+	}*/
 	B.Logic = func() {
 		// time.Sleep(time.Millisecond * 10)
 		bot.DefensivePlayCheck()
-		roles.Roles()
-		macro.Macro()
-		micro.Micro()
+		roles.Roles(B)
+		macro.Macro(B)
+		micro.Micro(B)
 	}
 	// todo: Move init into lib
+	B.Init() // Called later because in Init() we need to use *B in callback
 
-	for B.Info.IsInGame() {
+	for B.Client.Status == api.Status_in_game {
 		bot.Step()
 
-		if err := B.Info.Step(1); err != nil {
-			log.Error(err)
-			if strings.Contains(err.Error(), "An existing connection was forcibly closed by the remote host.") {
+		if _, err := c.Step(api.RequestStep{Count: uint32(B.FramesPerOrder)}); err != nil {
+			if err.Error() == "Not in a game" {
+				log.Info("Game over")
 				return
 			}
+			log.Fatal(err)
 		}
+
+		B.UpdateObservation()
 	}
+}
+
+func run() {
+	log.SetConsoleLevel(log.L_info) // L_info L_debug
+	rand.Seed(time.Now().UnixNano())
+
+	// Create the agent and then start the game
+	myBot := client.NewParticipant(api.Race_Terran, "VeTerran") // todo: rename
+	cpu := client.NewComputer(api.Race_Protoss, api.Difficulty_Medium, api.AIBuild_RandomBuild)
+	c := client.LaunchAndJoin(myBot, cpu)
+
+	RunAgent(c)
 }
 
 func main() {

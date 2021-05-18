@@ -1,8 +1,8 @@
 package bot
 
 import (
-	"bitbucket.org/aisee/sc2lib/scl"
-	"github.com/chippydip/go-sc2ai/enums/terran"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/enums/terran"
 )
 
 const (

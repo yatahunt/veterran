@@ -1,10 +1,10 @@
 package macro
 
 import (
-	"bitbucket.org/aisee/sc2lib/scl"
-	"github.com/chippydip/go-sc2ai/api"
-	"github.com/chippydip/go-sc2ai/enums/ability"
-	"github.com/chippydip/go-sc2ai/enums/terran"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/api"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/terran"
 )
 
 func OrderUpgrades() {

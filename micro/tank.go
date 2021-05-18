@@ -1,10 +1,10 @@
 package micro
 
 import (
-	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
-	"github.com/chippydip/go-sc2ai/enums/ability"
-	"github.com/chippydip/go-sc2ai/enums/terran"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/terran"
 )
 
 func TankRetreat(u *scl.Unit) bool {

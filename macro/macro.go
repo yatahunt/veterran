@@ -2,19 +2,19 @@ package macro
 
 import (
 	"bitbucket.org/aisee/minilog"
-	"bitbucket.org/aisee/sc2lib/scl"
 	"bitbucket.org/aisee/veterran/bot"
-	"github.com/chippydip/go-sc2ai/api"
-	"github.com/chippydip/go-sc2ai/enums/ability"
-	"github.com/chippydip/go-sc2ai/enums/effect"
-	"github.com/chippydip/go-sc2ai/enums/protoss"
-	"github.com/chippydip/go-sc2ai/enums/terran"
-	"github.com/chippydip/go-sc2ai/enums/zerg"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/api"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/effect"
+	"github.com/aiseeq/s2l/protocol/enums/protoss"
+	"github.com/aiseeq/s2l/protocol/enums/terran"
+	"github.com/aiseeq/s2l/protocol/enums/zerg"
 )
 
 const SafeBuildRange = 7
 
-var B = bot.B
+var B *bot.Bot
 var LastBuildLoop int
 
 func Morph() {
@@ -156,7 +156,9 @@ func ReserveSCVs() {
 	}
 }
 
-func Macro() {
+func Macro(b *bot.Bot) {
+	B = b // todo: better
+
 	if !B.BuildTurrets && B.Units.Enemy.OfType(terran.Banshee, terran.Ghost, terran.WidowMine, terran.Medivac,
 		terran.VikingFighter, terran.Liberator, terran.Battlecruiser, terran.Starport, zerg.Mutalisk, zerg.LurkerMP,
 		zerg.Corruptor, zerg.Spire, zerg.GreaterSpire, protoss.DarkTemplar, protoss.WarpPrism, protoss.Phoenix,

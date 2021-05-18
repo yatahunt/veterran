@@ -1,9 +1,9 @@
 package bot
 
 import (
-	"bitbucket.org/aisee/sc2lib/point"
-	"bitbucket.org/aisee/sc2lib/scl"
-	"github.com/chippydip/go-sc2ai/api"
+	"github.com/aiseeq/s2l/lib/point"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/api"
 )
 
 // Pass assignGroup = 0 to skip group assignement

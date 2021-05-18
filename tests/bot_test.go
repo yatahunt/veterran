@@ -1,10 +1,6 @@
 package tests
 
 import (
-	"bitbucket.org/aisee/sc2lib/grid"
-	"bitbucket.org/aisee/sc2lib/point"
-	"bitbucket.org/aisee/sc2lib/scl"
-	"bitbucket.org/aisee/veterran/bot"
 	"testing"
 )
 
@@ -14,7 +10,7 @@ import (
 // go tool pprof tests.test.exe mem.prof
 
 func Benchmark_Pathing(b *testing.B) {
-	B := bot.B
+	/*B := bot.B
 	B.LoadState()
 	B.Locs.MyStart = point.Pt3(B.Info.Observation().Observation.RawData.Player.Camera)
 	B.Locs.EnemyStart = point.Pt2(B.Info.GameInfo().StartRaw.StartLocations[0])
@@ -26,5 +22,5 @@ func Benchmark_Pathing(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// B.FindWaypointsMap(B.Grid)
 		scl.NavPath(B.Grid, B.WayMap, B.Locs.MyStart-3, B.Locs.EnemyStart-3)
-	}
+	}*/
 }

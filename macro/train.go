@@ -2,12 +2,12 @@ package macro
 
 import (
 	"bitbucket.org/aisee/minilog"
-	"bitbucket.org/aisee/sc2lib/scl"
-	"github.com/chippydip/go-sc2ai/api"
-	"github.com/chippydip/go-sc2ai/enums/ability"
-	"github.com/chippydip/go-sc2ai/enums/protoss"
-	"github.com/chippydip/go-sc2ai/enums/terran"
-	"github.com/chippydip/go-sc2ai/enums/zerg"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/api"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/protoss"
+	"github.com/aiseeq/s2l/protocol/enums/terran"
+	"github.com/aiseeq/s2l/protocol/enums/zerg"
 )
 
 /*type TrainNode struct {

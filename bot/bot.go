@@ -1,14 +1,17 @@
 package bot
 
 import (
-	"bitbucket.org/aisee/sc2lib/point"
-	"bitbucket.org/aisee/sc2lib/scl"
+	log "bitbucket.org/aisee/minilog"
+	"github.com/aiseeq/s2l/helpers"
+	"github.com/aiseeq/s2l/lib/point"
+	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.1.0 (glhf)"
+const version = "VeTerran v2.2.0 (glhf)"
 
 type Bot struct {
-	scl.Bot
+	*scl.Bot
 
 	Logic func()
 
@@ -29,18 +32,14 @@ type Bot struct {
 	DoubleHealers []scl.GroupID
 }
 
-var B = &Bot{
-	PlayDefensive: true,
-	BuildPos:      map[scl.BuildingSize]point.Points{},
-}
+var B *Bot
 
 func ParseData() {
 	B.ParseObservation()
 	B.ParseUnits()
 	B.ParseOrders()
 	B.DetectEnemyRace()
-	if B.Locs.MyExps.Len() == 0 {
-		B.Init()
+	if len(B.BuildPos) == 0 {
 		FindBuildingsPositions()
 	}
 	B.FindClusters()
@@ -55,18 +54,17 @@ func GGCheck() bool {
 
 // OnStep is called each game step (every game update by default)
 func Step() {
-	defer scl.RecoverPanic()
+	defer helpers.RecoverPanic()
 
 	B.Cmds = &scl.CommandsStack{}
-	B.Obs = B.Info.Observation().Observation
 	B.Loop = int(B.Obs.GameLoop)
-	if B.Loop != 0 && B.Loop-B.LastLoop != 1 && !B.IsRealtime {
+	/*if B.Loop != 0 && B.Loop-B.LastLoop != 1 && !B.IsRealtime {
 		B.FramesPerOrder = 6
 		B.IsRealtime = true
 		B.Actions.ChatSend(version)
 		B.Actions.ChatSend("Realtime mode detected")
-	}
-	if B.Loop == 8 && !B.IsRealtime {
+	}*/ // todo: fix later?
+	if B.Loop == 0 { // && !B.IsRealtime
 		B.Actions.ChatSend(version)
 	}
 	if B.Loop != 0 && B.Loop == B.LastLoop {
@@ -79,8 +77,12 @@ func Step() {
 
 	if GGCheck() {
 		B.Actions.ChatSend("(gg)")
-		B.Info.SendActions(B.Actions)
-		B.Info.LeaveGame()
+		if _, err := B.Client.Action(api.RequestAction{Actions: B.Actions}); err != nil {
+			log.Error(err)
+		}
+		if err := B.Client.LeaveGame(); err != nil {
+			log.Error(err)
+		}
 		return
 	}
 
@@ -89,11 +91,15 @@ func Step() {
 	B.Cmds.Process(&B.Actions)
 	if len(B.Actions) > 0 {
 		// log.Info(B.Loop, len(B.Actions), B.Actions)
-		B.Info.SendActions(B.Actions)
+		if resp, err := B.Client.Action(api.RequestAction{Actions: B.Actions}); err != nil {
+			log.Error(err)
+		} else {
+			_ = resp.Result // todo: do something with it?
+		}
 		B.Actions = nil
 	}
 
-	for _, cr := range B.Info.Observation().Chat {
+	for _, cr := range B.Chat {
 		if cr.Message == "s" {
 			B.SaveState()
 		}
