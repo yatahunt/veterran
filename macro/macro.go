@@ -137,7 +137,7 @@ func Cast() {
 
 func ReserveSCVs() {
 	// Fast first supply
-	if B.Units.My.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).Empty() &&
+	if B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).Empty() &&
 		B.Groups.Get(bot.ScvReserve).Tags.Empty() {
 		pos := B.BuildPos[scl.S2x2][0]
 		scv := bot.GetSCV(pos, 0, 45) // Get SCV but don't change its group

@@ -262,7 +262,7 @@ func DefensivePlayCheck() {
 		EnableDefensivePlay()
 	}
 	/*if B.Loop >= 3584 && B.Loop < 3594 { // 2:40
-		townHalls := append(scl.UnitAliases.For(terran.CommandCenter), scl.UnitAliases.For(zerg.Hatchery)...)
+		townHalls := append(B.U.UnitAliases.For(terran.CommandCenter), B.U.UnitAliases.For(zerg.Hatchery)...)
 		townHalls = append(townHalls, protoss.Nexus)
 		if B.Units.AllEnemy.OfType(townHalls...).Len() < 2 {
 			B.EnableDefensivePlay()

@@ -18,7 +18,7 @@ func BuildingsCheck() {
 	buildings := B.Groups.Get(bot.UnderConstruction).Units
 	enemies := B.Enemies.Visible.Filter(scl.DpsGt5)
 	// This is const. Move somewhere else?
-	addonsTypes := append(scl.UnitAliases.For(terran.Reactor), scl.UnitAliases.For(terran.TechLab)...)
+	addonsTypes := append(B.U.UnitAliases.For(terran.Reactor), B.U.UnitAliases.For(terran.TechLab)...)
 	for _, building := range buildings {
 		if building.BuildProgress == 1 {
 			switch building.UnitType {

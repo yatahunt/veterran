@@ -10,6 +10,7 @@ import (
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/api"
 	"github.com/aiseeq/s2l/protocol/client"
+	"github.com/google/gxui/math"
 	"math/rand"
 	"time"
 )
@@ -69,6 +70,7 @@ func RunAgent(c *client.Client) {
 	}
 	bot.B = B
 	B.FramesPerOrder = 3
+	B.LastLoop = -math.MaxInt
 	B.MaxGroup = bot.MaxGroup
 	/*if B.Client.Realtime {
 		B.FramesPerOrder = 6
@@ -82,7 +84,7 @@ func RunAgent(c *client.Client) {
 		micro.Micro(B)
 	}
 	// todo: Move init into lib
-	B.Init() // Called later because in Init() we need to use *B in callback
+	B.Init(true) // Called later because in Init() we need to use *B in callback
 
 	for B.Client.Status == api.Status_in_game {
 		bot.Step()
@@ -104,11 +106,12 @@ func run() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Create the agent and then start the game
+	// client.SetRealtime()
 	myBot := client.NewParticipant(api.Race_Terran, "VeTerran") // todo: rename
-	cpu := client.NewComputer(api.Race_Protoss, api.Difficulty_Medium, api.AIBuild_RandomBuild)
-	c := client.LaunchAndJoin(myBot, cpu)
+	cpu := client.NewComputer(api.Race_Random, api.Difficulty_CheatInsane, api.AIBuild_RandomBuild)
+	cfg := client.LaunchAndJoin(myBot, cpu)
 
-	RunAgent(c)
+	RunAgent(cfg.Client)
 }
 
 func main() {

@@ -53,7 +53,7 @@ var RootBuildOrder = BuildNodes{
 		Limit:  func() int { return B.BuildPos[scl.S5x5].Len() },
 		Active: BuildOne,
 		WaitRes: func() bool {
-			ccs := B.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
 			// First orbital is morphing
 			if ccs.Len() == 1 && ccs.First().UnitType == terran.OrbitalCommand &&
 				B.PendingAliases(ability.Train_Reaper) != 0 {
@@ -77,7 +77,7 @@ var RootBuildOrder = BuildNodes{
 		Premise: func() bool {
 			// it's safe && 1 depo is placed && < 2:00 && only one cc
 			if !B.PlayDefensive && B.FoodCap > 20 && B.Loop < 2688 &&
-				B.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Len() == 1 {
+				B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Len() == 1 {
 				return false // Wait for a second cc
 			}
 			if B.Loop < 1344 && B.FoodUsed < 14 /*&& B.EnemyRace != api.Race_Protoss*/ {
@@ -92,8 +92,8 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Barrack",
 		Ability: ability.Build_Barracks,
 		Premise: func() bool {
-			return B.Units.My.OfType(scl.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
-				B.Units.My.OfType(scl.UnitAliases.For(terran.Barracks)...).Empty()
+			return B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
+				B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Empty()
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,
@@ -109,7 +109,7 @@ var RootBuildOrder = BuildNodes{
 			if B.Vespene < B.Minerals*2 {
 				raxPending := B.Pending(ability.Build_Barracks)
 				refPending := B.Pending(ability.Build_Refinery)
-				ccs := B.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+				ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
 				if raxPending == 0 {
 					return false
 				}
@@ -140,7 +140,7 @@ var RootBuildOrder = BuildNodes{
 			return B.Units.My[terran.Factory].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func() int {
-			buildFacts := B.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
+			buildFacts := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
 			if B.EnemyRace == api.Race_Zerg {
 				buildFacts--
 			}
@@ -156,7 +156,7 @@ var RootBuildOrder = BuildNodes{
 			return B.Units.My[terran.Starport].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func() int {
-			ccs := B.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
 			if ccs.Len() < 3 && B.Minerals < 500 {
 				return 0
 			}
@@ -207,7 +207,7 @@ var RaxBuildOrder = BuildNodes{
 				B.Units.My[terran.BarracksFlying].Empty()
 		},
 		Limit: func() int {
-			// ccs := B.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...)
+			// ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
 			// orbitals := B.Units.My.OfType(terran.OrbitalCommand)
 			return 2 // scl.MinInt(2, ccs.Len())
 		},
@@ -217,7 +217,7 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Engineering Bay",
 		Ability: ability.Build_EngineeringBay,
 		Premise: func() bool {
-			return B.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len() >= 2
+			return B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len() >= 2
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,
@@ -237,12 +237,12 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks reactors",
 		Ability: ability.Build_Reactor_Barracks,
 		Premise: func() bool {
-			ccs := B.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
+			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
 			return ccs.Len() > 2 &&
 				((B.Vespene >= 100 && B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil) ||
 					B.Units.My[terran.BarracksFlying].First() != nil)
 		},
-		Limit:  BuildOne, // B.Units.My.OfType(scl.UnitAliases.For(terran.Barracks)...).Len()
+		Limit:  BuildOne, // B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Len()
 		Active: BuildOne,
 		Method: func() {
 			// todo: group?
@@ -268,11 +268,11 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks techlabs",
 		Ability: ability.Build_TechLab_Barracks,
 		Premise: func() bool {
-			ccs := B.Units.My.OfType(scl.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
+			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
 			return ccs.Len() >= 2 && B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
 		},
 		Limit: func() int {
-			return B.Units.My.OfType(scl.UnitAliases.For(terran.Barracks)...).Len() - 1
+			return B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Len() - 1
 		},
 		Active: BuildOne,
 		Method: func() {
@@ -360,22 +360,22 @@ func OrderBuild(scv *scl.Unit, pos point.Point, aid api.AbilityID) {
 	scv.CommandPos(aid, pos)
 	// scv.Orders = append(scv.Orders, &api.UnitOrder{AbilityId: aid}) // todo: move in commands
 	B.DeductResources(aid)
-	log.Debugf("%d: Building %v", B.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
+	log.Debugf("%d: Building %v", B.Loop, B.U.Types[B.U.AbilityUnit[aid]].Name)
 }
 
 func Build(aid api.AbilityID) point.Point {
 	size, ok := BuildingsSizes[aid]
 	if !ok {
-		log.Alertf("Can't find size for %v", scl.Types[scl.AbilityUnit[aid]].Name)
+		log.Alertf("Can't find size for %v", B.U.Types[B.U.AbilityUnit[aid]].Name)
 		return 0
 	}
 
-	techReq := scl.Types[scl.AbilityUnit[aid]].TechRequirement
-	if techReq != 0 && B.Units.My.OfType(scl.UnitAliases.For(techReq)...).Empty() {
+	techReq := B.U.Types[B.U.AbilityUnit[aid]].TechRequirement
+	if techReq != 0 && B.Units.My.OfType(B.U.UnitAliases.For(techReq)...).Empty() {
 		return 0 // Not available because of tech reqs, like: supply is needed for barracks
 	}
 
-	var buildersTargets point.Points
+	buildersTargets := point.Points{}
 	for _, builder := range B.Groups.Get(bot.Builders).Units {
 		buildersTargets.Add(builder.TargetPos())
 	}
@@ -417,7 +417,7 @@ func Build(aid api.AbilityID) point.Point {
 		log.Debugf("%d: Failed to find SCV", B.Loop)
 		return 0
 	}
-	log.Debugf("%d: Can't find position for %v", B.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
+	log.Debugf("%d: Can't find position for %v", B.Loop, B.U.Types[B.U.AbilityUnit[aid]].Name)
 	return 0
 }
 
@@ -464,7 +464,7 @@ func ProcessBuildOrder(buildOrder BuildNodes) {
 				Build(node.Ability)
 			}
 		}
-		if node.Unlocks != nil && B.Units.My[scl.AbilityUnit[node.Ability]].Exists() {
+		if node.Unlocks != nil && B.Units.My[B.U.AbilityUnit[node.Ability]].Exists() {
 			ProcessBuildOrder(node.Unlocks)
 		}
 	}

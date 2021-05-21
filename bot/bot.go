@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.2.0 (glhf)"
+const version = "VeTerran v2.2.1 (glhf)"
 
 type Bot struct {
 	*scl.Bot
@@ -22,6 +22,7 @@ type Bot struct {
 	DefensiveRange float64
 	BuildTurrets   bool
 	MechPriority   bool
+	VersionPosted  bool
 
 	BuildPos         map[scl.BuildingSize]point.Points
 	FirstBarrack     point.Points
@@ -56,18 +57,19 @@ func GGCheck() bool {
 func Step() {
 	defer helpers.RecoverPanic()
 
-	B.Cmds = &scl.CommandsStack{}
+	B.Cmds = &scl.CommandsStack{} // todo: move this block into the lib
 	B.Loop = int(B.Obs.GameLoop)
 	/*if B.Loop != 0 && B.Loop-B.LastLoop != 1 && !B.IsRealtime {
 		B.FramesPerOrder = 6
 		B.IsRealtime = true
 		B.Actions.ChatSend(version)
 		B.Actions.ChatSend("Realtime mode detected")
-	}*/ // todo: fix later?
-	if B.Loop == 0 { // && !B.IsRealtime
+	}*/              // todo: fix later
+	if B.Loop >= 9 && !B.VersionPosted { // && !B.IsRealtime
 		B.Actions.ChatSend(version)
+		B.VersionPosted = true
 	}
-	if B.Loop != 0 && B.Loop == B.LastLoop {
+	if B.Loop < B.LastLoop+B.FramesPerOrder {
 		return // Skip frame repeat
 	} else {
 		B.LastLoop = B.Loop

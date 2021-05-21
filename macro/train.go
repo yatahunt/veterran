@@ -37,8 +37,8 @@ func ProcessTrainOrder(trainOrder TrainNodes) {
 		canBuy := B.CanBuy(node.Ability)
 		waitRes := node.WaitRes != nil && node.WaitRes()
 		if (node.Premise == nil || node.Premise()) && inLimits && (canBuy || waitRes) {
-			techReq := scl.Types[scl.AbilityUnit[node.Ability]].TechRequirement
-			factories := B.Units.My.OfType(scl.UnitAliases.For(techReq)...).Filter(scl.Ready, scl.Unused)
+			techReq := B.U.Types[B.U.AbilityUnit[node.Ability]].TechRequirement
+			factories := B.Units.My.OfType(B.U.UnitAliases.For(techReq)...).Filter(scl.Ready, scl.Unused)
 			if node.TechLab {
 				factories = factories.Filter(scl.HasTechlab)
 			}
@@ -56,7 +56,7 @@ func ProcessTrainOrder(trainOrder TrainNodes) {
 			OrderTrain(factory, node.Ability)
 			UsedFactories[factory.Tag] = true
 		}
-		if node.Unlocks != nil && B.Units.My[scl.AbilityUnit[node.Ability]].Exists() {
+		if node.Unlocks != nil && B.Units.My[B.U.AbilityUnit[node.Ability]].Exists() {
 			ProcessTrainOrder(node.Unlocks)
 		}
 	}
@@ -68,7 +68,7 @@ func OrderTrain(factory *scl.Unit, aid api.AbilityID, usedFactories scl.TagsMap)
 	if usedFactories != nil {
 		usedFactories[factory.Tag] = true
 	}
-	log.Debugf("%d: Training %v", B.Loop, scl.Types[scl.AbilityUnit[aid]].Name)
+	log.Debugf("%d: Training %v", B.Loop, B.U.Types[B.U.AbilityUnit[aid]].Name)
 }
 
 func GetFactory(id api.UnitTypeID, needTechlab bool, usedFactories scl.TagsMap) *scl.Unit {
@@ -78,7 +78,7 @@ func GetFactory(id api.UnitTypeID, needTechlab bool, usedFactories scl.TagsMap) 
 	if factory == nil {
 		return nil
 	}
-	if factory.HasReactor() && scl.UnitsOrders[factory.Tag].Loop+B.FramesPerOrder <= B.Loop {
+	if factory.HasReactor() && B.U.UnitsOrders[factory.Tag].Loop+B.FramesPerOrder <= B.Loop {
 		// I need to pass this param because else duplicate order will be ignored
 		// But I need to be sure that there was no previous order recently
 		factory.SpamCmds = true
