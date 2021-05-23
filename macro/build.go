@@ -361,7 +361,7 @@ func OrderBuild(scv *scl.Unit, pos point.Point, aid api.AbilityID) {
 	// scv.Orders = append(scv.Orders, &api.UnitOrder{AbilityId: aid}) // todo: move in commands
 	B.DeductResources(aid)
 	log.Debugf("%d: Building %v @ %v", B.Loop, B.U.Types[B.U.AbilityUnit[aid]].Name, pos)
-	B.DebugPoints(pos)
+	// B.DebugPoints(pos)
 }
 
 func Build(aid api.AbilityID) point.Point {
