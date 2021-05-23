@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.2.1 (glhf)"
+const version = "VeTerran v2.2.2 (glhf)"
 
 type Bot struct {
 	*scl.Bot
@@ -127,8 +127,8 @@ func Step() {
 	B.Debug3x3Buildings(B.BuildPos[scl.S3x3]...)
 	B.Debug5x3Buildings(B.BuildPos[scl.S5x3]...)
 	B.Debug3x3Buildings(B.BuildPos[scl.S5x5]...)
-	B.Debug2x2Buildings(B.TurretsPos...)
-	B.DebugSend()*/
+	B.Debug2x2Buildings(B.TurretsPos...)*/
+	// B.DebugSend()
 
 	return
 }

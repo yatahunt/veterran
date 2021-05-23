@@ -410,17 +410,8 @@ func Build(aid api.AbilityID) point.Point {
 			continue
 		}
 
-		rqps := []*api.RequestQueryPathing{{
-			Start: &api.RequestQueryPathing_StartPos{
-				StartPos: B.Locs.MyStart.To2D(),
-			},
-			EndPos: pos.To2D(),
-		}}
-		if resp, err := B.Client.Query(api.RequestQuery{Pathing: rqps, IgnoreResourceRequirements: false});
-			err != nil || len(resp.Pathing) == 0 {
-			log.Error(err)
-			continue
-		} else if resp.Pathing[0].Distance == 0 {
+		if B.RequestPathing(B.Locs.MyStart, pos) == 0 {
+			log.Debugf("Can't find path to build %v @ %v", B.U.Types[B.U.AbilityUnit[aid]].Name, pos)
 			continue // No path
 		}
 

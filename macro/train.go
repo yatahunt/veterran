@@ -104,7 +104,7 @@ func OrderUnits() {
 	refs := B.Units.My[terran.Refinery].Filter(func(unit *scl.Unit) bool {
 		return unit.IsReady() && unit.VespeneContents > 0
 	})
-	if cc != nil && B.Units.My[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 60-refs.Len()) &&
+	if cc != nil && B.Units.My[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70-refs.Len()) &&
 		B.CanBuy(ability.Train_SCV) && !B.WorkerRush {
 		OrderTrain(cc, ability.Train_SCV, usedFactories)
 	}
