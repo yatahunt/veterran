@@ -28,7 +28,7 @@ type Bot struct {
 	FirstBarrack     point.Points
 	TurretsPos       point.Points
 	BunkersPos       point.Points
-	FindTurretPosFor *scl.Unit
+	FindTurretPosFor point.Point
 
 	DoubleHealers []scl.GroupID
 }
@@ -64,7 +64,7 @@ func Step() {
 		B.IsRealtime = true
 		B.Actions.ChatSend(version)
 		B.Actions.ChatSend("Realtime mode detected")
-	}*/              // todo: fix later
+	}*/                                  // todo: fix later
 	if B.Loop >= 9 && !B.VersionPosted { // && !B.IsRealtime
 		B.Actions.ChatSend(version)
 		B.VersionPosted = true
@@ -107,14 +107,28 @@ func Step() {
 		}
 	}
 
+	/*if B.Loop%3 == 0 && B.Loop/3 >= 4 && B.Loop/3 < len(B.Locs.MyExps)+4 {
+		B.FindTurretPosFor = B.Locs.MyExps[B.Loop/3-4]
+	}*/
+	/*if B.Loop >= 60 && B.Loop < 63 {
+		B.Debug2x2Buildings(B.TurretsPos...)
+		B.DebugSend()
+		log.Info(B.Loop)
+	}*/
 	// B.DebugOrders()
 	// B.DebugMap()
 	// B.DebugRamps()
+	// B.Debug3x3Buildings(B.Locs.MyExps...)
 	// B.DebugSafeGrid(B.Grid, B.SafeGrid)
 	// B.DebugWayMap(B.SafeWayMap, true)
 	// B.DebugEnemyUnits()
 	// B.DebugClusters()
-	// B.DebugSend()
+	/*B.Debug2x2Buildings(B.BuildPos[scl.S2x2]...)
+	B.Debug3x3Buildings(B.BuildPos[scl.S3x3]...)
+	B.Debug5x3Buildings(B.BuildPos[scl.S5x3]...)
+	B.Debug3x3Buildings(B.BuildPos[scl.S5x5]...)
+	B.Debug2x2Buildings(B.TurretsPos...)
+	B.DebugSend()*/
 
 	return
 }

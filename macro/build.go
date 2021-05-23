@@ -360,7 +360,8 @@ func OrderBuild(scv *scl.Unit, pos point.Point, aid api.AbilityID) {
 	scv.CommandPos(aid, pos)
 	// scv.Orders = append(scv.Orders, &api.UnitOrder{AbilityId: aid}) // todo: move in commands
 	B.DeductResources(aid)
-	log.Debugf("%d: Building %v", B.Loop, B.U.Types[B.U.AbilityUnit[aid]].Name)
+	log.Debugf("%d: Building %v @ %v", B.Loop, B.U.Types[B.U.AbilityUnit[aid]].Name, pos)
+	B.DebugPoints(pos)
 }
 
 func Build(aid api.AbilityID) point.Point {
@@ -407,6 +408,20 @@ func Build(aid api.AbilityID) point.Point {
 		if B.PlayDefensive && aid == ability.Build_CommandCenter &&
 			pos.IsFurtherThan(B.DefensiveRange, B.Locs.MyStart) {
 			continue
+		}
+
+		rqps := []*api.RequestQueryPathing{{
+			Start: &api.RequestQueryPathing_StartPos{
+				StartPos: B.Locs.MyStart.To2D(),
+			},
+			EndPos: pos.To2D(),
+		}}
+		if resp, err := B.Client.Query(api.RequestQuery{Pathing: rqps, IgnoreResourceRequirements: false});
+			err != nil || len(resp.Pathing) == 0 {
+			log.Error(err)
+			continue
+		} else if resp.Pathing[0].Distance == 0 {
+			continue // No path
 		}
 
 		scv := bot.GetSCV(pos, bot.Builders, 45)

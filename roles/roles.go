@@ -317,10 +317,10 @@ func Mine() {
 		Filter(func(unit *scl.Unit) bool {
 			return unit.IsReady() && enemies.CanAttack(unit, 0).Empty()
 		})
-	B.HandleMiners(miners, ccs, 2) // reserve more vespene
+	B.HandleMiners(miners, ccs, 1) // reserve more vespene
 
 	// If there is ready unsaturated refinery and an scv gathering, send it there
-	refs := B.Units.My[terran.Refinery]
+	/*refs := B.Units.My[terran.Refinery]
 	if B.Minerals > scl.MinInt(5, ccs.Len())*100 && B.Minerals/2 > B.Vespene {
 		ref := refs.First(func(unit *scl.Unit) bool { return unit.IsReady() && unit.AssignedHarvesters < 3 })
 		if ref != nil {
@@ -346,7 +346,7 @@ func Mine() {
 				scv.Command(ability.Stop_Stop)
 			}
 		}
-	}
+	}*/
 }
 
 func TanksOnExpansions() {

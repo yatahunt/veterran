@@ -49,7 +49,7 @@ func RavensLogic(us scl.Units) {
 				pos := u.Towards(closeEnemies.Center(), 3)
 				pos = B.FindClosestPos(pos, scl.S2x2, 0, 1, 1, scl.IsBuildable, scl.IsPathable)
 				if pos != 0 {
-					u.CommandPos(ability.Effect_AutoTurret, pos.S2x2Fix())
+					u.CommandPos(ability.Effect_AutoTurret, pos.CellCenter())
 					continue
 				}
 			}

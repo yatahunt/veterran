@@ -166,9 +166,9 @@ func Macro(b *bot.Bot) {
 		Exists() {
 		B.BuildTurrets = true
 	}
-	if B.FindTurretPosFor != nil {
+	if B.FindTurretPosFor != 0 {
 		bot.FindTurretPosition(B.FindTurretPosFor)
-		B.FindTurretPosFor = nil
+		B.FindTurretPosFor = 0
 	}
 
 	if LastBuildLoop+B.FramesPerOrder < B.Loop {

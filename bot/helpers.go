@@ -11,8 +11,15 @@ func GetSCV(ptr point.Pointer, assignGroup scl.GroupID, minHits float64) *scl.Un
 	// refs := B.Units.My.OfType(terran.Refinery, terran.RefineryRich)
 	scv1 := B.Groups.Get(ScvReserve).Units.ClosestTo(ptr)
 	scv2 := B.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
-		return !unit.IsReturning() && unit.Hits >= minHits // && refs.ByTag(unit.TargetTag()) == nil
+		// Not carrying anything and not assigned to mine gas
+		return unit.Hits >= minHits && len(unit.BuffIds) == 0 && B.Miners.GasForMiner[unit.Tag] == 0
 	}).ClosestTo(ptr)
+	if scv2 == nil {
+		scv2 = B.Groups.Get(Miners).Units.Filter(func(unit *scl.Unit) bool {
+			// If only gas miners left, then ok
+			return unit.Hits >= minHits && len(unit.BuffIds) == 0
+		}).ClosestTo(ptr)
+	}
 
 	scv := scv1
 	if scv1 != nil && scv2 != nil {

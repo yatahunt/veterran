@@ -12,38 +12,55 @@ func FindMainBuildingTypesPositions(startLoc point.Point) (point.Points, point.P
 	slh := B.Grid.HeightAt(startLoc)
 	start := startLoc + 9
 
-	for y := -3.0; y <= 3; y++ {
+	for y := -6.0; y <= 6; y++ {
 		for x := -9.0; x <= 9; x++ {
 			pos := start + point.Pt(3, 2).Mul(x) + point.Pt(-6, 8).Mul(y)
 			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S3x3, 2, scl.IsBuildable) {
 				if B.IsPosOk(pos+2-1i, scl.S2x2, 2, scl.IsBuildable) {
-					pf5x3.Add(pos)
+					pf5x3.Add(pos.CellCenter())
 				} else {
-					pf3x3.Add(pos)
+					pf3x3.Add(pos.CellCenter())
 				}
 			}
 			pos += 2 - 3i
 			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S3x3, 2, scl.IsBuildable) {
 				if B.IsPosOk(pos+2-1i, scl.S2x2, 2, scl.IsBuildable) {
-					pf5x3.Add(pos)
+					pf5x3.Add(pos.CellCenter())
 				} else {
-					pf3x3.Add(pos)
+					pf3x3.Add(pos.CellCenter())
 				}
 			}
 			pos += 1 - 3i
-			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S2x2, 2, scl.IsBuildable) {
-				pf2x2.Add(pos)
+			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S2x2, 1, scl.IsBuildable) {
+				pf2x2.Add(pos.CellCenter())
 			}
 			pos += 2
-			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S2x2, 2, scl.IsBuildable) {
-				pf2x2.Add(pos)
+			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S2x2, 1, scl.IsBuildable) {
+				pf2x2.Add(pos.CellCenter())
 			}
 		}
 	}
 	return pf2x2, pf3x3, pf5x3
 }
 
+// Mark geysers as unbildable because somehow undiscovered geysers become buildable
+func MarkGeysersAsUnbuildable() {
+	points := []point.Points{}
+	for _, geyser := range B.Units.Geysers.All() {
+		points = append(points, B.GetBuildingPoints(geyser, scl.S3x3))
+		for _, ps := range points {
+			for _, p := range ps {
+				B.Grid.SetBuildable(p, false)
+				B.Grid.SetPathable(p, false)
+			}
+		}
+	}
+}
+
 func FindBuildingsPositions() {
+	MarkGeysersAsUnbuildable()
+	FindTurretPosition(B.Locs.MyStart)
+
 	// Positions for first 2 supplies and barrack
 	// todo: grid := grid.New(B.Grid.StartRaw, B.Grid.MapState)
 	rp2x2 := B.FindRamp2x2Positions(B.Ramps.My)
@@ -65,7 +82,7 @@ func FindBuildingsPositions() {
 		closeSupply := rp2x2.ClosestTo(B.Locs.MyStart)
 		pos := B.FindClosestPos(closeSupply, scl.S2x2, 0, 2, 2, scl.IsBuildable, scl.IsPathable)
 		if pos != 0 {
-			B.TurretsPos.Add(pos.S2x2Fix())
+			B.TurretsPos.Add(pos.CellCenter())
 		}
 	}
 
@@ -104,7 +121,7 @@ func FindBuildingsPositions() {
 				if !B.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable, scl.IsPathable) {
 					continue
 				}
-				pf3x3.Add(pos)
+				pf3x3.Add(pos.CellCenter())
 				for _, p := range B.GetBuildingPoints(pos, scl.S3x3) {
 					B.Grid.SetBuildable(p, false)
 					B.Grid.SetPathable(p, false)
@@ -142,44 +159,58 @@ func FindBuildingsPositions() {
 	B.BuildPos[scl.S3x3] = pf3x3
 	B.BuildPos[scl.S5x3] = pf5x3
 	B.BuildPos[scl.S5x5] = B.Locs.MyExps
-
-	/*B.Debug2x2Buildings(B.BuildPos[scl.S2x2]...)
-	B.Debug3x3Buildings(B.BuildPos[scl.S3x3]...)
-	B.Debug5x3Buildings(B.BuildPos[scl.S5x3]...)
-	B.Debug3x3Buildings(B.BuildPos[scl.S5x5]...)
-	B.DebugSend()*/
 }
 
-func FindTurretPosition(cc *scl.Unit) {
-	mfs := B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, cc)
-	vesps := B.Units.Geysers.All().CloserThan(scl.ResourceSpreadDistance, cc)
-	mfs.Add(vesps...)
+func FindTurretPosition(ptr point.Pointer) {
+	mfs := B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, ptr)
 	if mfs.Empty() {
 		return
 	}
 
-	for _, p := range B.GetBuildingPoints(cc, scl.S5x5) {
-		B.Grid.SetBuildable(p, false)
-	}
+	MarkGeysersAsUnbuildable()
 
 	var pos point.Point
-	vec := (mfs.Center() - cc.Point()).Norm()
-	for x := 3.0; x < 8; x++ {
-		pos = (cc.Point() + vec.Mul(x)).Floor()
-		if B.IsPosOk(pos, scl.S2x2, 0, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep) {
-			break
+	vec := (mfs.Center() - ptr.Point()).Norm()
+	rekt := mfs.Rekt()
+	rekt[0] -= 1+1i // Move LOWER point DOWN and LEFT because 2x2 building is placed on lower-left corner
+	side := vec.Compas()
+	if side.IsDiagonal() {
+		// Minerals are in quarter of a circle. We need do find corners of rectangle that wraps all crystals
+		if side == point.NE || side == point.SW {
+			// Switch corners
+			rekt[0], rekt[1] = point.Pt(rekt[0].X(), rekt[1].Y()), point.Pt(rekt[1].X(), rekt[0].Y())
 		}
-		pos = 0
+	} else {
+		// Move closest to CC point behind the mineral line
+		switch side {
+		case point.E:
+			rekt[0] = point.Pt(rekt[1].X(), rekt[0].Y())
+		case point.W:
+			rekt[1] = point.Pt(rekt[0].X(), rekt[1].Y())
+		case point.N:
+			rekt[0] = point.Pt(rekt[0].X(), rekt[1].Y())
+		case point.S:
+			rekt[1] = point.Pt(rekt[1].X(), rekt[0].Y())
+		}
 	}
-	if pos == 0 {
-		return
+	// B.DebugPoints(rekt...)
+
+	for _, corner := range rekt {
+		if pos = B.FindClosestPos(corner, scl.S2x2, 0, 0, 1, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep); pos == 0 {
+			pos = B.FindClosestPos(corner, scl.S2x2, 0, 1, 1, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep)
+		}
+		if pos == 0 {
+			continue
+		}
+		pos = pos.CellCenter()
+		if !B.TurretsPos.Has(pos) {
+			B.TurretsPos.Add(pos)
+		}
+		for _, p := range B.GetBuildingPoints(pos, scl.S2x2) {
+			B.Grid.SetBuildable(p, false)
+			B.Grid.SetPathable(p, false)
+		}
 	}
-	pos = pos.S2x2Fix()
-	if !B.TurretsPos.Has(pos) {
-		B.TurretsPos.Add(pos)
-	}
-	/*B.Debug2x2Buildings(TurretsPos...)
-	B.DebugSend()*/
 }
 
 func FindBunkerPosition(ptr point.Pointer) {
@@ -198,7 +229,7 @@ func FindBunkerPosition(ptr point.Pointer) {
 	var pos point.Point
 	vec := (mfs.Center() - ccPos).Norm()
 	for x := 3.0; x < 8; x++ {
-		pos = (ccPos - vec.Mul(x)).Floor()
+		pos = (ccPos - vec.Mul(x)).Floor().CellCenter()
 		if B.BunkersPos.Has(pos) {
 			return // There is already position for one bunker
 		}
