@@ -62,7 +62,7 @@ func FindBuildingsPositions() {
 	FindTurretPosition(B.Locs.MyStart)
 
 	// Positions for first 2 supplies and barrack
-	// todo: grid := grid.New(B.Grid.StartRaw, B.Grid.MapState)
+	// todo: grid := grid.New(B.Grid.StartRaw, B.Grid.MapState) - держать отдельную сетку с пометками где что строить собрался
 	rp2x2 := B.FindRamp2x2Positions(B.Ramps.My)
 	B.FirstBarrack = B.FindRampBarracksPositions(B.Ramps.My)
 	if B.FirstBarrack.Len() > 1 && rp2x2.Len() > 1 {
@@ -134,17 +134,7 @@ func FindBuildingsPositions() {
 	pf3x3.OrderByDistanceTo(B.Locs.MyStart, false)
 	pf5x3.OrderByDistanceTo(B.Locs.MyStart, false)
 
-	// Don't build fast wall against protoss, but be ready for worker rush
-	// I'll try to defend it other way
-	/*if B.EnemyRace == api.Race_Protoss {
-		// Insert supplies for wall after pos that is closest to base
-		pos := pf2x2.FurthestTo(B.Ramps.My.Top)
-		pf2x2 = append(point.Points{pos}, append(rp2x2, pf2x2...)...)
-		// Use closest 5x3 position for first barracks
-		FirstBarrack[0] = pf5x3.FurthestTo(B.Ramps.My.Top)
-	} else {*/
 	pf2x2 = append(rp2x2, pf2x2...)
-	//}
 
 	// Positions for buildings on expansions
 	pf2x2a, pf3x3a, pf5x3a := FindMainBuildingTypesPositions(B.Locs.MyExps[0])
@@ -249,7 +239,7 @@ func GetEmptyBunker(ptr point.Pointer) *scl.Unit {
 	return bunkers.Min(func(unit *scl.Unit) float64 { return unit.Dist2(ptr) })
 }
 
-func RecalcEnemyStartLoc(np point.Point) {
+func RecalcEnemyStartLoc(np point.Point) { // Used on maps where there could be more than 2 players
 	B.Locs.EnemyStart = np
 	B.Locs.EnemyMainCenter = B.FindBaseCenter(B.Locs.EnemyStart)
 	B.FindExpansions()

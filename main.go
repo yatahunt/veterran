@@ -86,7 +86,6 @@ func RunAgent(c *client.Client) {
 		macro.Macro(B)
 		micro.Micro(B)
 	}
-	// todo: Move init into lib
 	B.Init(true) // Called later because in Init() we need to use *B in callback
 
 	for B.Client.Status == api.Status_in_game {
@@ -110,7 +109,7 @@ func run() {
 
 	// Create the agent and then start the game
 	// client.SetRealtime()
-	// client.SetMap(client.Maps2021season1[3] + ".SC2Map")
+	// client.SetMap(client.Maps2021season1[0] + ".SC2Map")
 	myBot := client.NewParticipant(api.Race_Terran, "VeTerran")
 	cpu := client.NewComputer(api.Race_Random, api.Difficulty_CheatInsane, api.AIBuild_RandomBuild)
 	cfg := client.LaunchAndJoin(myBot, cpu)

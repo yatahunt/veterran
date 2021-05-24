@@ -8,14 +8,13 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.2.3 (glhf)"
+const version = "VeTerran v2.2.4 (glhf)"
 
 type Bot struct {
 	*scl.Bot
 
 	Logic func()
 
-	IsRealtime     bool
 	WorkerRush     bool
 	LingRush       bool
 	PlayDefensive  bool

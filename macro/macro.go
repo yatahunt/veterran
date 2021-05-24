@@ -154,7 +154,7 @@ func ReserveSCVs() {
 		B.Groups.Get(bot.ScvReserve).Tags.Empty() {
 		pos := B.BuildPos[scl.S2x2][0]
 		scv := bot.GetSCV(pos, 0, 45) // Get SCV but don't change its group
-		if scv != nil && scv.FramesToPos(pos)*B.MineralsPerFrame+float64(B.Minerals) >= 100 {
+		if scv != nil && scv.FramesToPos(pos)*B.MineralsPerFrame+float64(B.Minerals) >= 80 {
 			B.Groups.Add(bot.ScvReserve, scv)
 			scv.CommandPos(ability.Move, pos)
 		}

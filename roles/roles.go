@@ -210,8 +210,8 @@ func ReconBase() {
 	}
 
 	scv := B.Groups.Get(bot.ScoutBase).Units.First()
-	if B.Locs.EnemyStarts.Len() <= 1 && scv == nil && !B.WorkerRush /*&& !PlayDefensive*/ && B.Loop > 896 && B.Loop < 906 {
-		// 0:50
+	if scv == nil && B.Locs.EnemyStarts.Len() <= 1 && !B.WorkerRush && B.Loop > 896 && B.Loop < 906 {
+		// 0:50 hire scout
 		scv = bot.GetSCV(B.Locs.EnemyStart, bot.Scout, 45)
 		if scv != nil {
 			B.Groups.Add(bot.ScoutBase, scv)
@@ -232,7 +232,7 @@ func ReconBase() {
 		B.Groups.Add(bot.Miners, scv) // dismiss scout
 
 		if B.EnemyRace == api.Race_Terran {
-			if B.Units.AllEnemy[terran.Barracks].Len() >= 3 {
+			if B.Units.AllEnemy[terran.Barracks].Len() >= 2 {
 				bot.EnableDefensivePlay()
 			}
 		}
@@ -317,7 +317,7 @@ func Mine() {
 		Filter(func(unit *scl.Unit) bool {
 			return unit.IsReady() && enemies.CanAttack(unit, 0).Empty()
 		})
-	B.HandleMiners(miners, ccs, 0.5) // reserve more vespene
+	B.HandleMiners(miners, ccs, 0.6) // reserve more vespene
 
 	// If there is ready unsaturated refinery and an scv gathering, send it there
 	/*refs := B.Units.My[terran.Refinery]

@@ -75,14 +75,14 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Supplies",
 		Ability: ability.Build_SupplyDepot,
 		Premise: func() bool {
-			// it's safe && 1 depo is placed && < 2:00 && only one cc
+			// its safe && 1 depo is placed && < 2:00 && only one cc
 			if !B.PlayDefensive && B.FoodCap > 20 && B.Loop < 2688 &&
 				B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Len() == 1 {
 				return false // Wait for a second cc
 			}
-			if B.Loop < 1344 && B.FoodUsed < 14 /*&& B.EnemyRace != api.Race_Protoss*/ {
-				return false // Train SCVs without delay /*if no worker rush is possible*/
-			}
+			/*if B.Loop < 1344 && B.FoodUsed < 14 {
+				return false // Train SCVs without delay
+			}*/
 			return B.FoodLeft < 6+B.FoodUsed/20 && B.FoodCap < 200
 		},
 		Limit:  func() int { return 30 },
@@ -226,7 +226,6 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Missile Turrets",
 		Ability: ability.Build_MissileTurret,
 		Premise: func() bool {
-			//  && B.Units.My[terran.EngineeringBay].First(scl.Ready) != nil
 			return B.BuildTurrets
 		},
 		Limit:   func() int { return B.TurretsPos.Len() },
@@ -414,14 +413,19 @@ func Build(aid api.AbilityID) point.Point {
 			pos.IsFurtherThan(B.DefensiveRange, B.Locs.MyStart) {
 			continue
 		}
-
 		if B.RequestPathing(B.Locs.MyStart, pos) == 0 {
 			log.Debugf("Can't find path to build %v @ %v", B.U.Types[B.U.AbilityUnit[aid]].Name, pos)
 			continue // No path
 		}
 
-		scv := bot.GetSCV(pos, bot.Builders, 45)
+		scv := bot.GetSCV(pos, 0, 45)
 		if scv != nil {
+			if path, _ := scl.NavPath(B.Grid, B.SafeWayMap, point.Pt3(scv.Pos), pos); path == nil {
+				log.Debugf("Can't find safe path from %v to build %v @ %v",
+					scv.Pos, B.U.Types[B.U.AbilityUnit[aid]].Name, pos)
+				continue
+			}
+			B.Groups.Add(bot.Builders, scv)
 			OrderBuild(scv, pos, aid)
 			return pos
 		}
