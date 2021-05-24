@@ -148,7 +148,7 @@ func OrderUnits() {
 				terran.Liberator, terran.Raven, terran.Banshee, terran.Battlecruiser, zerg.Queen, zerg.Mutalisk,
 				zerg.Corruptor, zerg.Viper, zerg.Ultralisk, zerg.BroodLord) + 1
 			tanksScore := B.EnemyProduction.Score(protoss.Stalker, protoss.Colossus, protoss.PhotonCannon,
-				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, /*zerg.Zergling, zerg.Baneling,*/
+				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, terran.PlanetaryFortress,
 				zerg.Roach, zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler) + 1
 			buyCyclones = cyclonesScore/float64(cyclones+1) >= tanksScore/float64(tanks+1)
 			buyTanks = !buyCyclones

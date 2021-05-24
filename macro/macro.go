@@ -28,12 +28,12 @@ func Morph() {
 	}
 	groundEnemies := B.Enemies.All.Filter(scl.NotFlying)
 	for _, supply := range B.Units.My[terran.SupplyDepot].Filter(scl.Ready) {
-		if groundEnemies.CloserThan(5, supply).Empty() {
+		if groundEnemies.CloserThan(7, supply).Empty() {
 			supply.Command(ability.Morph_SupplyDepot_Lower)
 		}
 	}
 	for _, supply := range B.Units.My[terran.SupplyDepotLowered] {
-		if groundEnemies.CloserThan(5, supply).Exists() {
+		if groundEnemies.CloserThan(7, supply).Exists() {
 			supply.Command(ability.Morph_SupplyDepot_Raise)
 		}
 	}
@@ -49,6 +49,19 @@ func Cast() {
 			allEnemies := B.Enemies.All
 			visibleEnemies := allEnemies.Filter(scl.PosVisible)
 			units := B.Units.My.All()
+			// Reveal hidden units that can be attacked
+			hiddenEnemies := allEnemies.Filter(scl.Hidden, scl.PosVisible)
+			if hiddenEnemies.Exists() {
+				army := units.Filter(scl.DpsGt5)
+				for _, he := range hiddenEnemies {
+					if army.CanAttack(he, 0).Exists() {
+						cc.CommandPos(ability.Effect_Scan, he)
+						log.Debug("Hidden enemy scan")
+					}
+				}
+			}
+			// todo: maybe delete some scans algos that are obsolete after this ^^^
+
 			// Reaper wants to see highground
 			/*if B.Units.My[terran.Raven].Empty() {
 				if reaper := B.Groups.Get(bot.Reapers).Units.ClosestTo(B.Locs.EnemyStart); reaper != nil {

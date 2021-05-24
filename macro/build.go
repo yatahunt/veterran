@@ -238,8 +238,9 @@ var RaxBuildOrder = BuildNodes{
 		Ability: ability.Build_Reactor_Barracks,
 		Premise: func() bool {
 			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
+			rax := B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
 			return ccs.Len() > 2 &&
-				((B.Vespene >= 100 && B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil) ||
+				((B.Vespene >= 100 && rax != nil && B.Enemies.Visible.CloserThan(SafeBuildRange, rax).Empty()) ||
 					B.Units.My[terran.BarracksFlying].First() != nil)
 		},
 		Limit:  BuildOne, // B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Len()
@@ -269,7 +270,8 @@ var RaxBuildOrder = BuildNodes{
 		Ability: ability.Build_TechLab_Barracks,
 		Premise: func() bool {
 			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
-			return ccs.Len() >= 2 && B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+			rax := B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
+			return ccs.Len() >= 2 && (rax != nil) && B.Enemies.Visible.CloserThan(SafeBuildRange, rax).Empty()
 		},
 		Limit: func() int {
 			return B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Len() - 1
@@ -290,8 +292,9 @@ var FactoryBuildOrder = BuildNodes{
 		Name:    "Factory Tech Lab",
 		Ability: ability.Build_TechLab_Factory,
 		Premise: func() bool {
-			return B.Units.My[terran.FactoryReactor].Exists() &&
-				B.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+			factory := B.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle)
+			return B.Units.My[terran.FactoryReactor].Exists() && (factory != nil) &&
+				B.Enemies.Visible.CloserThan(SafeBuildRange, factory).Empty()
 		},
 		Limit: func() int {
 			return B.Units.My[terran.Factory].Len() - B.Units.My[terran.FactoryReactor].Len()
@@ -305,7 +308,8 @@ var FactoryBuildOrder = BuildNodes{
 		Name:    "Factory Reactor",
 		Ability: ability.Build_Reactor_Factory,
 		Premise: func() bool {
-			return B.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+			factory := B.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle)
+			return (factory != nil) && B.Enemies.Visible.CloserThan(SafeBuildRange, factory).Empty()
 		},
 		Limit: func() int { // Build one but after tech lab
 			return scl.MinInt(1, B.Units.My[terran.Factory].Len()-1)
@@ -335,7 +339,8 @@ var StarportBuildOrder = BuildNodes{
 		Name:    "Starport Tech Lab",
 		Ability: ability.Build_TechLab_Starport,
 		Premise: func() bool {
-			return B.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle) != nil
+			starport := B.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle)
+			return (starport != nil) && B.Enemies.Visible.CloserThan(SafeBuildRange, starport).Empty()
 		},
 		Limit: func() int {
 			return B.Units.My[terran.Starport].Len()

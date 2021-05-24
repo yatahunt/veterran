@@ -5,11 +5,13 @@ import (
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/api"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/buff"
 )
 
 func BattlecruiserRetreat(u *scl.Unit) bool {
-	if (u.HasAbility(ability.Effect_TacticalJump) && u.Hits < 100) ||
-		(!u.HasAbility(ability.Effect_TacticalJump) && u.Hits < u.HitsMax/2) {
+	if (u.HasAbility(ability.Effect_TacticalJump) && u.Hits < 150) ||
+		(!u.HasAbility(ability.Effect_TacticalJump) && u.Hits < u.HitsMax/2) ||
+		u.HasBuff(buff.RavenScramblerMissile) {
 		B.Groups.Add(bot.MechRetreat, u)
 		return true
 	}

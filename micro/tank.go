@@ -4,11 +4,12 @@ import (
 	"bitbucket.org/aisee/veterran/bot"
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/buff"
 	"github.com/aiseeq/s2l/protocol/enums/terran"
 )
 
 func TankRetreat(u *scl.Unit) bool {
-	if u.UnitType == terran.SiegeTank && u.Hits < u.HitsMax/2 {
+	if u.UnitType == terran.SiegeTank && (u.Hits < u.HitsMax/2 || u.HasBuff(buff.RavenScramblerMissile)) {
 		B.Groups.Add(bot.MechRetreat, u)
 		return true
 	}
@@ -28,16 +29,14 @@ func TankManeuver(u *scl.Unit) bool {
 
 func TankMorph(u *scl.Unit) bool {
 	if u.UnitType == terran.SiegeTank {
-		targets := Targets.ArmedGround.InRangeOf(u, 0)
-		if targets.Empty() {
-			targets = Targets.Ground.InRangeOf(u, 0)
-		}
-		farTargets := Targets.ArmedGround.InRangeOf(u, 13-7) // Sieged range - mobile range
-		if farTargets.Empty() {
-			farTargets = Targets.Ground.InRangeOf(u, 13-7)
-		}
+		targets := Targets.Ground.InRangeOf(u, 0)
+		farTargets := Targets.Ground.InRangeOf(u, 13-7) // Sieged range - mobile range
 
-		if targets.Empty() && farTargets.Exists() && B.Enemies.AllReady.CanAttack(u, 2).Exists() {
+		// Tank can't attack anyone now and there is a far target that can hit tank if it closes or
+		// there is a lot of far targets that worth morphing
+		if targets.Empty() &&
+			((farTargets.Exists() && B.Enemies.AllReady.CanAttack(u, 2).Exists()) ||
+				farTargets.Sum(scl.CmpHits) >= 210) {
 			u.Command(ability.Morph_SiegeMode)
 			return true
 		}
