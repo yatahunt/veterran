@@ -146,9 +146,11 @@ func Repair() {
 func DoubleHeal() {
 	for key, group := range B.DoubleHealers {
 		scvs := B.Groups.Get(group).Units
+		enemies := B.Enemies.Visible.Filter(scl.NotFlying)
 		if scvs.Len() < 2 || (scvs[0].Hits == 45 && scvs[1].Hits == 45) ||
 			scvs[0].TargetAbility() != ability.Effect_Repair_SCV ||
-			scvs[1].TargetAbility() != ability.Effect_Repair_SCV {
+			scvs[1].TargetAbility() != ability.Effect_Repair_SCV ||
+			enemies.CanAttack(scvs[0], 2).Exists() || enemies.CanAttack(scvs[1], 2).Exists() {
 			B.Groups.Add(bot.Miners, scvs...)
 			if len(B.DoubleHealers) > key+1 {
 				B.DoubleHealers = append(B.DoubleHealers[:key], B.DoubleHealers[key+1:]...)
@@ -171,6 +173,7 @@ func Recon() {
 
 	if scv != nil {
 		// Workers rush
+		// todo: init defence here?
 		if B.Units.Enemy.OfType(terran.SCV, zerg.Drone, protoss.Probe).FurtherThan(40, B.Locs.EnemyStart).Len() > 3 {
 			B.Groups.Add(bot.Miners, scv)
 			return
@@ -223,6 +226,7 @@ func ReconBase() {
 
 	// Workers rush
 	if B.Units.Enemy.OfType(terran.SCV, zerg.Drone, protoss.Probe).FurtherThan(40, B.Locs.EnemyStart).Len() > 3 {
+		// todo: init defence here?
 		B.Groups.Add(bot.Miners, scv)
 		return
 	}
@@ -307,10 +311,6 @@ func Mine() {
 		miner.GroundFallback(enemies, 2, B.HomePaths)
 	}*/
 
-	/*if B.Loop%B.FramesPerOrder != 0 {
-		// try to fix destribution bug. Might be caused by AssignedHarvesters lagging
-		return
-	}*/ // todo: is it needed?
 	// Std miners handler
 	miners = B.Groups.Get(bot.Miners).Units
 	ccs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).

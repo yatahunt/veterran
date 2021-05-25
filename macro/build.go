@@ -186,7 +186,6 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Armory",
 		Ability: ability.Build_Armory,
 		Premise: func() bool {
-			// B.Units.My[terran.Factory].First(scl.Ready) != nil // Needs factory
 			return B.Units.My[terran.EngineeringBay].First(scl.Ready) != nil
 		},
 		WaitRes: Yes,
@@ -202,13 +201,11 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
 		Premise: func() bool {
-			return B.EnemyRace != api.Race_Protoss &&
-				B.Units.My[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
+			return B.Units.My[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
 				B.Units.My[terran.BarracksFlying].Empty()
 		},
 		Limit: func() int {
 			// ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
-			// orbitals := B.Units.My.OfType(terran.OrbitalCommand)
 			return 2 // scl.MinInt(2, ccs.Len())
 		},
 		Active: BuildOne,
@@ -233,12 +230,12 @@ var RaxBuildOrder = BuildNodes{
 		WaitRes: Yes,
 	},
 	{
-		Name:    "Barracks reactors",
-		Ability: ability.Build_Reactor_Barracks,
+		Name:    "Barracks techlabs",
+		Ability: ability.Build_TechLab_Barracks,
 		Premise: func() bool {
 			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
 			rax := B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
-			return ccs.Len() > 2 &&
+			return ccs.Len() >= 2 &&
 				((B.Vespene >= 100 && rax != nil && B.Enemies.Visible.CloserThan(SafeBuildRange, rax).Empty()) ||
 					B.Units.My[terran.BarracksFlying].First() != nil)
 		},
@@ -247,7 +244,7 @@ var RaxBuildOrder = BuildNodes{
 		Method: func() {
 			// todo: group?
 			if rax := B.Units.My[terran.BarracksFlying].First(); rax != nil {
-				rax.CommandPos(ability.Build_Reactor_Barracks, B.FirstBarrack[1])
+				rax.CommandPos(ability.Build_TechLab_Barracks, B.FirstBarrack[1])
 				return
 			}
 
@@ -259,14 +256,14 @@ var RaxBuildOrder = BuildNodes{
 					}
 					rax.Command(ability.Lift_Barracks)
 				} else {
-					rax.Command(ability.Build_Reactor_Barracks)
+					rax.Command(ability.Build_TechLab_Barracks)
 				}
 			}
 		},
 	},
 	{
-		Name:    "Barracks techlabs",
-		Ability: ability.Build_TechLab_Barracks,
+		Name:    "Barracks reactors",
+		Ability: ability.Build_Reactor_Barracks,
 		Premise: func() bool {
 			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready)
 			rax := B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
@@ -281,7 +278,7 @@ var RaxBuildOrder = BuildNodes{
 			if rax.IsCloserThan(3, B.FirstBarrack[0]) {
 				return
 			}
-			rax.Command(ability.Build_TechLab_Barracks)
+			rax.Command(ability.Build_Reactor_Barracks)
 		},
 	},
 }
@@ -299,7 +296,7 @@ var FactoryBuildOrder = BuildNodes{
 			if allFactories.Len() == 1 {
 				return 1
 			}
-			return allFactories.Len()-1
+			return allFactories.Len() - 1
 		},
 		Active: BuildOne,
 		Method: func() {
@@ -350,7 +347,7 @@ var StarportBuildOrder = BuildNodes{
 			return (starport != nil) && B.Enemies.Visible.CloserThan(SafeBuildRange, starport).Empty()
 		},
 		Limit: func() int {
-			return B.Units.My[terran.Starport].Len()
+			return B.Units.My.OfType(B.U.UnitAliases.For(terran.Starport)...).Len()
 		},
 		Active: BuildOne,
 		Method: func() {
@@ -370,7 +367,6 @@ var StarportBuildOrder = BuildNodes{
 
 func OrderBuild(scv *scl.Unit, pos point.Point, aid api.AbilityID) {
 	scv.CommandPos(aid, pos)
-	// scv.Orders = append(scv.Orders, &api.UnitOrder{AbilityId: aid}) // todo: move in commands
 	B.DeductResources(aid)
 	log.Debugf("%d: Building %v @ %v", B.Loop, B.U.Types[B.U.AbilityUnit[aid]].Name, pos)
 	// B.DebugPoints(pos)
@@ -385,6 +381,7 @@ func Build(aid api.AbilityID) point.Point {
 
 	techReq := B.U.Types[B.U.AbilityUnit[aid]].TechRequirement
 	if techReq != 0 && B.Units.My.OfType(B.U.UnitAliases.For(techReq)...).Empty() {
+		log.Debugf("Tech requirement didn't met for %v", B.U.Types[B.U.AbilityUnit[aid]].Name)
 		return 0 // Not available because of tech reqs, like: supply is needed for barracks
 	}
 
@@ -428,7 +425,13 @@ func Build(aid api.AbilityID) point.Point {
 
 		scv := bot.GetSCV(pos, 0, 45)
 		if scv != nil {
-			if path, _ := scl.NavPath(B.Grid, B.SafeWayMap, point.Pt3(scv.Pos), pos); path == nil {
+			p := point.Pt3(scv.Pos)
+			if !B.SafeGrid.IsPathable(p) {
+				if pathablePos := B.FindClosestPathable(B.SafeGrid, p); pathablePos != 0 {
+					p = pathablePos
+				}
+			}
+			if path, _ := scl.NavPath(B.Grid, B.SafeWayMap, p, pos); path == nil {
 				log.Debugf("Can't find safe path from %v to build %v @ %v",
 					scv.Pos, B.U.Types[B.U.AbilityUnit[aid]].Name, pos)
 				return 0

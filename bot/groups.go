@@ -86,7 +86,7 @@ func OnUnitCreated(unit *scl.Unit) {
 	if unit.UnitType == terran.CommandCenter {
 		// Ignore first CC, turrets poses will be found for him separately
 		if B.Loop >= 12 {
-			B.FindTurretPosFor = point.Pt3(unit.Pos)
+			FindTurretPosition(point.Pt3(unit.Pos))
 		}
 		// No return! Add it to UnderConstruction group if needed
 	}

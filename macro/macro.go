@@ -60,7 +60,6 @@ func Cast() {
 					}
 				}
 			}
-			// todo: maybe delete some scans algos that are obsolete after this ^^^
 
 			// Reaper wants to see highground
 			/*if B.Units.My[terran.Raven].Empty() {
@@ -94,30 +93,6 @@ func Cast() {
 				cc.CommandPos(ability.Effect_Scan, eps.ClosestTo(B.Locs.EnemyStart))
 				log.Debug("Lurker scan")
 				return
-			}
-
-			// DTs
-			if B.EnemyRace == api.Race_Protoss {
-				dts := B.Units.Enemy[protoss.DarkTemplar]
-				hitByDT := units.First(func(unit *scl.Unit) bool {
-					return unit.HitsLost >= 41 && !unit.IsArmored() && !dts.CanAttack(unit, 0).Exists()
-				})
-				if hitByDT != nil {
-					cc.CommandPos(ability.Effect_Scan, hitByDT)
-					log.Debug("DT scan")
-					return
-				}
-			}
-
-			// Early banshee without upgrades
-			if B.EnemyRace == api.Race_Terran {
-				for _, u := range units {
-					if u.HitsLost == 12 && allEnemies.CanAttack(u, 2).Empty() {
-						cc.CommandPos(ability.Effect_Scan, u)
-						log.Debug("Banshee scan")
-						return
-					}
-				}
 			}
 
 			// Recon scan at 4:00
@@ -160,8 +135,8 @@ func ReserveSCVs() {
 		}
 	}
 	// Fast expansion
-	if B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).Len() == 1 &&
-		B.Minerals >= 350 && B.Groups.Get(bot.ScvReserve).Tags.Empty() /*&& !PlayDefensive*/ && !B.WorkerRush {
+	if B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Len() == 1 &&
+		B.Minerals >= 350 && B.Groups.Get(bot.ScvReserve).Tags.Empty() && !B.WorkerRush {
 		pos := B.Locs.MyExps[0]
 		if scv := bot.GetSCV(pos, bot.ScvReserve, 45); scv != nil {
 			scv.CommandPos(ability.Move, pos)
@@ -178,10 +153,6 @@ func Macro(b *bot.Bot) {
 		protoss.VoidRay, protoss.Oracle, protoss.Tempest, protoss.Carrier, protoss.Stargate, protoss.DarkShrine).
 		Exists() {
 		B.BuildTurrets = true
-	}
-	if B.FindTurretPosFor != 0 {
-		bot.FindTurretPosition(B.FindTurretPosFor)
-		B.FindTurretPosFor = 0
 	}
 
 	if LastBuildLoop+B.FramesPerOrder < B.Loop {

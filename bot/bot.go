@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.2.5 (glhf)"
+const version = "VeTerran v2.2.6 (glhf)"
 
 type Bot struct {
 	*scl.Bot
@@ -27,7 +27,6 @@ type Bot struct {
 	FirstBarrack     point.Points
 	TurretsPos       point.Points
 	BunkersPos       point.Points
-	FindTurretPosFor point.Point
 
 	DoubleHealers []scl.GroupID
 }
@@ -107,9 +106,9 @@ func Step() {
 	}
 
 	/*if B.Loop%3 == 0 && B.Loop/3 >= 4 && B.Loop/3 < len(B.Locs.MyExps)+4 {
-		B.FindTurretPosFor = B.Locs.MyExps[B.Loop/3-4]
-	}*/
-	/*if B.Loop >= 60 && B.Loop < 63 {
+		FindTurretPosition(B.Locs.MyExps[B.Loop/3-4])
+	}
+	if B.Loop >= 60 && B.Loop < 63 {
 		B.Debug2x2Buildings(B.TurretsPos...)
 		B.DebugSend()
 		log.Info(B.Loop)

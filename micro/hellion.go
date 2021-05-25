@@ -10,7 +10,7 @@ import (
 // todo: take old Maneuver() from repo if standard method isn't cool
 func HellionMorph(u *scl.Unit) bool {
 	// Transform into hellbats vs zerg in defense, armory exists, not on main base
-	if B.EnemyRace == api.Race_Zerg && u.UnitType == terran.Hellion /*&& PlayDefensive*/ &&
+	if (B.EnemyRace == api.Race_Zerg || B.EnemyRace == api.Race_Protoss) && u.UnitType == terran.Hellion &&
 		B.Units.My[terran.Armory].First(scl.Ready) != nil && B.Grid.HeightAt(u) != B.Grid.HeightAt(B.Locs.MyStart) {
 		u.Command(ability.Morph_Hellbat)
 		return true

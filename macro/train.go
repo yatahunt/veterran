@@ -148,7 +148,7 @@ func OrderUnits() {
 				terran.Liberator, terran.Raven, terran.Banshee, terran.Battlecruiser, zerg.Queen, zerg.Mutalisk,
 				zerg.Corruptor, zerg.Viper, zerg.Ultralisk, zerg.BroodLord) + 1
 			tanksScore := B.EnemyProduction.Score(protoss.Stalker, protoss.Colossus, protoss.PhotonCannon,
-				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, terran.PlanetaryFortress,
+				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, terran.PlanetaryFortress, terran.Cyclone,
 				zerg.Roach, zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler) + 1
 			buyCyclones = cyclonesScore/float64(cyclones+1) >= tanksScore/float64(tanks+1)
 			buyTanks = !buyCyclones
@@ -219,7 +219,7 @@ func OrderUnits() {
 		// Until 4:00
 		// B.Loop < 5376 && (B.Pending(ability.Train_Reaper) < 2 || B.EnemyRace == api.Race_Zerg) &&
 		// before 2:40 or if they are not dying until 4:00
-		if !B.LingRush && (B.Loop < 3584 || (B.Loop < 5376 && B.Pending(ability.Train_Reaper) > B.Loop/1344)) &&
+		if /*!B.LingRush &&*/ (B.Loop < 3584 || (B.Loop < 5376 && B.Pending(ability.Train_Reaper) > B.Loop/1344)) &&
 			B.CanBuy(ability.Train_Reaper) {
 			OrderTrain(rax, ability.Train_Reaper, usedFactories)
 		} else if B.CanBuy(ability.Train_Marine) {

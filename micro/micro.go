@@ -5,6 +5,7 @@ import (
 	"github.com/aiseeq/s2l/lib/point"
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/buff"
 	"github.com/aiseeq/s2l/protocol/enums/protoss"
 	"github.com/aiseeq/s2l/protocol/enums/terran"
 	"github.com/aiseeq/s2l/protocol/enums/zerg"
@@ -35,7 +36,7 @@ var Targets TargetsTypes
 func InitTargets() {
 	Targets = TargetsTypes{}
 	for _, u := range B.Enemies.All {
-		if u.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, terran.KD8Charge) {
+		if u.Is(zerg.Larva, zerg.Egg, protoss.AdeptPhaseShift, protoss.DisruptorPhased, terran.KD8Charge) {
 			continue
 		}
 
@@ -88,7 +89,7 @@ func InitTargets() {
 	}
 }
 
-func WorkerMoveFunc(u *scl.Unit, target *scl.Unit) {
+func WorkerMoveFunc(u *scl.Unit, target *scl.Unit) { // todo: nove into scv.go?
 	if !u.InRange(target, 0) || !target.IsVisible() {
 		if u.WeaponCooldown > 0 && u.PosDelta == 0 {
 			u.SpamCmds = true
@@ -155,7 +156,7 @@ func WorkerRushDefence() {
 
 	if B.WorkerRush && B.Minerals >= 75 {
 		workers := B.Groups.Get(bot.Miners).Units.Filter(func(unit *scl.Unit) bool {
-			return unit.Hits < 11 && unit.IsGathering()
+			return unit.Hits < 11 && unit.IsGathering() && enemies.CanAttack(unit, 2).Empty()
 		})
 		if workers.Len() >= 2 {
 			workers[0].CommandTag(ability.Effect_Repair_SCV, workers[1].Tag)
@@ -186,7 +187,7 @@ func MechRetreat() {
 	}
 
 	for _, u := range us {
-		if u.Health == u.HealthMax {
+		if u.Health == u.HealthMax && !u.HasBuff(buff.RavenScramblerMissile) {
 			bot.OnUnitCreated(u) // Add to corresponding group
 			continue
 		}

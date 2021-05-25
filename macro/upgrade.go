@@ -85,8 +85,7 @@ func OrderUpgrades() {
 				continue
 			}
 			if arm.HasTrueAbility(a) {
-				if B.CanBuy(a) { // todo: doesn't work? Wrong resources info?
-					// log.Info(a, scl.AbilityCost[a]) // 864 {0 0 0 0}
+				if B.CanBuy(a) {
 					arm.Command(a)
 					return
 				} else {
