@@ -292,11 +292,14 @@ var FactoryBuildOrder = BuildNodes{
 		Ability: ability.Build_TechLab_Factory,
 		Premise: func() bool {
 			factory := B.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle)
-			return B.Units.My[terran.FactoryReactor].Exists() && (factory != nil) &&
-				B.Enemies.Visible.CloserThan(SafeBuildRange, factory).Empty()
+			return (factory != nil) && B.Enemies.Visible.CloserThan(SafeBuildRange, factory).Empty()
 		},
 		Limit: func() int {
-			return B.Units.My[terran.Factory].Len() - B.Units.My[terran.FactoryReactor].Len()
+			allFactories := B.Units.My.OfType(B.U.UnitAliases.For(terran.Factory)...)
+			if allFactories.Len() == 1 {
+				return 1
+			}
+			return allFactories.Len()-1
 		},
 		Active: BuildOne,
 		Method: func() {
@@ -308,10 +311,15 @@ var FactoryBuildOrder = BuildNodes{
 		Ability: ability.Build_Reactor_Factory,
 		Premise: func() bool {
 			factory := B.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle)
-			return (factory != nil) && B.Enemies.Visible.CloserThan(SafeBuildRange, factory).Empty()
+			return B.Units.My[terran.FactoryTechLab].Exists() && (factory != nil) &&
+				B.Enemies.Visible.CloserThan(SafeBuildRange, factory).Empty()
 		},
 		Limit: func() int { // Build one but after tech lab
-			return scl.MinInt(1, B.Units.My[terran.Factory].Len()-1)
+			allFactories := B.Units.My.OfType(B.U.UnitAliases.For(terran.Factory)...)
+			if allFactories.Len() == 1 {
+				return 0
+			}
+			return 1
 		},
 		Active: BuildOne,
 		Method: func() {
@@ -423,7 +431,7 @@ func Build(aid api.AbilityID) point.Point {
 			if path, _ := scl.NavPath(B.Grid, B.SafeWayMap, point.Pt3(scv.Pos), pos); path == nil {
 				log.Debugf("Can't find safe path from %v to build %v @ %v",
 					scv.Pos, B.U.Types[B.U.AbilityUnit[aid]].Name, pos)
-				continue
+				return 0
 			}
 			B.Groups.Add(bot.Builders, scv)
 			OrderBuild(scv, pos, aid)
