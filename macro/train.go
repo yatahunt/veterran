@@ -185,17 +185,19 @@ func OrderUnits() {
 			zerg.Viper, zerg.Ultralisk, zerg.BroodLord) + 1
 		hellionsScore := B.EnemyProduction.Score(zerg.Zergling, zerg.Baneling, zerg.SwarmHostMP) + 1
 		buyMines := minesScore/float64(mines+1) >= hellionsScore/float64(hellions+1)
+		minesNotEnough := B.PendingAliases(ability.Train_WidowMine) < 4
+		hellionsNotEnough := B.Pending(ability.Train_Hellion) + B.Pending(ability.Train_Hellbat) < 4
 
-		if buyMines && (mines == 0 || hellions != 0) && B.PendingAliases(ability.Train_WidowMine) < 4 {
+		if buyMines && (mines == 0 || hellions != 0) && minesNotEnough {
 			if B.CanBuy(ability.Train_WidowMine) {
 				OrderTrain(factory, ability.Train_WidowMine, usedFactories)
-			} else if mines == 0 || B.MechPriority {
+			} else if (mines == 0 || B.MechPriority) && minesNotEnough {
 				B.DeductResources(ability.Train_WidowMine) // Gather money
 			}
 		} else {
-			if B.CanBuy(ability.Train_Hellion) && B.PendingAliases(ability.Train_Hellion) < 4 {
+			if B.CanBuy(ability.Train_Hellion) && hellionsNotEnough {
 				OrderTrain(factory, ability.Train_Hellion, usedFactories)
-			} else if hellions == 0 || B.MechPriority {
+			} else if (hellions == 0 || B.MechPriority) && hellionsNotEnough {
 				B.DeductResources(ability.Train_Hellion) // Gather money
 			}
 		}
@@ -228,7 +230,8 @@ func OrderUnits() {
 		if /*!B.LingRush &&*/ (B.Loop < 3584 || (B.Loop < 5376 && B.Pending(ability.Train_Reaper) > B.Loop/1344)) &&
 			B.CanBuy(ability.Train_Reaper) {
 			OrderTrain(rax, ability.Train_Reaper, usedFactories)
-		} else if B.CanBuy(ability.Train_Marine) {
+		} else if B.CanBuy(ability.Train_Marine) && B.Loop > scl.TimeToLoop(1, 25) {
+			// Don't build marine first if we almost have gas for the reaper
 			OrderTrain(rax, ability.Train_Marine, usedFactories)
 		}
 	}

@@ -89,7 +89,7 @@ var RootBuildOrder = BuildNodes{
 		Active: func() int { return 1 + B.FoodUsed/50 },
 	},
 	{
-		Name:    "Barrack",
+		Name:    "First Barrack",
 		Ability: ability.Build_Barracks,
 		Premise: func() bool {
 			return B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
@@ -201,14 +201,16 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
 		Premise: func() bool {
-			return B.Units.My[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
-				B.Units.My[terran.BarracksFlying].Empty()
+			// B.Units.My[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
+			return B.Units.My[terran.BarracksFlying].Empty()
 		},
 		Limit: func() int {
 			// ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
 			return 2 // scl.MinInt(2, ccs.Len())
 		},
-		Active: BuildOne,
+		Active: func() int {
+			return 2
+		},
 	},
 	{
 		Name:    "Engineering Bay",
@@ -486,7 +488,10 @@ func BuildRefinery(cc *scl.Unit) {
 
 func ProcessBuildOrder(buildOrder BuildNodes) {
 	for _, node := range buildOrder {
-		inLimits := B.Pending(node.Ability) < node.Limit() && B.Orders[node.Ability] < node.Active()
+		// - B.Orders[node.Ability] - because B.Pending(node.Ability) returns actual buildings + assigned builders
+		inLimits := B.Pending(node.Ability) - B.Orders[node.Ability] < node.Limit() &&
+			B.Orders[node.Ability] < node.Active()
+		// log.Info(node.Name, " ", B.Pending(node.Ability), node.Limit(), B.Orders[node.Ability], node.Active())
 		canBuy := B.CanBuy(node.Ability)
 		waitRes := node.WaitRes != nil && node.WaitRes()
 		if (node.Premise == nil || node.Premise()) && inLimits && (canBuy || waitRes) {

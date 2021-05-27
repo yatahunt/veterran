@@ -119,11 +119,17 @@ func OrderUpgrades() {
 	}
 
 	lab = B.Units.My[terran.StarportTechLab].First(scl.Ready, scl.Idle)
-	if lab != nil && B.Units.My[terran.Banshee].Exists() && B.PendingAliases(ability.Train_Banshee) >= 2 &&
-		lab.HasTrueAbility(ability.Research_BansheeHyperflightRotors) &&
-		B.CanBuy(ability.Research_BansheeHyperflightRotors) {
-		lab.Command(ability.Research_BansheeHyperflightRotors)
-		return
+	if lab != nil && B.Units.My[terran.Banshee].Exists() && B.PendingAliases(ability.Train_Banshee) >= 2 {
+		if lab.HasTrueAbility(ability.Research_BansheeHyperflightRotors) &&
+			B.CanBuy(ability.Research_BansheeHyperflightRotors) {
+			lab.Command(ability.Research_BansheeHyperflightRotors)
+			return
+		}
+		if lab.HasTrueAbility(ability.Research_BansheeCloakingField) &&
+			B.CanBuy(ability.Research_BansheeCloakingField) {
+			lab.Command(ability.Research_BansheeCloakingField)
+			return
+		}
 	}
 
 	fc := B.Units.My[terran.FusionCore].First(scl.Ready, scl.Idle)

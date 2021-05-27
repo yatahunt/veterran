@@ -34,6 +34,10 @@ func BansheesLogic(us scl.Units) {
 	}
 
 	for _, u := range us {
+		if u.HPS > 0 && u.HasTrueAbility(ability.Behavior_CloakOn_Banshee) {
+			u.Command(ability.Behavior_CloakOn_Banshee)
+		}
+
 		_ = DefaultRetreat(u) || BansheesManeuver(u) || BansheesAttack(u) || DefaultExplore(u)
 	}
 }

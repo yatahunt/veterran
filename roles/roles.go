@@ -317,36 +317,13 @@ func Mine() {
 		Filter(func(unit *scl.Unit) bool {
 			return unit.IsReady() && enemies.CanAttack(unit, 0).Empty()
 		})
+	// Move miners to first gas
+	if B.Loop < scl.TimeToLoop(1, 5) && len(B.Miners.GasForMiner) < 3 {
+		if ref := B.Units.My.OfType(B.U.UnitAliases.For(terran.Refinery)...).Filter(scl.Ready).First(); ref != nil {
+			B.RedistributeWorkersToRefineryIfNeeded(ref, miners, 3)
+		}
+	}
 	B.HandleMiners(miners, ccs, 0.6) // reserve more vespene
-
-	// If there is ready unsaturated refinery and an scv gathering, send it there
-	/*refs := B.Units.My[terran.Refinery]
-	if B.Minerals > scl.MinInt(5, ccs.Len())*100 && B.Minerals/2 > B.Vespene {
-		ref := refs.First(func(unit *scl.Unit) bool { return unit.IsReady() && unit.AssignedHarvesters < 3 })
-		if ref != nil {
-			// Get scv gathering minerals
-			mfs := B.Units.Minerals.All()
-			scv := B.Groups.Get(bot.Miners).Units.Filter(func(unit *scl.Unit) bool {
-				return unit.IsGathering() && unit.IsCloserThan(scl.ResourceSpreadDistance, ref) &&
-					mfs.ByTag(unit.TargetTag()) != nil
-			}).ClosestTo(ref)
-			if scv != nil {
-				scv.CommandTag(ability.Smart, ref.Tag)
-			}
-		}
-	} else if B.Vespene > scl.MinInt(5, ccs.Len())*100 && B.Minerals < B.Vespene/2 && refs.Exists() {
-		cc := ccs.Filter(func(unit *scl.Unit) bool { return unit.AssignedHarvesters < unit.IdealHarvesters })
-		if cc != nil {
-			scv := B.Groups.Get(bot.Miners).Units.First(func(unit *scl.Unit) bool {
-				tag := unit.TargetTag()
-				return unit.IsGathering() && refs.ByTag(tag) != nil
-			})
-			if scv != nil {
-				// scv.CommandTag(ability.Smart, mfs.ClosestTo(scv).Tag)
-				scv.Command(ability.Stop_Stop)
-			}
-		}
-	}*/
 }
 
 func TanksOnExpansions() {
@@ -395,8 +372,8 @@ func Roles(b *bot.Bot) {
 	Build()
 	Repair()
 	DoubleHeal()
-	Recon()
-	ReconBase()
+	// Recon()
+	// ReconBase()
 	ReconHellion()
 	Mine()
 	TanksOnExpansions()
