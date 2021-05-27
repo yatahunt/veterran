@@ -73,7 +73,8 @@ func OrderUpgrades() {
 			ability.Research_TerranVehicleWeaponsLevel2,
 			ability.Research_TerranVehicleWeaponsLevel3,
 		}
-		if B.Units.My[terran.Battlecruiser].Exists() {
+		if B.Units.My[terran.Battlecruiser].Exists() ||
+			B.Units.My.OfType(terran.Banshee, terran.VikingFighter).Len() >= 4 {
 			upgrades = append([]api.AbilityID{
 				ability.Research_TerranShipWeaponsLevel1,
 				ability.Research_TerranShipWeaponsLevel2,
@@ -115,6 +116,14 @@ func OrderUpgrades() {
 			lab.Command(ability.Research_InfernalPreigniter)
 			return
 		}
+	}
+
+	lab = B.Units.My[terran.StarportTechLab].First(scl.Ready, scl.Idle)
+	if lab != nil && B.Units.My[terran.Banshee].Exists() && B.PendingAliases(ability.Train_Banshee) >= 2 &&
+		lab.HasTrueAbility(ability.Research_BansheeHyperflightRotors) &&
+		B.CanBuy(ability.Research_BansheeHyperflightRotors) {
+		lab.Command(ability.Research_BansheeHyperflightRotors)
+		return
 	}
 
 	fc := B.Units.My[terran.FusionCore].First(scl.Ready, scl.Idle)

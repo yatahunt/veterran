@@ -31,7 +31,7 @@ func TankMorph(u *scl.Unit) bool {
 	if u.UnitType == terran.SiegeTank {
 		targets := Targets.Ground.InRangeOf(u, 0)
 		farTargets := Targets.Ground.InRangeOf(u, 13-7) // Sieged range - mobile range
-		inSight := Targets.Ground.InRangeOf(u, 4) // 7+4=11 - sight range
+		inSight := Targets.Ground.InRangeOf(u, 4-0.5) // 7+4=11 - sight range
 
 		// Tank can't attack anyone now and there is a far target that can hit tank if it closes or
 		// there is a lot of far targets that worth morphing

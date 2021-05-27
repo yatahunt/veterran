@@ -29,7 +29,9 @@ const (
 	Tanks
 	TanksOnExps
 	Medivacs
+	Vikings
 	Ravens
+	Banshees
 	Battlecruisers
 	MechRetreat
 	MechHealing
@@ -75,8 +77,16 @@ func OnUnitCreated(unit *scl.Unit) {
 		B.Groups.Add(Medivacs, unit)
 		return
 	}
+	if unit.UnitType == terran.VikingAssault || unit.UnitType == terran.VikingFighter {
+		B.Groups.Add(Vikings, unit)
+		return
+	}
 	if unit.UnitType == terran.Raven {
 		B.Groups.Add(Ravens, unit)
+		return
+	}
+	if unit.UnitType == terran.Banshee {
+		B.Groups.Add(Banshees, unit)
 		return
 	}
 	if unit.UnitType == terran.Battlecruiser {

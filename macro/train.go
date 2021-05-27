@@ -110,6 +110,10 @@ func OrderUnits() {
 	}
 
 	if starport := GetFactory(terran.Starport, true, usedFactories); starport != nil {
+		if B.Pending(ability.Train_Banshee) < ccs.Len() && B.CanBuy(ability.Train_Banshee) {
+			OrderTrain(starport, ability.Train_Banshee, usedFactories)
+		}
+
 		ravens := B.Pending(ability.Train_Raven)
 		if B.Units.My[terran.FusionCore].First(scl.Ready) != nil {
 			if B.CanBuy(ability.Train_Battlecruiser) {
@@ -133,6 +137,8 @@ func OrderUnits() {
 			OrderTrain(starport, ability.Train_Medivac, usedFactories)
 		} else if medivacs == 0 {
 			B.DeductResources(ability.Train_Medivac) // Gather money
+		} else if B.Pending(ability.Train_VikingFighter) < ccs.Len() && B.CanBuy(ability.Train_VikingFighter) {
+			OrderTrain(starport, ability.Train_VikingFighter, usedFactories)
 		}
 	}
 
@@ -180,14 +186,14 @@ func OrderUnits() {
 		hellionsScore := B.EnemyProduction.Score(zerg.Zergling, zerg.Baneling, zerg.SwarmHostMP) + 1
 		buyMines := minesScore/float64(mines+1) >= hellionsScore/float64(hellions+1)
 
-		if buyMines && (mines == 0 || hellions != 0) {
+		if buyMines && (mines == 0 || hellions != 0) && B.PendingAliases(ability.Train_WidowMine) < 4 {
 			if B.CanBuy(ability.Train_WidowMine) {
 				OrderTrain(factory, ability.Train_WidowMine, usedFactories)
 			} else if mines == 0 || B.MechPriority {
 				B.DeductResources(ability.Train_WidowMine) // Gather money
 			}
 		} else {
-			if B.CanBuy(ability.Train_Hellion) {
+			if B.CanBuy(ability.Train_Hellion) && B.PendingAliases(ability.Train_Hellion) < 4 {
 				OrderTrain(factory, ability.Train_Hellion, usedFactories)
 			} else if hellions == 0 || B.MechPriority {
 				B.DeductResources(ability.Train_Hellion) // Gather money

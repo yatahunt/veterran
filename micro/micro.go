@@ -60,7 +60,7 @@ func InitTargets() {
 				Targets.AntiAir.Add(u)
 			}
 		}
-		if u.IsFlying {
+		if u.IsFlying || u.UnitType == protoss.Colossus {
 			Targets.Flying.Add(u)
 			if u.IsArmed() {
 				Targets.ArmedFlying.Add(u)
@@ -297,7 +297,9 @@ func Micro(b *bot.Bot) {
 		bot.Hellions:          HellionsLogic,
 		bot.Tanks:             TanksLogic,
 		bot.Medivacs:          MedivacsLogic,
+		bot.Vikings:           VikingsLogic,
 		bot.Ravens:            RavensLogic,
+		bot.Banshees:          BansheesLogic,
 		bot.Battlecruisers:    BattlecruisersLogic,
 	} {
 		logic(B.Groups.Get(group).Units)

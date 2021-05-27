@@ -156,14 +156,14 @@ var RootBuildOrder = BuildNodes{
 			return B.Units.My[terran.Starport].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func() int {
-			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
-			if ccs.Len() < 3 && B.Minerals < 500 {
+			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
+			/*if ccs.Len() < 3 && B.Minerals < 500 {
 				return 0
 			}
 			if B.Units.My[terran.FusionCore].First(scl.Ready) == nil {
 				return 2
-			}
-			return scl.MinInt(4, ccs.Len())
+			}*/
+			return scl.MinInt(4, ccs)
 		},
 		Active:  BuildOne,
 		Unlocks: StarportBuildOrder,
@@ -326,19 +326,6 @@ var FactoryBuildOrder = BuildNodes{
 }
 
 var StarportBuildOrder = BuildNodes{
-	/*{
-		Name:    "Starport Reactor",
-		Ability: ability.Build_Reactor_Starport,
-		Premise: func() bool {
-			return B.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle) != nil &&
-				B.PendingAliases(ability.Train_Medivac) > 0
-		},
-		Limit: BuildOne,
-		Active: BuildOne,
-		Method: func() {
-			B.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Starport)
-		},
-	},*/
 	{
 		Name:    "Starport Tech Lab",
 		Ability: ability.Build_TechLab_Starport,
@@ -347,11 +334,35 @@ var StarportBuildOrder = BuildNodes{
 			return (starport != nil) && B.Enemies.Visible.CloserThan(SafeBuildRange, starport).Empty()
 		},
 		Limit: func() int {
-			return B.Units.My.OfType(B.U.UnitAliases.For(terran.Starport)...).Len()
+			allStarports := B.Units.My.OfType(B.U.UnitAliases.For(terran.Starport)...)
+			if allStarports.Len() == 1 {
+				return 1
+			}
+			return allStarports.Len() - 1
 		},
 		Active: BuildOne,
 		Method: func() {
 			B.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_TechLab_Starport)
+		},
+	},
+	{
+		Name:    "Starport Reactor",
+		Ability: ability.Build_Reactor_Starport,
+		Premise: func() bool {
+			starport := B.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle)
+			return B.Units.My[terran.StarportTechLab].Exists() && (starport != nil) &&
+				B.Enemies.Visible.CloserThan(SafeBuildRange, starport).Empty()
+		},
+		Limit: func() int {
+			allStarports := B.Units.My.OfType(B.U.UnitAliases.For(terran.Starport)...)
+			if allStarports.Len() == 1 {
+				return 0
+			}
+			return 1
+		},
+		Active: BuildOne,
+		Method: func() {
+			B.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Starport)
 		},
 	},
 	{
