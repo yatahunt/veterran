@@ -146,7 +146,7 @@ func Repair() {
 func DoubleHeal() {
 	for key, group := range B.DoubleHealers {
 		scvs := B.Groups.Get(group).Units
-		enemies := B.Enemies.Visible.Filter(scl.NotFlying)
+		enemies := B.Enemies.Visible.Filter(scl.Ground)
 		if scvs.Len() < 2 || (scvs[0].Hits == 45 && scvs[1].Hits == 45) ||
 			scvs[0].TargetAbility() != ability.Effect_Repair_SCV ||
 			scvs[1].TargetAbility() != ability.Effect_Repair_SCV ||
@@ -323,7 +323,7 @@ func Mine() {
 			B.RedistributeWorkersToRefineryIfNeeded(ref, miners, 3)
 		}
 	}
-	B.HandleMiners(miners, ccs, 0.6) // reserve more vespene
+	B.HandleMiners(miners, ccs, 0.5) // reserve more vespene
 }
 
 func TanksOnExpansions() {

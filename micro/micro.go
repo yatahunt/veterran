@@ -68,7 +68,8 @@ func InitTargets() {
 					Targets.ArmedFlyingArmored.Add(u)
 				}
 			}
-		} else {
+		}
+		if !u.IsFlying {
 			Targets.Ground.Add(u)
 			if u.IsArmed() {
 				Targets.ArmedGround.Add(u)
@@ -109,7 +110,7 @@ func WorkerRushDefence() {
 	}
 
 	workers := B.Units.My[terran.SCV].CloserThan(scl.ResourceSpreadDistance, B.Locs.MyStart)
-	enemies := B.Enemies.Visible.Filter(scl.NotFlying).CloserThan(enemiesRange, B.Locs.MyStart)
+	enemies := B.Enemies.Visible.Filter(scl.Ground).CloserThan(enemiesRange, B.Locs.MyStart)
 	alert := enemies.CloserThan(enemiesRange-4, B.Locs.MyStart).Exists()
 	if enemies.Empty() || enemies.Sum(scl.CmpGroundScore) > workers.Sum(scl.CmpGroundScore)*2 || B.WorkerRush {
 		enemies = enemyWorkers.CloserThan(workersRange, B.Locs.MyStart)

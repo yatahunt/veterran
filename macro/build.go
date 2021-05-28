@@ -51,7 +51,7 @@ var RootBuildOrder = BuildNodes{
 			return B.Enemies.All.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()
 		},
 		Limit:  func() int { return B.BuildPos[scl.S5x5].Len() },
-		Active: BuildOne,
+		Active: func() int { return 1 + B.Minerals/800 },
 		WaitRes: func() bool {
 			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
 			// First orbital is morphing
@@ -489,7 +489,7 @@ func BuildRefinery(cc *scl.Unit) {
 func ProcessBuildOrder(buildOrder BuildNodes) {
 	for _, node := range buildOrder {
 		// - B.Orders[node.Ability] - because B.Pending(node.Ability) returns actual buildings + assigned builders
-		inLimits := B.Pending(node.Ability) - B.Orders[node.Ability] < node.Limit() &&
+		inLimits := B.Pending(node.Ability)-B.Orders[node.Ability] < node.Limit() &&
 			B.Orders[node.Ability] < node.Active()
 		// log.Info(node.Name, " ", B.Pending(node.Ability), node.Limit(), B.Orders[node.Ability], node.Active())
 		canBuy := B.CanBuy(node.Ability)

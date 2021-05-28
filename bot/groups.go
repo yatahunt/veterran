@@ -97,6 +97,8 @@ func OnUnitCreated(unit *scl.Unit) {
 		// Ignore first CC, turrets poses will be found for him separately
 		if B.Loop >= 12 {
 			FindTurretPosition(point.Pt3(unit.Pos))
+		} else {
+			B.Groups.Add(Buildings, unit)
 		}
 		// No return! Add it to UnderConstruction group if needed
 	}

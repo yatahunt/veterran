@@ -5,7 +5,16 @@ import (
 	"github.com/aiseeq/s2l/lib/point"
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/buff"
 )
+
+func VikingsRetreat(u *scl.Unit) bool {
+	if (u.Hits < u.HitsMax/2) || u.HasBuff(buff.RavenScramblerMissile) || u.HasBuff(buff.LockOn) {
+		B.Groups.Add(bot.MechRetreat, u)
+		return true
+	}
+	return false
+}
 
 func VikingsManeuver(u *scl.Unit) bool {
 	if !u.IsHalfCool() {
@@ -66,6 +75,6 @@ func VikingsLogic(us scl.Units) {
 	}
 
 	for _, u := range us {
-		_ = DefaultRetreat(u) || VikingsManeuver(u) || VikingsAttack(u) || VikingExplore(u)
+		_ = VikingsRetreat(u) || VikingsManeuver(u) || VikingsAttack(u) || VikingExplore(u)
 	}
 }

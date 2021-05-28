@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.2.7 (glhf)"
+const version = "VeTerran v2.2.8 (glhf)"
 
 type Bot struct {
 	*scl.Bot
@@ -48,7 +48,7 @@ func GGCheck() bool {
 	return (B.Minerals < 50 &&
 		B.Units.My.All().First(func(unit *scl.Unit) bool { return !unit.IsStructure() }) == nil &&
 		B.Enemies.All.First(scl.DpsGt5) != nil) ||
-		B.Units.My.All().Filter(scl.Structure, scl.NotFlying).Empty()
+		B.Units.My.All().Filter(scl.Structure, scl.Ground).Empty()
 }
 
 // OnStep is called each game step (every game update by default)

@@ -39,16 +39,16 @@ func ReaperManeuver(u *scl.Unit) bool {
 			// And it is closer than shooting distance -0.5
 			if u.InRange(closestEnemy, -0.5) {
 				// Retreat a little
-				u.GroundFallback(B.Enemies.AllReady, -0.5, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
+				u.GroundFallback(B.Enemies.AllReady, 0.5, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
 				return true
 			}
 		}
 	} else if !u.IsCool() { // iscool vs lings
 		if closestEnemy := Targets.ReaperGood.Filter(scl.Visible).ClosestTo(u); closestEnemy != nil {
-			// And it is closer than shooting distance -2
-			if u.InRange(closestEnemy, -2) {
+			// And it is closer than shooting distance -0.5
+			if u.InRange(closestEnemy, -0.5) {
 				// Retreat
-				u.GroundFallback(B.Enemies.AllReady, -2, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
+				u.GroundFallback(B.Enemies.AllReady, 0, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
 				return true
 			}
 		}
@@ -80,7 +80,7 @@ func ReapersLogic(us scl.Units) {
 
 	var mfsPos, basePos point.Point
 	// For exp recon before 4:00
-	if B.Loop < 5376 && B.Enemies.All.CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty() {
+	if B.Loop < 5376 && Targets.ReaperOk.CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty() {
 		mfsPos = B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, B.Locs.EnemyExps[0]).Center()
 		basePos = B.Locs.EnemyStart
 	}

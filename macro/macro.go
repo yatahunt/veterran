@@ -26,7 +26,7 @@ func Morph() {
 			B.DeductResources(ability.Morph_OrbitalCommand)
 		}
 	}
-	groundEnemies := B.Enemies.All.Filter(scl.NotFlying)
+	groundEnemies := B.Enemies.All.Filter(scl.Ground)
 	for _, supply := range B.Units.My[terran.SupplyDepot].Filter(scl.Ready) {
 		if groundEnemies.CloserThan(7, supply).Empty() {
 			supply.Command(ability.Morph_SupplyDepot_Lower)
