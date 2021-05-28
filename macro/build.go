@@ -50,7 +50,14 @@ var RootBuildOrder = BuildNodes{
 		Premise: func() bool {
 			return B.Enemies.All.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()
 		},
-		Limit:  func() int { return B.BuildPos[scl.S5x5].Len() },
+		Limit:  func() int {
+			if B.Loop < scl.TimeToLoop(2, 0) {
+				return 1
+			} else if B.Loop < scl.TimeToLoop(4, 0) {
+				return 2
+			}
+			return B.BuildPos[scl.S5x5].Len()
+		},
 		Active: func() int { return 1 + B.Minerals/800 },
 		WaitRes: func() bool {
 			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
@@ -144,7 +151,7 @@ var RootBuildOrder = BuildNodes{
 			if B.EnemyRace == api.Race_Zerg {
 				buildFacts--
 			}
-			return scl.MinInt(4, buildFacts)
+			return scl.MinInt(3, buildFacts)
 		},
 		Active:  BuildOne,
 		Unlocks: FactoryBuildOrder,
@@ -163,7 +170,7 @@ var RootBuildOrder = BuildNodes{
 			if B.Units.My[terran.FusionCore].First(scl.Ready) == nil {
 				return 2
 			}*/
-			return scl.MinInt(4, ccs)
+			return scl.MinInt(3, ccs)
 		},
 		Active:  BuildOne,
 		Unlocks: StarportBuildOrder,

@@ -24,9 +24,11 @@ import (
 // todo: Викинги сдохнут на туррельке если некого бить
 // todo: при пересылке рабочих между цц использовать не обычную команду, а безопасную сетку
 // todo: рабочие бесстрашно дохнут при перебазировании. Хватит уже
+// todo: и в отступлении надо использовать движение с безопасной сеткой, и м.б. даже в атаке иногда (риперы)
 // todo: есть какие-то проблемы с путями и камнями - длинные камни не помечаются как непроходимые
 // todo: одинокая CSV выпадает из схемы быстрого майнинга
 // todo: при нормальном микро марины никогда не должны дохнуть от атак воркеррашеров
+// todo: Было бы очень круто использовать хайграунд для атак без опасения ответа
 
 // todo: не игнорировать свармхостов
 // todo: алгоритм дрючит закопанные мины пытаясь ими отступить не выкапывая, походу
@@ -75,6 +77,18 @@ func ReapersVsDarks(b *bot.Bot) {
 	b.DebugSend()
 }
 
+var PreviousTime int64
+
+func EmulateRealtime(speed float64) {
+	delta := time.Now().UnixNano() - PreviousTime
+	delay := int64(1000000000.0 / scl.FPS / speed)
+	toWait := delay - delta
+	if toWait > 0 {
+		time.Sleep(time.Duration(toWait))
+	}
+	PreviousTime = time.Now().UnixNano()
+}
+
 func RunAgent(c *client.Client) {
 	B := &bot.Bot{
 		Bot:           scl.New(c, bot.OnUnitCreated),
@@ -102,6 +116,7 @@ func RunAgent(c *client.Client) {
 
 	for B.Client.Status == api.Status_in_game {
 		bot.Step()
+		// EmulateRealtime(2)
 
 		if _, err := c.Step(api.RequestStep{Count: uint32(B.FramesPerOrder)}); err != nil {
 			if err.Error() == "Not in a game" {
@@ -120,8 +135,9 @@ func run() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Create the agent and then start the game
-	// client.SetRealtime()
+	// client.SetGameVersion(75689, "B89B5D6FA7CBF6452E721311BFBC6CB2")
 	// client.SetMap(client.Maps2021season1[0] + ".SC2Map")
+	// client.SetRealtime()
 	myBot := client.NewParticipant(api.Race_Terran, "VeTerran")
 	cpu := client.NewComputer(api.Race_Random, api.Difficulty_CheatInsane, api.AIBuild_RandomBuild)
 	cfg := client.LaunchAndJoin(myBot, cpu)

@@ -110,7 +110,7 @@ func OrderUnits() {
 	}
 
 	if starport := GetFactory(terran.Starport, true, usedFactories); starport != nil {
-		if B.Pending(ability.Train_Banshee) < ccs.Len() && B.CanBuy(ability.Train_Banshee) {
+		if B.Pending(ability.Train_Banshee) < scl.MinInt(4, ccs.Len()) && B.CanBuy(ability.Train_Banshee) {
 			OrderTrain(starport, ability.Train_Banshee, usedFactories)
 		}
 
@@ -137,12 +137,14 @@ func OrderUnits() {
 			OrderTrain(starport, ability.Train_Medivac, usedFactories)
 		} else if medivacs == 0 {
 			B.DeductResources(ability.Train_Medivac) // Gather money
-		} else if B.Pending(ability.Train_VikingFighter) < ccs.Len() && B.CanBuy(ability.Train_VikingFighter) {
+		} else if B.Pending(ability.Train_VikingFighter) < scl.MinInt(4, ccs.Len()) &&
+			B.CanBuy(ability.Train_VikingFighter) {
 			OrderTrain(starport, ability.Train_VikingFighter, usedFactories)
 		}
 	}
 
 	if factory := GetFactory(terran.Factory, true, usedFactories); factory != nil {
+		thors := B.PendingAliases(ability.Train_Thor)
 		cyclones := B.PendingAliases(ability.Train_Cyclone)
 		tanks := B.PendingAliases(ability.Train_SiegeTank)
 
@@ -158,6 +160,14 @@ func OrderUnits() {
 				zerg.Roach, zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler) + 1
 			buyCyclones = cyclonesScore/float64(cyclones+1) >= tanksScore/float64(tanks+1)
 			buyTanks = !buyCyclones
+		}
+
+		if B.Units.My[terran.Armory].First(scl.Ready) != nil {
+			if thors < scl.MinInt(4, ccs.Len()) && B.CanBuy(ability.Train_Thor) {
+				OrderTrain(factory, ability.Train_Thor, usedFactories)
+			} else if thors == 0 && B.MechPriority {
+				B.DeductResources(ability.Train_Thor) // Gather money
+			}
 		}
 
 		if buyCyclones {
@@ -186,7 +196,7 @@ func OrderUnits() {
 		hellionsScore := B.EnemyProduction.Score(zerg.Zergling, zerg.Baneling, zerg.SwarmHostMP) + 1
 		buyMines := minesScore/float64(mines+1) >= hellionsScore/float64(hellions+1)
 		minesNotEnough := B.PendingAliases(ability.Train_WidowMine) < 4
-		hellionsNotEnough := B.Pending(ability.Train_Hellion) + B.Pending(ability.Train_Hellbat) < 4
+		hellionsNotEnough := B.Pending(ability.Train_Hellion)+B.Pending(ability.Train_Hellbat) < 4
 
 		if buyMines && (mines == 0 || hellions != 0) && minesNotEnough {
 			if B.CanBuy(ability.Train_WidowMine) {

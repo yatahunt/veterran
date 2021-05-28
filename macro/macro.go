@@ -95,12 +95,12 @@ func Cast() {
 				return
 			}
 
-			// Recon scan at 4:00
+			// Recon scan at 4:30
 			pos := B.Locs.EnemyMainCenter
 			if B.EnemyRace == api.Race_Zerg {
 				pos = B.Locs.EnemyStart
 			}
-			if B.Loop >= 5376 && !B.Grid.IsExplored(pos) {
+			if B.Loop >= scl.TimeToLoop(4, 30) && !B.Grid.IsExplored(pos) {
 				cc.CommandPos(ability.Effect_Scan, pos)
 				log.Debug("Recon scan")
 				return

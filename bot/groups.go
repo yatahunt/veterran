@@ -28,6 +28,7 @@ const (
 	HellionScout
 	Tanks
 	TanksOnExps
+	Thors
 	Medivacs
 	Vikings
 	Ravens
@@ -71,6 +72,10 @@ func OnUnitCreated(unit *scl.Unit) {
 	}
 	if unit.UnitType == terran.SiegeTank || unit.UnitType == terran.SiegeTankSieged {
 		B.Groups.Add(Tanks, unit)
+		return
+	}
+	if unit.UnitType == terran.Thor {
+		B.Groups.Add(Thors, unit)
 		return
 	}
 	if unit.UnitType == terran.Medivac {

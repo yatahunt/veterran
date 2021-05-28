@@ -51,7 +51,7 @@ func BuildingsCheck() {
 
 		// Cancel refinery if worker rush is detected and don't build new until enemy is gone
 		if B.WorkerRush && building.UnitType == terran.Refinery {
-			building.Command(ability.Cancel)
+			building.Command(ability.Cancel_BuildInProgress)
 		}
 	}
 }

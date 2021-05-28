@@ -297,6 +297,7 @@ func Micro(b *bot.Bot) {
 		bot.WidowMinesRetreat: WidowMinesRetreatLogic,
 		bot.Hellions:          HellionsLogic,
 		bot.Tanks:             TanksLogic,
+		bot.Thors:             ThorsLogic,
 		bot.Medivacs:          MedivacsLogic,
 		bot.Vikings:           VikingsLogic,
 		bot.Ravens:            RavensLogic,
