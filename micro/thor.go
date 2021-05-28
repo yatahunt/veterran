@@ -2,12 +2,11 @@ package micro
 
 import (
 	"github.com/aiseeq/s2l/lib/scl"
-	"github.com/aiseeq/s2l/protocol/api"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
 )
 
 func ThorMorph(u *scl.Unit) bool {
-	if B.EnemyRace != api.Race_Zerg && u.HasTrueAbility(ability.Morph_ThorHighImpactMode) {
+	if u.HasTrueAbility(ability.Morph_ThorHighImpactMode) {
 		u.Command(ability.Morph_ThorHighImpactMode)
 		return true
 	}

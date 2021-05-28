@@ -163,7 +163,7 @@ func OrderUnits() {
 		}
 
 		if B.Units.My[terran.Armory].First(scl.Ready) != nil {
-			if thors < scl.MinInt(4, ccs.Len()) && B.CanBuy(ability.Train_Thor) {
+			if tanks > 0 && thors < scl.MinInt(4, ccs.Len()) && B.CanBuy(ability.Train_Thor) {
 				OrderTrain(factory, ability.Train_Thor, usedFactories)
 			} else if thors == 0 && B.MechPriority {
 				B.DeductResources(ability.Train_Thor) // Gather money

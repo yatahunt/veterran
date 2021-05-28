@@ -10,8 +10,6 @@ import (
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/api"
 	"github.com/aiseeq/s2l/protocol/client"
-	"github.com/aiseeq/s2l/protocol/enums/protoss"
-	"github.com/aiseeq/s2l/protocol/enums/terran"
 	"github.com/google/gxui/math"
 	"math/rand"
 	"time"
@@ -19,6 +17,7 @@ import (
 
 // > todo: Риперы против зерга внезапно остаются на базе. Похоже, это как-то связано с вижном и списком врагов
 // > todo: Викинги не бьют колоссов
+// > todo: Риперы при кайте стреляют только 1 раз!
 
 // todo: Риперы пытаются бить скрытых дарков и не уворачиваются от них
 // todo: Викинги сдохнут на туррельке если некого бить
@@ -57,26 +56,6 @@ import (
 
 // go tool pprof VeTerran.exe cpu.prof
 
-func VikingVsCollosus(b *bot.Bot) {
-	myId := b.Obs.PlayerCommon.PlayerId
-	enemyId := 3 - myId
-	b.DebugAddUnits(protoss.Colossus, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 1)
-	// b.DebugAddUnits(protoss.WarpPrism, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 1)
-	// b.DebugAddUnits(terran.MissileTurret, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 8), 1)
-	b.DebugAddUnits(terran.VikingFighter, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, -10), 1)
-	// b.DebugAddUnits(terran.Banshee, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, -10), 1)
-	// b.DebugAddUnits(terran.SiegeTank, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, -10), 1)
-	b.DebugSend()
-}
-
-func ReapersVsDarks(b *bot.Bot) {
-	myId := b.Obs.PlayerCommon.PlayerId
-	enemyId := 3 - myId
-	b.DebugAddUnits(protoss.DarkTemplar, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 1)
-	b.DebugAddUnits(terran.Reaper, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 8), 1)
-	b.DebugSend()
-}
-
 var PreviousTime int64
 
 func EmulateRealtime(speed float64) {
@@ -111,8 +90,7 @@ func RunAgent(c *client.Client) {
 		micro.Micro(B)
 	}
 	B.Init(true) // Called later because in Init() we need to use *B in callback
-	// VikingVsCollosus(B)
-	// ReapersVsDarks(B)
+	// tests.Init(B)
 
 	for B.Client.Status == api.Status_in_game {
 		bot.Step()
@@ -135,8 +113,8 @@ func run() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Create the agent and then start the game
-	// client.SetGameVersion(75689, "B89B5D6FA7CBF6452E721311BFBC6CB2")
 	// client.SetMap(client.Maps2021season1[0] + ".SC2Map")
+	// client.SetGameVersion(75689, "B89B5D6FA7CBF6452E721311BFBC6CB2")
 	// client.SetRealtime()
 	myBot := client.NewParticipant(api.Race_Terran, "VeTerran")
 	cpu := client.NewComputer(api.Race_Random, api.Difficulty_CheatInsane, api.AIBuild_RandomBuild)
