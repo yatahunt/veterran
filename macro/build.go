@@ -62,10 +62,10 @@ var RootBuildOrder = BuildNodes{
 		WaitRes: func() bool {
 			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
 			// First orbital is morphing
-			if ccs.Len() == 1 && ccs.First().UnitType == terran.OrbitalCommand &&
+			/*if ccs.Len() == 1 && ccs.First().UnitType == terran.OrbitalCommand &&
 				B.PendingAliases(ability.Train_Reaper) != 0 {
 				return true
-			}
+			}*/
 			if ccs.Len() <= B.FoodUsed/35 {
 				return true
 			}
@@ -193,7 +193,9 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Armory",
 		Ability: ability.Build_Armory,
 		Premise: func() bool {
-			return B.Units.My[terran.EngineeringBay].First(scl.Ready) != nil
+			cyclones := B.PendingAliases(ability.Train_Cyclone)
+			tanks := B.PendingAliases(ability.Train_SiegeTank)
+			return cyclones > 0 && tanks > 0 && B.Units.My[terran.EngineeringBay].First(scl.Ready) != nil
 		},
 		WaitRes: Yes,
 		Limit: func() int {
@@ -378,7 +380,8 @@ var StarportBuildOrder = BuildNodes{
 		Name:    "Fusion Core",
 		Ability: ability.Build_FusionCore,
 		Premise: func() bool {
-			return B.Units.My[terran.Raven].Exists()
+			return B.Units.My[terran.Raven].Exists() && B.Units.My[terran.Banshee].Exists() &&
+				B.Units.My[terran.VikingFighter].Exists()
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,

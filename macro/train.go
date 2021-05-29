@@ -109,24 +109,68 @@ func OrderUnits() {
 		OrderTrain(cc, ability.Train_SCV, usedFactories)
 	}
 
+	if factory := GetFactory(terran.Factory, true, usedFactories); factory != nil {
+		thors := B.PendingAliases(ability.Train_Thor)
+		cyclones := B.PendingAliases(ability.Train_Cyclone)
+		tanks := B.PendingAliases(ability.Train_SiegeTank)
+
+		buyCyclones := cyclones == 0 // B.EnemyProduction.Len(terran.Banshee) > 0 &&
+		buyTanks := tanks == 0       // B.PlayDefensive &&
+		if !buyCyclones && !buyTanks {
+			cyclonesScore := B.EnemyProduction.Score(protoss.WarpPrism, protoss.Phoenix, protoss.VoidRay,
+				protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.VikingFighter, terran.Medivac,
+				terran.Liberator, terran.Raven, terran.Banshee, terran.Battlecruiser, zerg.Queen, zerg.Mutalisk,
+				zerg.Corruptor, zerg.Viper, zerg.Ultralisk, zerg.BroodLord) + 1
+			tanksScore := B.EnemyProduction.Score(protoss.Stalker, protoss.Colossus, protoss.PhotonCannon,
+				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, terran.PlanetaryFortress, terran.Cyclone,
+				zerg.Roach, zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler) + 1
+			buyCyclones = cyclonesScore/float64(cyclones+1) >= tanksScore/float64(tanks+1)
+			buyTanks = !buyCyclones
+		}
+
+		if B.Units.My[terran.Armory].First(scl.Ready) != nil {
+			if tanks > 0 && cyclones > 0 && thors < scl.MinInt(4, ccs.Len()) && B.CanBuy(ability.Train_Thor) {
+				OrderTrain(factory, ability.Train_Thor, usedFactories)
+				buyTanks = false
+				buyCyclones = false
+			} else if thors == 0 && B.MechPriority {
+				B.DeductResources(ability.Train_Thor) // Gather money
+			}
+		}
+
+		if buyTanks {
+			if B.CanBuy(ability.Train_SiegeTank) {
+				OrderTrain(factory, ability.Train_SiegeTank, usedFactories)
+			} else if tanks == 0 || B.MechPriority {
+				B.DeductResources(ability.Train_SiegeTank) // Gather money
+			}
+		} else if buyCyclones {
+			if B.CanBuy(ability.Train_Cyclone) {
+				OrderTrain(factory, ability.Train_Cyclone, usedFactories)
+			} else if cyclones == 0 || B.MechPriority {
+				B.DeductResources(ability.Train_Cyclone) // Gather money
+			}
+		}
+	}
+
 	if starport := GetFactory(terran.Starport, true, usedFactories); starport != nil {
 		if B.Pending(ability.Train_Banshee) < scl.MinInt(4, ccs.Len()) && B.CanBuy(ability.Train_Banshee) {
 			OrderTrain(starport, ability.Train_Banshee, usedFactories)
-		}
-
-		ravens := B.Pending(ability.Train_Raven)
-		if B.Units.My[terran.FusionCore].First(scl.Ready) != nil {
-			if B.CanBuy(ability.Train_Battlecruiser) {
-				OrderTrain(starport, ability.Train_Battlecruiser, usedFactories)
-			} else if ravens > 0 && B.Units.AllEnemy[zerg.Ultralisk].Empty() {
-				B.DeductResources(ability.Train_Battlecruiser) // Gather money
+		} else {
+			ravens := B.Pending(ability.Train_Raven)
+			if B.Units.My[terran.FusionCore].First(scl.Ready) != nil {
+				if B.CanBuy(ability.Train_Battlecruiser) {
+					OrderTrain(starport, ability.Train_Battlecruiser, usedFactories)
+				} else if ravens > 0 { // && B.Units.AllEnemy[zerg.Ultralisk].Empty()
+					B.DeductResources(ability.Train_Battlecruiser) // Gather money
+				}
 			}
-		}
-		if ravens < 2 {
-			if B.CanBuy(ability.Train_Raven) {
-				OrderTrain(starport, ability.Train_Raven, usedFactories)
-			} else if ravens == 0 {
-				B.DeductResources(ability.Train_Raven) // Gather money
+			if ravens < 2 {
+				if B.CanBuy(ability.Train_Raven) {
+					OrderTrain(starport, ability.Train_Raven, usedFactories)
+				} else if ravens == 0 {
+					B.DeductResources(ability.Train_Raven) // Gather money
+				}
 			}
 		}
 	}
@@ -143,47 +187,6 @@ func OrderUnits() {
 		}
 	}
 
-	if factory := GetFactory(terran.Factory, true, usedFactories); factory != nil {
-		thors := B.PendingAliases(ability.Train_Thor)
-		cyclones := B.PendingAliases(ability.Train_Cyclone)
-		tanks := B.PendingAliases(ability.Train_SiegeTank)
-
-		buyCyclones := B.EnemyProduction.Len(terran.Banshee) > 0 && cyclones == 0
-		buyTanks := B.PlayDefensive && tanks == 0
-		if !buyCyclones && !buyTanks {
-			cyclonesScore := B.EnemyProduction.Score(protoss.WarpPrism, protoss.Phoenix, protoss.VoidRay,
-				protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.VikingFighter, terran.Medivac,
-				terran.Liberator, terran.Raven, terran.Banshee, terran.Battlecruiser, zerg.Queen, zerg.Mutalisk,
-				zerg.Corruptor, zerg.Viper, zerg.Ultralisk, zerg.BroodLord) + 1
-			tanksScore := B.EnemyProduction.Score(protoss.Stalker, protoss.Colossus, protoss.PhotonCannon,
-				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, terran.PlanetaryFortress, terran.Cyclone,
-				zerg.Roach, zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler) + 1
-			buyCyclones = cyclonesScore/float64(cyclones+1) >= tanksScore/float64(tanks+1)
-			buyTanks = !buyCyclones
-		}
-
-		if B.Units.My[terran.Armory].First(scl.Ready) != nil {
-			if tanks > 0 && thors < scl.MinInt(4, ccs.Len()) && B.CanBuy(ability.Train_Thor) {
-				OrderTrain(factory, ability.Train_Thor, usedFactories)
-			} else if thors == 0 && B.MechPriority {
-				B.DeductResources(ability.Train_Thor) // Gather money
-			}
-		}
-
-		if buyCyclones {
-			if B.CanBuy(ability.Train_Cyclone) {
-				OrderTrain(factory, ability.Train_Cyclone, usedFactories)
-			} else if cyclones == 0 || B.MechPriority {
-				B.DeductResources(ability.Train_Cyclone) // Gather money
-			}
-		} else if buyTanks {
-			if B.CanBuy(ability.Train_SiegeTank) {
-				OrderTrain(factory, ability.Train_SiegeTank, usedFactories)
-			} else if tanks == 0 || B.MechPriority {
-				B.DeductResources(ability.Train_SiegeTank) // Gather money
-			}
-		}
-	}
 	if factory := GetFactory(terran.Factory, false, usedFactories); factory != nil {
 		mines := B.PendingAliases(ability.Train_WidowMine)
 		hellions := B.PendingAliases(ability.Train_Hellion)
