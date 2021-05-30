@@ -324,6 +324,13 @@ func Mine() {
 		}
 	}
 	B.HandleMiners(miners, ccs, 0.5) // reserve more vespene
+
+	mules := B.Groups.Get(bot.Mules).Units.Filter(scl.Idle)
+	for _, mule := range mules {
+		if mf := B.Units.Minerals.All().ClosestTo(mule); mf != nil {
+			mule.CommandTag(ability.Smart, mf.Tag)
+		}
+	}
 }
 
 func TanksOnExpansions() {

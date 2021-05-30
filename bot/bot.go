@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.2.12 (glhf)"
+const version = "VeTerran v2.2.13 (glhf)"
 
 type Bot struct {
 	*scl.Bot
