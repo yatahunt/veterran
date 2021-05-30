@@ -74,7 +74,7 @@ func OnUnitCreated(unit *scl.Unit) {
 		B.Groups.Add(Tanks, unit)
 		return
 	}
-	if unit.UnitType == terran.Thor {
+	if unit.UnitType == terran.Thor || unit.UnitType == terran.ThorAP {
 		B.Groups.Add(Thors, unit)
 		return
 	}

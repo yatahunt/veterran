@@ -58,13 +58,15 @@ func ReaperManeuver(u *scl.Unit) bool {
 
 func ReaperAttack(u *scl.Unit, mfsPos, basePos point.Point) bool {
 	closeTargets := Targets.ReaperGood.InRangeOf(u, 2)
-	if mfsPos != 0 && !B.Grid.IsExplored(mfsPos) && closeTargets.Empty() {
-		u.CommandPos(ability.Move, mfsPos)
-		return true
-	}
-	if basePos != 0 && !B.Grid.IsExplored(basePos) && closeTargets.Empty() {
-		u.CommandPos(ability.Move, basePos)
-		return true
+	if closeTargets.Empty() {
+		if mfsPos != 0 && !B.Grid.IsExplored(mfsPos) {
+			u.CommandPos(ability.Move, mfsPos)
+			return true
+		}
+		if basePos != 0 && !B.Grid.IsExplored(basePos) {
+			u.CommandPos(ability.Move, basePos)
+			return true
+		}
 	}
 	if Targets.ReaperOk.Exists() {
 		u.Attack(Targets.ReaperGood, Targets.ReaperOk)

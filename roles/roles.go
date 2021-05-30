@@ -319,7 +319,7 @@ func Mine() {
 		})
 	// Move miners to first gas
 	if B.Loop < scl.TimeToLoop(1, 5) && len(B.Miners.GasForMiner) < 3 {
-		if ref := B.Units.My.OfType(B.U.UnitAliases.For(terran.Refinery)...).Filter(scl.Ready).First(); ref != nil {
+		if ref := B.Units.My.OfType(B.U.UnitAliases.For(terran.Refinery)...).First(scl.Ready); ref != nil {
 			B.RedistributeWorkersToRefineryIfNeeded(ref, miners, 3)
 		}
 	}

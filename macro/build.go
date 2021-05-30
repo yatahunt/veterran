@@ -61,12 +61,7 @@ var RootBuildOrder = BuildNodes{
 		Active: func() int { return 1 + B.Minerals/800 },
 		WaitRes: func() bool {
 			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
-			// First orbital is morphing
-			/*if ccs.Len() == 1 && ccs.First().UnitType == terran.OrbitalCommand &&
-				B.PendingAliases(ability.Train_Reaper) != 0 {
-				return true
-			}*/
-			if ccs.Len() <= B.FoodUsed/35 {
+			if ccs.Len() <= B.FoodUsed/40 {
 				return true
 			}
 			return false
