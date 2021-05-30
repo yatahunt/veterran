@@ -116,7 +116,8 @@ func Cast() {
 					Filter(func(unit *scl.Unit) bool { return unit.MineralContents > 400 }).
 					Max(func(unit *scl.Unit) float64 { return float64(unit.MineralContents) })
 				if homeMineral != nil {
-					cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
+					// cc.CommandTag(ability.Effect_CalldownMULE, homeMineral.Tag)
+					cc.CommandPos(ability.Effect_CalldownMULE, homeMineral.Towards(target, 1))
 				}
 			}
 		}
@@ -129,7 +130,7 @@ func ReserveSCVs() {
 		B.Groups.Get(bot.ScvReserve).Tags.Empty() {
 		pos := B.BuildPos[scl.S2x2][0]
 		scv := bot.GetSCV(pos, 0, 45) // Get SCV but don't change its group
-		if scv != nil && scv.FramesToPos(pos)*B.MineralsPerFrame+float64(B.Minerals) >= 80 {
+		if scv != nil && scv.FramesToPos(pos)*B.MineralsPerFrame+float64(B.Minerals) >= 100 {
 			B.Groups.Add(bot.ScvReserve, scv)
 			scv.CommandPos(ability.Move, pos)
 		}

@@ -3,6 +3,7 @@ package bot
 import (
 	"github.com/aiseeq/s2l/lib/point"
 	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
 	"github.com/aiseeq/s2l/protocol/enums/terran"
 )
 
@@ -14,6 +15,7 @@ const (
 	ScvHealer
 	UnitHealers
 	WorkerRushDefenders
+	Mules
 	Scout
 	ScoutBase
 	ScvReserve
@@ -44,6 +46,13 @@ const (
 func OnUnitCreated(unit *scl.Unit) {
 	if unit.UnitType == terran.SCV {
 		B.Groups.Add(Miners, unit)
+		return
+	}
+	if unit.UnitType == terran.MULE {
+		B.Groups.Add(Mules, unit)
+		if mf := B.Units.Minerals.All().ClosestTo(unit); mf != nil {
+			unit.CommandTag(ability.Smart, mf.Tag)
+		}
 		return
 	}
 	if unit.UnitType == terran.Marine {

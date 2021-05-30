@@ -5,6 +5,7 @@ import (
 	"github.com/aiseeq/s2l/lib/point"
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/buff"
 )
 
 func ThrowMine(u *scl.Unit, targets scl.Units) bool {
@@ -21,7 +22,7 @@ func ThrowMine(u *scl.Unit, targets scl.Units) bool {
 }
 
 func ReaperRetreat(u *scl.Unit) bool {
-	if u.Hits < u.HitsMax/2 {
+	if u.Hits < u.HitsMax/2 || u.HasBuff(buff.LockOn) {
 		B.Groups.Add(bot.ReapersRetreat, u)
 		return true
 	}
