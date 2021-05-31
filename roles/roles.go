@@ -54,6 +54,14 @@ func BuildingsCheck() {
 			building.Command(ability.Cancel_BuildInProgress)
 		}
 	}
+	if B.WorkerRush {
+		// Cancel second barrack if worker rush
+		barracks := B.Units.My[terran.Barracks]
+		if barracks.Len() > 1 {
+			barracks.Min(func(unit *scl.Unit) float64 {return float64(unit.BuildProgress)}).
+				Command(ability.Cancel_BuildInProgress)
+		}
+	}
 }
 
 func Build() {

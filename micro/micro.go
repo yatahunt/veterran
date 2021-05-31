@@ -90,7 +90,7 @@ func InitTargets() {
 	}
 }
 
-func WorkerMoveFunc(u *scl.Unit, target *scl.Unit) { // todo: nove into scv.go?
+func WorkerMoveFunc(u *scl.Unit, target *scl.Unit) { // todo: move into scv.go?
 	if !u.InRange(target, 0) || !target.IsVisible() {
 		if u.WeaponCooldown > 0 && u.PosDelta == 0 {
 			u.SpamCmds = true

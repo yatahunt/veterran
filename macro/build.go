@@ -119,7 +119,7 @@ var RootBuildOrder = BuildNodes{
 					return true
 				}
 				if ccs.Len() < 3 {
-					return refPending < ccs.Len()
+					return refPending < ccs.Len() + 1
 				}
 				return true
 			}
@@ -143,7 +143,7 @@ var RootBuildOrder = BuildNodes{
 		},
 		Limit: func() int {
 			buildFacts := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
-			if B.EnemyRace == api.Race_Zerg {
+			if B.EnemyRace == api.Race_Zerg && buildFacts > 1 {
 				buildFacts--
 			}
 			return scl.MinInt(3, buildFacts)
@@ -206,7 +206,7 @@ var RaxBuildOrder = BuildNodes{
 		Ability: ability.Build_Barracks,
 		Premise: func() bool {
 			// B.Units.My[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
-			return B.Units.My[terran.BarracksFlying].Empty()
+			return !B.WorkerRush && B.Units.My[terran.BarracksFlying].Empty()
 		},
 		Limit: func() int {
 			// ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
