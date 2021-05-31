@@ -6,9 +6,8 @@ import (
 )
 
 func CycloneAttackFunc(u *scl.Unit, priority int, targets scl.Units) bool {
-	hasLockOn := u.HasAbility(ability.Effect_LockOn)
 	visibleTargets := targets.Filter(scl.Visible)
-	if hasLockOn {
+	if u.HasAbility(ability.Effect_LockOn) {
 		closeTargets := visibleTargets.InRangeOf(u, 2) // Range = 7. Weapons + 2
 		if closeTargets.Exists() {
 			target := closeTargets.Max(func(unit *scl.Unit) float64 {
@@ -18,6 +17,7 @@ func CycloneAttackFunc(u *scl.Unit, priority int, targets scl.Units) bool {
 				return unit.Hits
 			})
 			u.CommandTag(ability.Effect_LockOn, target.Tag)
+			B.CycloneLocks[u.Tag] = target.Tag
 			return true
 		}
 		return false
@@ -28,31 +28,28 @@ func CycloneAttackFunc(u *scl.Unit, priority int, targets scl.Units) bool {
 			return unit.Hits
 		})
 		u.CommandTag(ability.Attack_Attack, target.Tag)
+		B.U.LastAttack[u.Tag] = B.Loop
 		return true
 	}
 	return false
 }
 
-func CycloneMoveFunc(u *scl.Unit, target *scl.Unit) {
-	// Unit need to be closer to the target to shoot? (lock-on range)
-	if !u.InRange(target, 2-0.1) || !target.IsVisible() {
-		u.AttackMove(target)
-	}
-}
-
 func CycloneManeuver(u *scl.Unit) bool {
-	attackers := B.Enemies.AllReady.CanAttack(u, 2)
-	canLock := u.HasAbility(ability.Effect_LockOn)
-	if !canLock {
-		target := Targets.Armed.ClosestTo(u)
-		if target != nil && u.InRange(target, 4) {
-			u.GroundFallback(attackers, 2, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
-			return true
+	lockedOn := u.HasAbility(ability.Cancel_LockOn)
+	if lockedOn {
+		target := B.Units.ByTag[B.CycloneLocks[u.Tag]]
+		if target != nil {
+			// vision - range = 6
+			if !u.InRange(target, 6-1-float64(target.Radius)) {
+				u.AttackMove(target)
+				return true
+			}
 		}
-	} else if !u.IsHalfCool() {
-		closeTargets := Targets.Armed.InRangeOf(u, -0.5)
-		if attackers.Exists() || closeTargets.Exists() {
-			u.GroundFallback(attackers, 2, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
+	}
+	if lockedOn || !u.IsCoolToAttack() {
+		attackers := B.Enemies.AllReady.CanAttack(u, 4)
+		if attackers.Exists() {
+			u.GroundFallback(B.Locs.MyStart-B.Locs.MyStartMinVec*3)
 			return true
 		}
 	}
@@ -61,7 +58,7 @@ func CycloneManeuver(u *scl.Unit) bool {
 
 func CycloneAttack(u *scl.Unit) bool {
 	if Targets.All.Exists() {
-		u.AttackCustom(CycloneAttackFunc, CycloneMoveFunc, Targets.ArmedFlyingArmored, Targets.ArmedFlying,
+		u.AttackCustom(CycloneAttackFunc, scl.DefaultMoveFunc, Targets.ArmedFlyingArmored, Targets.ArmedFlying,
 			Targets.ArmedArmored, Targets.Armed, Targets.All)
 		return true
 	}

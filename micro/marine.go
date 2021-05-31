@@ -38,6 +38,7 @@ func MarineAttack(u *scl.Unit) bool {
 		ics := B.Units.Enemy[protoss.Interceptor]
 		if ics.Exists() {
 			u.CommandPos(ability.Attack_Attack, ics.ClosestTo(u))
+			B.U.LastAttack[u.Tag] = B.Loop
 		} else {
 			u.Attack(Targets.Armed, Targets.All)
 		}

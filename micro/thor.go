@@ -6,7 +6,7 @@ import (
 )
 
 func ThorMorph(u *scl.Unit) bool {
-	if u.HasTrueAbility(ability.Morph_ThorHighImpactMode) {
+	if u.HasAbility(ability.Morph_ThorHighImpactMode) {
 		u.Command(ability.Morph_ThorHighImpactMode)
 		return true
 	}

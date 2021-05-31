@@ -15,21 +15,6 @@ func BansheeRetreat(u *scl.Unit) bool {
 	return false
 }
 
-func BansheesManeuver(u *scl.Unit) bool {
-	if !u.IsHalfCool() {
-		BansheePos := u.TargetPos()
-		if BansheePos == 0 {
-			BansheePos = u.Point()
-		}
-		pos, safe := u.AirEvade(B.Enemies.AllReady.CanAttack(u, 2), 2, BansheePos)
-		if !safe || pos.IsFurtherThan(2, BansheePos) {
-			u.CommandPos(ability.Move, pos)
-			return true
-		}
-	}
-	return false
-}
-
 func BansheesAttack(u *scl.Unit) bool {
 	if Targets.All.Exists() {
 		u.Attack(Targets.ArmedGround, Targets.Ground)
@@ -44,10 +29,10 @@ func BansheesLogic(us scl.Units) {
 	}
 
 	for _, u := range us {
-		if u.HPS > 0 && u.HasTrueAbility(ability.Behavior_CloakOn_Banshee) {
+		if u.HPS > 0 && u.HasAbility(ability.Behavior_CloakOn_Banshee) {
 			u.Command(ability.Behavior_CloakOn_Banshee)
 		}
 
-		_ = BansheeRetreat(u) || BansheesManeuver(u) || BansheesAttack(u) || DefaultExplore(u)
+		_ = BansheeRetreat(u) || DefaultManeuver(u) || BansheesAttack(u) || DefaultExplore(u)
 	}
 }

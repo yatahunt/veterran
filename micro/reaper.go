@@ -30,29 +30,12 @@ func ReaperRetreat(u *scl.Unit) bool {
 }
 
 func ReaperManeuver(u *scl.Unit) bool {
-	if !u.IsHalfCool() {
+	if !u.IsCoolToAttack() {
 		if ThrowMine(u, Targets.ReaperGood) {
 			return true
 		}
 
-		// There is an enemy
-		if closestEnemy := Targets.ReaperGood.Filter(scl.Visible).ClosestTo(u); closestEnemy != nil {
-			// And it is closer than shooting distance -0.5
-			if u.InRange(closestEnemy, -0.5) {
-				// Retreat a little
-				u.GroundFallback(B.Enemies.AllReady, 0.5, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
-				return true
-			}
-		}
-	} else if !u.IsCool() { // iscool vs lings
-		if closestEnemy := Targets.ReaperGood.Filter(scl.Visible).ClosestTo(u); closestEnemy != nil {
-			// And it is closer than shooting distance -0.5
-			if u.InRange(closestEnemy, -0.5) {
-				// Retreat
-				u.GroundFallback(B.Enemies.AllReady, 0, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
-				return true
-			}
-		}
+		return DefaultManeuver(u)
 	}
 	return false
 }
@@ -104,7 +87,7 @@ func ReapersRetreatLogic(us scl.Units) {
 		closeOkTargets := Targets.ReaperOk.InRangeOf(u, 0)
 		closeGoodTargets := Targets.ReaperGood.InRangeOf(u, 0)
 		// Use attack if enemy is close but can't attack reaper
-		if u.IsCool() && (closeGoodTargets.Exists() || closeOkTargets.Exists()) && attackers.Empty() {
+		if u.IsCoolToMove() && (closeGoodTargets.Exists() || closeOkTargets.Exists()) && attackers.Empty() {
 			u.Attack(closeGoodTargets, closeOkTargets)
 			continue
 		}
@@ -113,6 +96,6 @@ func ReapersRetreatLogic(us scl.Units) {
 			continue
 		}
 
-		u.GroundFallback(attackers, 2, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
+		u.GroundFallback(B.Locs.MyStart-B.Locs.MyStartMinVec*3)
 	}
 }

@@ -18,11 +18,31 @@ func DefaultRetreat(u *scl.Unit) bool {
 }
 
 func DefaultManeuver(u *scl.Unit) bool {
-	if !u.IsHalfCool() {
-		closeTargets := Targets.Armed.InRangeOf(u, -0.5)
-		if closeTargets.Exists() {
-			u.GroundFallback(B.Enemies.AllReady, 2, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
-			return true
+	if !u.IsCoolToAttack() {
+		attackers := B.Enemies.AllReady.CanAttack(u, 4)
+		if attackers.Exists() {
+			outranged, stronger := u.AssessStrength(attackers, 7)
+			if outranged && stronger {
+				return false // Attack them
+			}
+			// Not outranged - we can safely fall back
+			// Or we are weaker - fall back (there should be no attack)
+			if scl.Ground(u) {
+				u.GroundFallback(B.Locs.MyStart - B.Locs.MyStartMinVec*3)
+				return true
+			} else {
+				target := u.TargetPos()
+				if target == 0 {
+					target = u.Point()
+				} else {
+					target = u.Point().Towards(target, 1)
+				}
+				pos, safe := u.AirEvade(attackers, 2, target)
+				if !safe {
+					u.CommandPos(ability.Move, pos)
+					return true
+				}
+			}
 		}
 	}
 	return false

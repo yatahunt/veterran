@@ -17,26 +17,6 @@ func VikingsRetreat(u *scl.Unit) bool {
 	return false
 }
 
-// Это очень плохо работает на самом деле. Викинг будет игнорировать побои если он не стреляет и будет вечно кайтить
-// от темпеста вне зависимости от числа юнитов. Правда, обстоятельства могут таки заставить его атаковать
-// Видимо, если не стрелять, то в дефолтном AttackMove есть возможность двигаться под огнём, но там проверка на
-// enemies.CloserThan(7, target).Sum(CmpGroundDPS), так что при уверенности на земле(!) пойдёт атака в воздухе, что бред
-// todo: надо придумать что-то. Типа, уклонение пока сил не достаточно, а потом атака
-func VikingsManeuver(u *scl.Unit) bool {
-	if !u.IsHalfCool() {
-		vikingPos := u.TargetPos()
-		if vikingPos == 0 {
-			vikingPos = u.Point()
-		}
-		pos, safe := u.AirEvade(B.Enemies.AllReady.CanAttack(u, 2), 2, vikingPos)
-		if !safe || pos.IsFurtherThan(1, vikingPos) {
-			u.CommandPos(ability.Move, pos)
-			return true
-		}
-	}
-	return false
-}
-
 func VikingsAttack(u *scl.Unit) bool {
 	if Targets.ArmedFlyingArmored.Exists() || Targets.Flying.Exists() {
 		u.Attack(Targets.ArmedFlyingArmored, Targets.Flying)
@@ -88,6 +68,6 @@ func VikingsLogic(us scl.Units) {
 	}
 
 	for _, u := range us {
-		_ = VikingsRetreat(u) || VikingsManeuver(u) || VikingsAttack(u) || VikingExplore(u)
+		_ = VikingsRetreat(u) || DefaultManeuver(u) || VikingsAttack(u) || VikingExplore(u)
 	}
 }

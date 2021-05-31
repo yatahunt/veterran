@@ -17,12 +17,8 @@ func TankRetreat(u *scl.Unit) bool {
 }
 
 func TankManeuver(u *scl.Unit) bool {
-	if u.UnitType == terran.SiegeTank && !u.IsHalfCool() {
-		closeTargets := Targets.ArmedGround.InRangeOf(u, -0.5)
-		if closeTargets.Exists() {
-			u.GroundFallback(B.Enemies.AllReady, 2, B.Locs.MyStart-B.Locs.MyStartMinVec*3)
-			return true
-		}
+	if u.UnitType == terran.SiegeTank {
+		return DefaultManeuver(u)
 	}
 	return false
 }

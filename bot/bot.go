@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.2.13 (glhf)"
+const version = "VeTerran v2.3.0 (glhf)"
 
 type Bot struct {
 	*scl.Bot
@@ -23,12 +23,13 @@ type Bot struct {
 	MechPriority   bool
 	VersionPosted  bool
 
-	BuildPos         map[scl.BuildingSize]point.Points
-	FirstBarrack     point.Points
-	TurretsPos       point.Points
-	BunkersPos       point.Points
+	BuildPos     map[scl.BuildingSize]point.Points
+	FirstBarrack point.Points
+	TurretsPos   point.Points
+	BunkersPos   point.Points
 
 	DoubleHealers []scl.GroupID
+	CycloneLocks  map[api.UnitTag]api.UnitTag
 }
 
 var B *Bot

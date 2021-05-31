@@ -144,7 +144,7 @@ func WorkerRushDefence() {
 			continue
 		}
 
-		if unit.IsCool() {
+		if unit.IsCoolToMove() {
 			unit.AttackCustom(scl.DefaultAttackFunc, WorkerMoveFunc, enemies)
 		} else {
 			friends := army.InRangeOf(unit, 0)
@@ -240,7 +240,7 @@ func MechRetreat() {
 			pos, _ := u.AirEvade(enemies, 2, healingPoint)
 			u.CommandPos(ability.Move, pos)
 		} else {
-			u.GroundFallback(enemies, 2, healingPoint)
+			u.GroundFallback(healingPoint)
 		}
 	}
 }
