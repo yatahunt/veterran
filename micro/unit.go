@@ -2,6 +2,7 @@ package micro
 
 import (
 	"bitbucket.org/aisee/veterran/bot"
+	"github.com/aiseeq/s2l/lib/point"
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
 	"github.com/aiseeq/s2l/protocol/enums/buff"
@@ -56,14 +57,19 @@ func DefaultAttack(u *scl.Unit) bool {
 	return false
 }
 
+func GetDefensivePos(u *scl.Unit) point.Point {
+	pos := B.Ramps.My.Top
+	bunkers := B.Units.My[terran.Bunker]
+	if bunkers.Exists() {
+		bunkers.OrderByDistanceTo(B.Locs.MyStart, false)
+		pos = bunkers[int(u.Tag)%bunkers.Len()].Point()
+	}
+	return pos
+}
+
 func DefaultExplore(u *scl.Unit) bool {
 	if B.PlayDefensive {
-		pos := B.Ramps.My.Top
-		bunkers := B.Units.My[terran.Bunker]
-		if bunkers.Exists() {
-			bunkers.OrderByDistanceTo(B.Locs.MyStart, false)
-			pos = bunkers[int(u.Tag)%bunkers.Len()].Point()
-		}
+		pos := GetDefensivePos(u)
 		if u.IsFarFrom(pos) {
 			u.CommandPos(ability.Move, pos)
 		}

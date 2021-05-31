@@ -37,8 +37,24 @@ func TankMorph(u *scl.Unit) bool {
 			u.Command(ability.Morph_SiegeMode)
 			return true
 		}
+
+		// Enter siege mode on defensive position
+		if B.PlayDefensive {
+			pos := GetDefensivePos(u)
+			if !u.IsFarFrom(pos) && u.IsFarFrom(B.Ramps.My.Top+B.Ramps.My.Vec*3) {
+				u.Command(ability.Morph_SiegeMode)
+				return true
+			}
+		}
 	}
 	if u.UnitType == terran.SiegeTankSieged {
+		// Keep siege mode on defensive position
+		if B.PlayDefensive {
+			pos := GetDefensivePos(u)
+			if !u.IsFarFrom(pos) {
+				return false
+			}
+		}
 		farTargets := Targets.ArmedGround.InRangeOf(u, 2).Filter(func(unit *scl.Unit) bool {
 			return unit.IsFurtherThan(float64(u.Radius+unit.Radius+2), u)
 		})

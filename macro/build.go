@@ -68,7 +68,7 @@ var RootBuildOrder = BuildNodes{
 		},
 		Method: func() {
 			pos := Build(ability.Build_CommandCenter)
-			if pos != 0 && B.PlayDefensive {
+			if pos != 0 { // && B.PlayDefensive
 				bot.FindBunkerPosition(pos)
 			}
 		},
@@ -443,6 +443,10 @@ func Build(aid api.AbilityID) point.Point {
 
 		scv := bot.GetSCV(pos, 0, 45)
 		if scv != nil {
+			if !B.RequestPlacement(aid, pos, scv) {
+				log.Debugf("Bad place to build %v @ %v", B.U.Types[B.U.AbilityUnit[aid]].Name, pos)
+				continue
+			}
 			p := point.Pt3(scv.Pos)
 			if !B.SafeGrid.IsPathable(p) {
 				if pathablePos := B.FindClosestPathable(B.SafeGrid, p); pathablePos != 0 {

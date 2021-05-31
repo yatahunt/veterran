@@ -99,7 +99,7 @@ func Repair() {
 	}
 
 	// Repairers
-	buildings := append(B.Groups.Get(bot.Buildings).Units, B.Groups.Get(bot.TanksOnExps).Units...)
+	buildings := append(B.Groups.Get(bot.Buildings).Units) // , B.Groups.Get(bot.TanksOnExps).Units...
 	for _, building := range buildings {
 		ars := building.FindAssignedRepairers(reps)
 		maxArs := int(building.Radius * 3)
@@ -391,6 +391,6 @@ func Roles(b *bot.Bot) {
 	// ReconBase()
 	ReconHellion()
 	Mine()
-	TanksOnExpansions()
+	// TanksOnExpansions()
 	BuildingsCheck()
 }

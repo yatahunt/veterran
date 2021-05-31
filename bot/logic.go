@@ -162,7 +162,7 @@ func FindTurretPosition(ptr point.Pointer) {
 	var pos point.Point
 	vec := (mfs.Center() - ptr.Point()).Norm()
 	rekt := mfs.Rekt()
-	rekt[0] -= 1+1i // Move LOWER point DOWN and LEFT because 2x2 building is placed on lower-left corner
+	rekt[0] -= 1 + 1i // Move LOWER point DOWN and LEFT because 2x2 building is placed on lower-left corner
 	side := vec.Compas()
 	if side.IsDiagonal() {
 		// Minerals are in quarter of a circle. We need do find corners of rectangle that wraps all crystals
@@ -217,12 +217,18 @@ func FindBunkerPosition(ptr point.Pointer) {
 	}
 
 	var pos point.Point
-	vec := (mfs.Center() - ccPos).Norm()
-	for x := 3.0; x < 8; x++ {
-		pos = (ccPos - vec.Mul(x)).Floor().CellCenter()
-		if B.BunkersPos.Has(pos) {
+	minVec := (mfs.Center() - ccPos).Norm()
+	centerVec := (ccPos - B.Locs.MapCenter).Norm()
+	for x := 4.0; x < 8; x++ {
+		pos = (ccPos - minVec.Mul(x)).Floor().CellCenter()
+		/*if B.BunkersPos.Has(pos) {
 			return // There is already position for one bunker
+		}*/
+		if B.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep) {
+			B.BunkersPos.Add(pos)
+			break
 		}
+		pos = (ccPos - centerVec.Mul(x)).Floor().CellCenter()
 		if B.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep) {
 			B.BunkersPos.Add(pos)
 			break
@@ -251,12 +257,12 @@ func EnableDefensivePlay() {
 		return
 	}
 	B.PlayDefensive = true
-	for _, cc := range B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress) {
+	/*for _, cc := range B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress) {
 		if cc.IsCloserThan(1, B.Locs.MyStart) {
 			continue
 		}
 		FindBunkerPosition(cc)
-	}
+	}*/
 }
 
 func DisableDefensivePlay() {
@@ -269,15 +275,15 @@ func DisableDefensivePlay() {
 		bunkers.Command(ability.UnloadAll_Bunker)
 		// bunkers.CommandQueue(ability.Effect_Salvage)
 	}
-	if tanks := B.Groups.Get(TanksOnExps).Units; tanks.Exists() {
+	/*if tanks := B.Groups.Get(TanksOnExps).Units; tanks.Exists() {
 		B.Groups.Add(Tanks, tanks...)
-	}
+	}*/
 }
 
 func DefensivePlayCheck() {
 	armyScore := B.Units.My.All().Filter(scl.NotWorker).Sum(scl.CmpFood)
 	enemyScore := B.Enemies.All.Filter(scl.NotWorker).Sum(scl.CmpFood)
-	if armyScore > enemyScore*1.5 && B.Obs.Score.ScoreDetails.FoodUsed.Army >= 25 || B.FoodUsed > 180 {
+	if armyScore > enemyScore*2 && B.Obs.Score.ScoreDetails.FoodUsed.Army >= 25 || B.FoodUsed > 180 {
 		DisableDefensivePlay()
 	} else if armyScore < enemyScore {
 		EnableDefensivePlay()
