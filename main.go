@@ -96,7 +96,7 @@ func RunAgent(c *client.Client) {
 		macro.Macro(B)
 		micro.Micro(B)
 	}
-	B.Init(true) // Called later because in Init() we need to use *B in callback
+	B.Init(false) // Called later because in Init() we need to use *B in callback
 	// tests.Init(B)
 
 	for B.Client.Status == api.Status_in_game {

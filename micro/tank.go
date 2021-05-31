@@ -41,7 +41,7 @@ func TankMorph(u *scl.Unit) bool {
 		// Enter siege mode on defensive position
 		if B.PlayDefensive {
 			pos := GetDefensivePos(u)
-			if !u.IsFarFrom(pos) && u.IsFarFrom(B.Ramps.My.Top+B.Ramps.My.Vec*3) {
+			if !u.IsFarFrom(pos) && u.IsFarFrom(B.Ramps.My.Top-B.Ramps.My.Vec*3) {
 				u.Command(ability.Morph_SiegeMode)
 				return true
 			}
