@@ -123,10 +123,17 @@ func VikingTest(myId, enemyId api.PlayerID, b *bot.Bot) {
 	b.Actions.MoveCamera(b.Locs.MyStart.Towards(b.Locs.MapCenter, 8))
 }
 
+func MiningTest(myId, enemyId api.PlayerID, b *bot.Bot) {
+	// b.DebugAddUnits(terran.Reaper, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, -3), 1)
+	b.DebugAddUnits(protoss.Stalker, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, -3), 1)
+	// b.DebugAddUnits(terran.Reaper, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 28), 2)
+	b.DebugSend()
+}
+
 func Init(b *bot.Bot) {
 	myId := b.Obs.PlayerCommon.PlayerId
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	MarineTest(myId, enemyId, b)
+	MiningTest(myId, enemyId, b)
 }

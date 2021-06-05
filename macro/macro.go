@@ -15,7 +15,6 @@ import (
 const SafeBuildRange = 7
 
 var B *bot.Bot
-var LastBuildLoop int
 
 func Morph() {
 	cc := B.Units.My[terran.CommandCenter].First(scl.Ready, scl.Idle)
@@ -156,15 +155,12 @@ func Macro(b *bot.Bot) {
 		B.BuildTurrets = true
 	}
 
-	if LastBuildLoop+B.FramesPerOrder < B.Loop {
-		if B.Loop >= 5376 { // 4:00
-			OrderUpgrades()
-		}
-		ProcessBuildOrder(RootBuildOrder)
-		Morph()
-		OrderUnits()
-		ReserveSCVs()
-		LastBuildLoop = B.Loop
+	if B.Loop >= 5376 { // 4:00
+		OrderUpgrades()
 	}
+	ProcessBuildOrder(RootBuildOrder)
+	Morph()
+	OrderUnits()
+	ReserveSCVs()
 	Cast()
 }

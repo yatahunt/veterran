@@ -22,7 +22,7 @@ func DefaultManeuver(u *scl.Unit) bool {
 	if !u.IsCoolToAttack() {
 		attackers := B.Enemies.AllReady.CanAttack(u, 4)
 		if attackers.Exists() {
-			outranged, stronger := u.AssessStrength(attackers, 7)
+			outranged, stronger := u.AssessStrength(attackers)
 			if outranged && stronger {
 				return false // Attack them
 			}

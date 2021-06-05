@@ -447,13 +447,7 @@ func Build(aid api.AbilityID) point.Point {
 				log.Debugf("Bad place to build %v @ %v", B.U.Types[B.U.AbilityUnit[aid]].Name, pos)
 				continue
 			}
-			p := point.Pt3(scv.Pos)
-			if !B.SafeGrid.IsPathable(p) {
-				if pathablePos := B.FindClosestPathable(B.SafeGrid, p); pathablePos != 0 {
-					p = pathablePos
-				}
-			}
-			if path, _ := scl.NavPath(B.Grid, B.SafeWayMap, p, pos); path == nil {
+			if !scv.IsSafeToApproach(pos) {
 				log.Debugf("Can't find safe path from %v to build %v @ %v",
 					scv.Pos, B.U.Types[B.U.AbilityUnit[aid]].Name, pos)
 				return 0

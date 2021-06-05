@@ -58,7 +58,7 @@ func BuildingsCheck() {
 		// Cancel second barrack if worker rush
 		barracks := B.Units.My[terran.Barracks]
 		if barracks.Len() > 1 {
-			barracks.Min(func(unit *scl.Unit) float64 {return float64(unit.BuildProgress)}).
+			barracks.Min(func(unit *scl.Unit) float64 { return float64(unit.BuildProgress) }).
 				Command(ability.Cancel_BuildInProgress)
 		}
 	}
@@ -66,12 +66,9 @@ func BuildingsCheck() {
 
 func Build() {
 	builders := B.Groups.Get(bot.Builders).Units
-	enemies := B.Enemies.Visible
+	enemies := B.Enemies.Visible.Filter(scl.DpsGt5)
 	for _, u := range builders {
-		enemy := enemies.First(func(unit *scl.Unit) bool {
-			return unit.GroundDPS() > 5 && unit.InRange(u, 2)
-		})
-		if enemy != nil || u.Hits < 21 {
+		if enemies.CanAttack(u, 2).Exists() || u.Hits < 21 {
 			u.Command(ability.Halt_TerranBuild)
 			u.CommandQueue(ability.Stop_Stop)
 		}
@@ -99,18 +96,22 @@ func Repair() {
 	}
 
 	// Repairers
-	buildings := append(B.Groups.Get(bot.Buildings).Units) // , B.Groups.Get(bot.TanksOnExps).Units...
-	for _, building := range buildings {
+	for _, building := range B.Groups.Get(bot.Buildings).Units {
+		buildingIsDamaged := building.Health < building.HealthMax
+		if !buildingIsDamaged {
+			continue
+		}
+
 		ars := building.FindAssignedRepairers(reps)
 		maxArs := int(building.Radius * 3)
-		buildingIsDamaged := building.Health < building.HealthMax
 		noReps := ars.Empty()
 		allRepairing := ars.Len() == ars.CanAttack(building, 0).Len()
 		lessThanMaxAssigned := ars.Len() < maxArs
 		healthDecreasing := building.HPS > 0
-		if buildingIsDamaged && (noReps || (allRepairing && lessThanMaxAssigned && healthDecreasing)) {
-			rep := bot.GetSCV(building, bot.Repairers, 45)
-			if rep != nil {
+		if noReps || (allRepairing && lessThanMaxAssigned && healthDecreasing) {
+			rep := bot.GetSCV(building, 0, 45)
+			if rep != nil && rep.IsSafeToApproach(building) {
+				B.Groups.Add(bot.Repairers, rep)
 				rep.CommandTag(ability.Effect_Repair_SCV, building.Tag)
 			}
 		}
@@ -139,6 +140,12 @@ func Repair() {
 		if mech.Health == mech.HealthMax {
 			bot.OnUnitCreated(mech) // Add to corresponding group
 			continue
+		}
+		if mech.IsFlying { // Move flying units away from CC
+			if cc := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).
+				CloserThan(3, mech).First(); cc != nil {
+				mech.CommandPos(ability.Move_Move, cc.Towards(mech, 3))
+			}
 		}
 		ars := mech.FindAssignedRepairers(reps)
 		maxArs := int(mech.Radius * 4)
@@ -331,7 +338,7 @@ func Mine() {
 			B.RedistributeWorkersToRefineryIfNeeded(ref, miners, 3)
 		}
 	}
-	B.HandleMiners(miners, ccs, 0.5) // reserve more vespene
+	B.HandleMiners(miners, ccs, enemies, 0.5, B.Locs.MyStart-B.Locs.MyStartMinVec*3) // reserve more vespene
 
 	mules := B.Groups.Get(bot.Mules).Units.Filter(scl.Idle)
 	for _, mule := range mules {
