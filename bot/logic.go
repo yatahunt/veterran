@@ -284,7 +284,7 @@ func DefensivePlayCheck() {
 	armyScore := B.Units.My.All().Filter(scl.NotWorker).Sum(scl.CmpFood)
 	enemyScore := B.Enemies.All.Filter(scl.NotWorker).Sum(scl.CmpFood)
 	// todo: optimize constants
-	if armyScore > enemyScore*2 && B.Obs.Score.ScoreDetails.FoodUsed.Army >= 25 || B.FoodUsed > 180 {
+	if armyScore > enemyScore*B.TestVal && B.Obs.Score.ScoreDetails.FoodUsed.Army >= 25 || B.FoodUsed > 180 {
 		DisableDefensivePlay()
 	} else if armyScore < enemyScore {
 		EnableDefensivePlay()
@@ -303,7 +303,7 @@ func DefensivePlayCheck() {
 		buildings := append(B.Groups.Get(Buildings).Units, B.Groups.Get(UnderConstruction).Units...)
 		farBuilding := buildings.FurthestTo(B.Locs.MyStart)
 		if farBuilding != nil {
-			B.DefensiveRange = farBuilding.Dist(B.Locs.MyStart) + 20 // todo: optimize constants
+			B.DefensiveRange = farBuilding.Dist(B.Locs.MyStart) + 20
 		}
 	}
 }

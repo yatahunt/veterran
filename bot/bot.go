@@ -30,6 +30,8 @@ type Bot struct {
 
 	DoubleHealers []scl.GroupID
 	CycloneLocks  map[api.UnitTag]api.UnitTag
+
+	TestVal float64
 }
 
 var B *Bot

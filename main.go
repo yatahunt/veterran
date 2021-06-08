@@ -121,7 +121,7 @@ func run() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Create the agent and then start the game
-	// client.SetMap(client.MapsProBotsSeason2[0] + ".SC2Map")
+	// client.SetMap(client.MapsProBotsSeason2[3] + ".SC2Map")
 	// client.SetMap(client.Maps2021season1[3] + ".SC2Map")
 	// client.SetGameVersion(75689, "B89B5D6FA7CBF6452E721311BFBC6CB2")
 	// client.SetRealtime()
