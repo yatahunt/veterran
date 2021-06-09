@@ -310,27 +310,12 @@ func ReconHellion() {
 func Mine() {
 	enemies := B.Enemies.Visible.Filter(scl.DpsGt5)
 	miners := B.Groups.Get(bot.Miners).Units
-	/*for _, miner := range miners {
-		if enemies.CloserThan(safeBuildRange, miner).Sum(scl.CmpGroundDamage) > miner.Hits {
-			B.Groups.Add(bot.MinersRetreat, miner)
-		}
-	}
-
-	// Retreat
-	mrs := B.Groups.Get(bot.MinersRetreat).Units
-	for _, miner := range mrs {
-		if enemies.CanAttack(miner, safeBuildRange).Empty() {
-			B.Groups.Add(bot.Miners, miner)
-			continue
-		}
-		miner.GroundFallback(enemies, 2, B.HomePaths)
-	}*/
 
 	// Std miners handler
 	miners = B.Groups.Get(bot.Miners).Units
 	ccs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).
 		Filter(func(unit *scl.Unit) bool {
-			return unit.IsReady() && enemies.CanAttack(unit, 0).Empty()
+			return unit.IsReady() && enemies.CanAttack(unit, 0).Sum(scl.CmpGroundDPS) < 30 // one banshee
 		})
 	// Move miners to first gas
 	if B.Loop < scl.TimeToLoop(1, 5) && len(B.Miners.GasForMiner) < 3 {

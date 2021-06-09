@@ -104,6 +104,19 @@ func OrderUnits() {
 	refs := B.Units.My[terran.Refinery].Filter(func(unit *scl.Unit) bool {
 		return unit.IsReady() && unit.VespeneContents > 0
 	})
+
+	// Vikings against banshees
+	/*if starport := GetFactory(terran.Starport, false, usedFactories); starport != nil {
+		if B.EnemyRace == api.Race_Terran && B.Pending(ability.Train_VikingFighter) < 1 {
+			if B.CanBuy(ability.Train_VikingFighter) {
+				OrderTrain(starport, ability.Train_VikingFighter, usedFactories)
+			} else {
+				B.DeductResources(ability.Train_VikingFighter) // Gather money
+			}
+		}
+	}*/
+
+	// Build SCVs
 	if cc != nil && B.Units.My[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70-refs.Len()) &&
 		B.CanBuy(ability.Train_SCV) && !B.WorkerRush {
 		OrderTrain(cc, ability.Train_SCV, usedFactories)

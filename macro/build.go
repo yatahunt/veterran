@@ -77,14 +77,6 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Supplies",
 		Ability: ability.Build_SupplyDepot,
 		Premise: func() bool {
-			// its safe && 1 depo is placed && < 2:00 && only one cc
-			if !B.PlayDefensive && B.FoodCap > 20 && B.Loop < 2688 &&
-				B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Len() == 1 {
-				return false // Wait for a second cc
-			}
-			/*if B.Loop < 1344 && B.FoodUsed < 14 {
-				return false // Train SCVs without delay
-			}*/
 			return B.FoodLeft < 6+B.FoodUsed/20 && B.FoodCap < 200
 		},
 		Limit:  func() int { return 30 },
@@ -159,12 +151,6 @@ var RootBuildOrder = BuildNodes{
 		},
 		Limit: func() int {
 			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
-			/*if ccs.Len() < 3 && B.Minerals < 500 {
-				return 0
-			}
-			if B.Units.My[terran.FusionCore].First(scl.Ready) == nil {
-				return 2
-			}*/
 			return scl.MinInt(3, ccs)
 		},
 		Active:  BuildOne,
@@ -178,7 +164,7 @@ var RaxBuildOrder = BuildNodes{
 		Ability: ability.Build_Bunker,
 		Premise: func() bool {
 			return B.Units.My.OfType(terran.Marine, terran.Reaper).Len() >= 2 &&
-				B.Enemies.All.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()
+				B.Enemies.Visible.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()
 		},
 		Limit:   func() int { return B.BunkersPos.Len() },
 		Active:  func() int { return B.BunkersPos.Len() },
@@ -205,7 +191,6 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
 		Premise: func() bool {
-			// B.Units.My[terran.Barracks].First(scl.Ready, scl.Unused) == nil &&
 			return !B.WorkerRush && B.Units.My[terran.BarracksFlying].Empty()
 		},
 		Limit: func() int {
