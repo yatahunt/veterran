@@ -75,7 +75,7 @@ func RunAgent(c *client.Client) {
 		CycloneLocks:  map[api.UnitTag]api.UnitTag{},
 	}
 	bot.B = B
-	B.TryToCheeze = bot.LoadGameData(true)
+	B.TryToCheeze = false // bot.LoadGameData(true)
 	B.Cheeze = B.TryToCheeze
 	B.FramesPerOrder = 3
 	B.LastLoop = -math.MaxInt

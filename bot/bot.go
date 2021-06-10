@@ -22,6 +22,7 @@ type Bot struct {
 	BuildTurrets   bool
 	MechPriority   bool
 	VersionPosted  bool
+	GGPosted       bool
 	TryToCheeze    bool
 	Cheeze         bool
 
@@ -80,15 +81,16 @@ func Step() {
 
 	ParseData()
 
-	if GGCheck() {
+	if !B.GGPosted && GGCheck() {
 		B.Actions.ChatSend("(gg)")
 		if _, err := B.Client.Action(api.RequestAction{Actions: B.Actions}); err != nil {
 			log.Error(err)
 		}
-		if err := B.Client.LeaveGame(); err != nil {
+		B.GGPosted = true
+		/*if err := B.Client.LeaveGame(); err != nil {
 			log.Error(err)
 		}
-		return
+		return*/
 	}
 
 	B.Logic()
