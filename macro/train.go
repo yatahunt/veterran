@@ -106,15 +106,17 @@ func OrderUnits() {
 	})
 
 	// Vikings against banshees
-	/*if starport := GetFactory(terran.Starport, false, usedFactories); starport != nil {
-		if B.EnemyRace == api.Race_Terran && B.Pending(ability.Train_VikingFighter) < 1 {
+	if starport := GetFactory(terran.Starport, false, usedFactories); starport != nil {
+		if (B.Units.AllEnemy[terran.Banshee].Exists() ||
+			B.Units.AllEnemy.OfType(B.U.UnitAliases.For(terran.Starport)...).Exists()) &&
+			B.Pending(ability.Train_VikingFighter) < 2 {
 			if B.CanBuy(ability.Train_VikingFighter) {
 				OrderTrain(starport, ability.Train_VikingFighter, usedFactories)
 			} else {
 				B.DeductResources(ability.Train_VikingFighter) // Gather money
 			}
 		}
-	}*/
+	}
 
 	// Build SCVs
 	if cc != nil && B.Units.My[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70-refs.Len()) &&
