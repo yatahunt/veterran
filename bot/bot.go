@@ -22,6 +22,7 @@ type Bot struct {
 	BuildTurrets   bool
 	MechPriority   bool
 	VersionPosted  bool
+	TryToCheeze    bool
 	Cheeze         bool
 
 	BuildPos     map[scl.BuildingSize]point.Points

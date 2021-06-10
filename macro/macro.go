@@ -3,6 +3,7 @@ package macro
 import (
 	"bitbucket.org/aisee/minilog"
 	"bitbucket.org/aisee/veterran/bot"
+	"github.com/aiseeq/s2l/lib/point"
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/api"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
@@ -186,7 +187,7 @@ func Cheeze() {
 		B.Cheeze = false
 	}
 	if !B.Cheeze && B.Loop >= scl.TimeToLoop(4, 0) {
-		proxyRaxes := B.Units.My[terran.Barracks].FurtherThan(50, B.Locs.MyStart).Filter(scl.Ground)
+		proxyRaxes := B.Units.My[terran.Barracks].FurtherThan(70, B.Locs.MyStart).Filter(scl.Ground)
 		for _, pr := range proxyRaxes {
 			if pr.HasAbility(ability.Cancel_Queue5) {
 				proxyRaxes.Command(ability.Cancel_Queue5)
@@ -196,11 +197,19 @@ func Cheeze() {
 		}
 		proxyRaxesFlying := B.Units.My[terran.BarracksFlying].Filter(scl.Idle)
 		for _, pr := range proxyRaxesFlying {
-			pos := B.BuildPos[scl.S5x3].ClosestTo(pr)
-			if pr.IsFarFrom(pos) {
-				pr.CommandPos(ability.Move_Move, pos)
-			} else {
-				pr.CommandPos(ability.Land_Barracks, pos)
+			// Sorting and quering are ok because it will happen only if barrack is idle
+			poses := make(point.Points, len(B.BuildPos[scl.S5x3]))
+			copy(poses, B.BuildPos[scl.S5x3])
+			poses.OrderByDistanceTo(pr, false)
+			for _, pos := range poses {
+				if !B.RequestPlacement(ability.Build_Barracks, pos, nil) {
+					continue
+				}
+				if pr.IsFurtherThan(2, pos) {
+					pr.CommandPos(ability.Move_Move, pos)
+				} else {
+					pr.CommandPos(ability.Land_Barracks, pos)
+				}
 			}
 		}
 	}

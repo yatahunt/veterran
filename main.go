@@ -6,6 +6,7 @@ import (
 	"bitbucket.org/aisee/veterran/macro"
 	"bitbucket.org/aisee/veterran/micro"
 	"bitbucket.org/aisee/veterran/roles"
+	"fmt"
 	"github.com/aiseeq/s2l/lib/point"
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/api"
@@ -70,11 +71,12 @@ func RunAgent(c *client.Client) {
 	B := &bot.Bot{
 		Bot:           scl.New(c, bot.OnUnitCreated),
 		PlayDefensive: true,
-		Cheeze:        true,
 		BuildPos:      map[scl.BuildingSize]point.Points{},
 		CycloneLocks:  map[api.UnitTag]api.UnitTag{},
 	}
 	bot.B = B
+	B.TryToCheeze = bot.LoadGameData(true)
+	B.Cheeze = B.TryToCheeze
 	B.FramesPerOrder = 3
 	B.LastLoop = -math.MaxInt
 	B.MaxGroup = bot.MaxGroup
@@ -111,10 +113,17 @@ func RunAgent(c *client.Client) {
 	stop <- struct{}{}
 	if len(B.Result) == 0 {
 		B.UpdateObservation()
+		if len(B.Result) == 0 {
+			log.Error("Failed to get game result")
+			bot.SaveGameData("Defeat", B.TryToCheeze)
+			return
+		}
 	}
 	myId := B.Obs.PlayerCommon.PlayerId
 	log.Infof("Game versus: %v, Result: %v, Time: %ds",
 		B.EnemyRace, B.Result[myId-1].Result, int(float64(B.Loop)/scl.FPS))
+
+	bot.SaveGameData(B.Result[myId-1].Result.String(), B.TryToCheeze)
 }
 
 func run() {
@@ -129,6 +138,9 @@ func run() {
 	myBot := client.NewParticipant(api.Race_Terran, "VeTerran")
 	cpu := client.NewComputer(api.Race_Random, api.Difficulty_CheatInsane, api.AIBuild_RandomBuild)
 	cfg := client.LaunchAndJoin(myBot, cpu)
+	if client.LadderOpponentID == "" {
+		client.LadderOpponentID = fmt.Sprintf("%s-%s", cpu.Race, cpu.AiBuild)
+	}
 
 	RunAgent(cfg.Client)
 }

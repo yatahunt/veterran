@@ -2,3 +2,4 @@
 tests/data
 tests/*.prof
 tests/*.exe
+data
