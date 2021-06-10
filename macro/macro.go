@@ -21,7 +21,9 @@ func Morph() {
 	if cc != nil && B.Units.My[terran.Barracks].First(scl.Ready) != nil {
 		if B.CanBuy(ability.Morph_OrbitalCommand) {
 			OrderTrain(cc, ability.Morph_OrbitalCommand, nil)
-		} else if B.Units.My[terran.SCV].Len() >= 16 {
+		} else if !B.Cheeze && B.Units.My[terran.SCV].Len() >= 16 ||
+			B.Pending(ability.Train_Reaper) != 0 ||
+			B.Loop > scl.TimeToLoop(2, 0) {
 			B.DeductResources(ability.Morph_OrbitalCommand)
 		}
 	}
@@ -134,12 +136,72 @@ func ReserveSCVs() {
 			scv.CommandPos(ability.Move, pos)
 		}
 	}
+	if B.Cheeze && B.Loop < scl.TimeToLoop(0, 30) &&
+		B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Empty() {
+		pbs := B.Groups.Get(bot.ProxyBuilders).Units
+		for _, scv := range pbs {
+			if !scv.IsMoving() {
+				B.Groups.Add(bot.Miners, scv) // Free unused ProxyBuilders
+			}
+		}
+		if pbs.Len() < 2 {
+			scv := bot.GetSCV(B.Locs.MyStart, 0, 45)
+			if scv != nil {
+				if pbs.Len() == 0 {
+					pos := B.Locs.EnemyExps[2]
+					dist := scv.FramesToDistantPos(pos)
+					// log.Info(B.Loop, int(dist) + B.Loop)
+					if int(dist)+B.Loop > 1050 {
+						B.Groups.Add(bot.ProxyBuilders, scv)
+						scv.CommandPos(ability.Move, pos)
+					}
+				} else if pbs.Len() == 1 {
+					pos := B.Locs.EnemyExps[3]
+					dist := scv.FramesToDistantPos(pos)
+					// log.Info(B.Loop, int(dist) + B.Loop)
+					if int(dist)+B.Loop > 1650 || B.Loop > scl.TimeToLoop(0, 29) {
+						B.Groups.Add(bot.ProxyBuilders, scv)
+						scv.CommandPos(ability.Move, pos)
+					}
+				}
+			}
+		}
+	}
 	// Fast expansion
 	if B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Len() == 1 &&
 		B.Minerals >= 350 && B.Groups.Get(bot.ScvReserve).Tags.Empty() && !B.WorkerRush {
 		pos := B.Locs.MyExps[0]
 		if scv := bot.GetSCV(pos, bot.ScvReserve, 45); scv != nil {
 			scv.CommandPos(ability.Move, pos)
+		}
+	}
+}
+
+func Cheeze() {
+	balance := B.Obs.Score.ScoreDetails.KilledMinerals.Army+B.Obs.Score.ScoreDetails.KilledVespene.Army-
+		B.Obs.Score.ScoreDetails.LostMinerals.Army-B.Obs.Score.ScoreDetails.LostVespene.Army
+	/*log.Info(B.Obs.Score.ScoreDetails.KilledMinerals.Army+B.Obs.Score.ScoreDetails.KilledVespene.Army,
+		B.Obs.Score.ScoreDetails.LostMinerals.Army+B.Obs.Score.ScoreDetails.LostVespene.Army, balance)*/
+	if B.Loop >= scl.TimeToLoop(4, 0) && B.Cheeze && balance <= 0 {
+		B.Cheeze = false
+	}
+	if !B.Cheeze && B.Loop >= scl.TimeToLoop(4, 0) {
+		proxyRaxes := B.Units.My[terran.Barracks].FurtherThan(50, B.Locs.MyStart).Filter(scl.Ground)
+		for _, pr := range proxyRaxes {
+			if pr.HasAbility(ability.Cancel_Queue5) {
+				proxyRaxes.Command(ability.Cancel_Queue5)
+			} else if pr.HasAbility(ability.Lift_Barracks) {
+				proxyRaxes.Command(ability.Lift_Barracks)
+			}
+		}
+		proxyRaxesFlying := B.Units.My[terran.BarracksFlying].Filter(scl.Idle)
+		for _, pr := range proxyRaxesFlying {
+			pos := B.BuildPos[scl.S5x3].ClosestTo(pr)
+			if pr.IsFarFrom(pos) {
+				pr.CommandPos(ability.Move_Move, pos)
+			} else {
+				pr.CommandPos(ability.Land_Barracks, pos)
+			}
 		}
 	}
 }
@@ -155,7 +217,7 @@ func Macro(b *bot.Bot) {
 		B.BuildTurrets = true
 	}
 
-	if B.Loop >= 5376 { // 4:00
+	if B.Loop >= scl.TimeToLoop(4, 0) {
 		OrderUpgrades()
 	}
 	ProcessBuildOrder(RootBuildOrder)
@@ -163,4 +225,5 @@ func Macro(b *bot.Bot) {
 	OrderUnits()
 	ReserveSCVs()
 	Cast()
+	Cheeze()
 }

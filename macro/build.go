@@ -50,7 +50,7 @@ var RootBuildOrder = BuildNodes{
 		Premise: func() bool {
 			return B.Enemies.All.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()
 		},
-		Limit:  func() int {
+		Limit: func() int {
 			if B.Loop < scl.TimeToLoop(2, 0) {
 				return 1
 			} else if B.Loop < scl.TimeToLoop(4, 0) {
@@ -86,12 +86,22 @@ var RootBuildOrder = BuildNodes{
 		Name:    "First Barrack",
 		Ability: ability.Build_Barracks,
 		Premise: func() bool {
-			return B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
+			return !B.Cheeze && B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
 				B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Empty()
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,
-		Method: func() { BuildFirstBarrack() },
+		Method: BuildFirstBarrack,
+	},
+	{
+		Name:    "Proxy Barracks",
+		Ability: ability.Build_Barracks,
+		Premise: func() bool {
+			return B.Cheeze && B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil
+		},
+		Limit:  func() int { return 2 },
+		Active: func() int { return 2 },
+		Method: BuildProxyBarrack,
 	},
 	{
 		Name:    "Refinery",
@@ -111,7 +121,7 @@ var RootBuildOrder = BuildNodes{
 					return true
 				}
 				if ccs.Len() < 3 {
-					return refPending < ccs.Len() + 1
+					return refPending < ccs.Len()+1
 				}
 				return true
 			}
@@ -233,7 +243,6 @@ var RaxBuildOrder = BuildNodes{
 		Limit:  BuildOne, // B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Len()
 		Active: BuildOne,
 		Method: func() {
-			// todo: group?
 			if rax := B.Units.My[terran.BarracksFlying].First(); rax != nil {
 				rax.CommandPos(ability.Build_TechLab_Barracks, B.FirstBarrack[1])
 				return
@@ -450,6 +459,15 @@ func Build(aid api.AbilityID) point.Point {
 
 func BuildFirstBarrack() {
 	pos := B.FirstBarrack[0]
+	scv := B.Units.My[terran.SCV].ClosestTo(pos)
+	if scv != nil {
+		B.Groups.Add(bot.Builders, scv)
+		OrderBuild(scv, pos, ability.Build_Barracks)
+	}
+}
+
+func BuildProxyBarrack() {
+	pos := B.Locs.EnemyExps[B.Units.My[terran.Barracks].Len()+2]
 	scv := B.Units.My[terran.SCV].ClosestTo(pos)
 	if scv != nil {
 		B.Groups.Add(bot.Builders, scv)

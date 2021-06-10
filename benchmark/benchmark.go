@@ -341,9 +341,9 @@ func RunAgent2(c *client.Client, testVal float64, battleInit func(b *bot.Bot)) i
 		if B.Loop > scl.TimeToLoop(0, 30) {
 			stop <- struct{}{}
 			/*return int(B.Obs.Score.ScoreDetails.TotalDamageDealt.Life+B.Obs.Score.ScoreDetails.TotalDamageDealt.Shields-
-				-B.Obs.Score.ScoreDetails.TotalDamageTaken.Life-B.Obs.Score.ScoreDetails.TotalDamageTaken.Shields)*/
+				B.Obs.Score.ScoreDetails.TotalDamageTaken.Life-B.Obs.Score.ScoreDetails.TotalDamageTaken.Shields)*/
 			return int(B.Obs.Score.ScoreDetails.KilledMinerals.Army+B.Obs.Score.ScoreDetails.KilledVespene.Army-
-				-B.Obs.Score.ScoreDetails.LostMinerals.Army-B.Obs.Score.ScoreDetails.LostVespene.Army)
+				B.Obs.Score.ScoreDetails.LostMinerals.Army-B.Obs.Score.ScoreDetails.LostVespene.Army)
 		}
 	}
 	stop <- struct{}{}
@@ -359,9 +359,9 @@ func testBattle() {
 		stats[race] = map[float64][]int{}
 	}
 
-	minVal := 1.2
-	maxVal := 1.4
-	valStep := 0.05
+	minVal := 1.0
+	maxVal := 12.0
+	valStep := 1.0
 	testVal := minVal
 
 	var cfg *client.GameConfig
@@ -375,7 +375,7 @@ func testBattle() {
 			for score == 0 {
 				if cfg == nil {
 					// client.SetRealtime()
-					client.LaunchPortStart = 8368
+					// client.LaunchPortStart = 8368
 					client.SetMap(mapName + ".SC2Map")
 					cfg = client.LaunchAndJoin(myBot, cpu)
 					if err := cfg.Client.QuickSave(); err != nil {
@@ -439,7 +439,7 @@ func testBattle() {
 			fmt.Println()
 		}
 		testVal += valStep
-		if testVal > maxVal + valStep { // floats...
+		if testVal > maxVal { // + valStep { // floats...
 			testVal = minVal
 			round++
 		}
@@ -448,30 +448,22 @@ func testBattle() {
 
 /*
 Radius for AssessStrength
-2021-06-08 00:44:03 [Info] benchmark.go:381 - Test: 9, Versus: Zerg, Score: 7525
-Round 36    1.00    2.00    3.00    4.00    5.00    6.00    7.00    8.00    9.00   10.00   11.00   12.00   13.00   14.00
-  Terran    4339    5676    6211    6430    6509    6545    6425    6492    6618    6606    6603    6580    6620    6589
-    Zerg    6020    6698    6654    6404    6561    7015    6892    7316    7122    7237    7257    7297    7317    7296
- Protoss    5068    6669    5877    7376    6813    7550    7297    7515    7344    7304    7412    7382    7236    7340
- Average    5142    6348    6247    6737    6628    7037    6871    7108    7025    7049    7091    7086    7058    7075
+2021-06-10 00:43:17 [Info] benchmark.go:397 - Test: 13, Versus: Zerg, Score: 3975
+Round 92    1.00    2.00    3.00    4.00    5.00    6.00    7.00    8.00    9.00    10.00   11.00   12.00   13.00   14.00
+  Terran   -1426     533    1930    2805    3507    3679    3866    3535    3451    3663    3673    3663    3677    3688
+    Zerg    3991    3505    3717    3322    4190    4267    4296    4195    4255    4181    4221    4296    4301    4220
+ Protoss    1544    1141    2668    3348    3776    2944    3207    3523    3453    3265    3615    3322    3298    3308
+ Average    1369    1726    2771    3158    3824    3630    3790    3751    3720    3703    3836    3760    3761    3739
 
 Strength multiplier for AssessStrength
-2021-06-08 13:13:40 [Info] benchmark.go:381 - Test: 1, Versus: Zerg, Score: 7625
-Round 82    1.00    1.10    1.20    1.30    1.40    1.50    1.60    1.70    1.80    1.90    2.00
-  Terran    6365    6583    6592    6958    6940    6964    6950    6913    6883    6872    6870
-    Zerg    6772    6786    6752    6912    6885    6786    6908    6853    6826    6922    6878
- Protoss    6769    7014    6460    6867    6873    6703    6767    6656    6705    6833    6864
- Average    6635    6794    6601    6912    6899    6818    6875    6807    6805    6876    6871
-
-But same thing:
-2021-06-08 13:14:49 [Info] benchmark.go:382 - Test: 1.35, Versus: Terran, Score: 6350
-Round 66    1.20    1.25    1.30    1.35    1.40
-  Terran    6729    6470    6470    6462    6467
-    Zerg    7218    7123    7229    7175    7233
- Protoss    7798    7764    7786    7792    7783
- Average    7248    7119    7162    7139    7161
+2021-06-10 00:39:44 [Info] benchmark.go:397 - Test: 1.7000000000000006, Versus: Zerg, Score: 4750
+Round 36    1.00    1.10    1.20    1.30    1.40    1.50    1.60    1.70    1.80    1.90    2.00
+  Terran    3634    3681    4125    3875    3993    3809    3686    3701    3747    3663    3706
+    Zerg    4541    4115    3859    4070    4359    4133    4313    4258    4272    4313    4135
+ Protoss    3360    3205    2251    2588    3048    3360    2855    2475    3393    2896    3551
+ Average    3845    3667    3412    3511    3800    3767    3618    3487    3804    3624    3797
  */
 
 func main() {
-	testWholeGame()
+	testBattle()
 }

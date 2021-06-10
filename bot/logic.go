@@ -12,8 +12,8 @@ func FindMainBuildingTypesPositions(startLoc point.Point) (point.Points, point.P
 	slh := B.Grid.HeightAt(startLoc)
 	start := startLoc + 9
 
-	for y := -6.0; y <= 6; y++ {
-		for x := -9.0; x <= 9; x++ {
+	for y := -3.0; y <= 3; y++ {
+		for x := -6.0; x <= 6; x++ {
 			pos := start + point.Pt(3, 2).Mul(x) + point.Pt(-6, 8).Mul(y)
 			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S3x3, 2, scl.IsBuildable) {
 				if B.IsPosOk(pos+2-1i, scl.S2x2, 2, scl.IsBuildable) {
@@ -284,7 +284,7 @@ func DefensivePlayCheck() {
 	armyScore := B.Units.My.All().Filter(scl.NotWorker).Sum(scl.CmpFood)
 	enemyScore := B.Enemies.All.Filter(scl.NotWorker).Sum(scl.CmpFood)
 	// todo: optimize constants
-	if armyScore > enemyScore*2.5 && B.Obs.Score.ScoreDetails.FoodUsed.Army >= 25 || B.FoodUsed > 180 {
+	if B.Cheeze || armyScore > enemyScore*2 && B.Obs.Score.ScoreDetails.FoodUsed.Army >= 25 || B.FoodUsed > 180 {
 		DisableDefensivePlay()
 	} else if armyScore < enemyScore {
 		EnableDefensivePlay()

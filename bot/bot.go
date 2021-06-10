@@ -22,6 +22,7 @@ type Bot struct {
 	BuildTurrets   bool
 	MechPriority   bool
 	VersionPosted  bool
+	Cheeze         bool
 
 	BuildPos     map[scl.BuildingSize]point.Points
 	FirstBarrack point.Points
@@ -122,6 +123,8 @@ func Step() {
 	// B.Debug3x3Buildings(B.Locs.MyExps...)
 	// B.DebugSafeGrid(B.Grid, B.SafeGrid)
 	// B.DebugWayMap(B.SafeWayMap, true)
+	// B.DebugSafeGrid(B.ReaperGrid, B.ReaperSafeGrid)
+	// B.DebugWayMap(B.ReaperSafeWayMap, true)
 	// B.DebugEnemyUnits()
 	// B.DebugClusters()
 	/*B.Debug2x2Buildings(B.BuildPos[scl.S2x2]...)

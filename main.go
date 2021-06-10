@@ -70,6 +70,7 @@ func RunAgent(c *client.Client) {
 	B := &bot.Bot{
 		Bot:           scl.New(c, bot.OnUnitCreated),
 		PlayDefensive: true,
+		Cheeze:        true,
 		BuildPos:      map[scl.BuildingSize]point.Points{},
 		CycloneLocks:  map[api.UnitTag]api.UnitTag{},
 	}

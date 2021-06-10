@@ -253,7 +253,7 @@ func OrderUnits() {
 		// before 2:40 and less 4
 		if B.Loop < 3584 && B.Pending(ability.Train_Reaper) < 4 && B.CanBuy(ability.Train_Reaper) {
 			OrderTrain(rax, ability.Train_Reaper, usedFactories)
-		} else if B.CanBuy(ability.Train_Marine) && B.Loop > scl.TimeToLoop(1, 25) {
+		} else if B.CanBuy(ability.Train_Marine) && B.Loop > scl.TimeToLoop(1, 30) {
 			// Don't build marine first if we almost have gas for the reaper
 			OrderTrain(rax, ability.Train_Marine, usedFactories)
 		}

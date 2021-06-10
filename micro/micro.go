@@ -109,6 +109,13 @@ func WorkerRushDefence() {
 		workersRange = math.Max(workersRange, building.Dist(B.Locs.MyStart)+6)
 	}
 
+	if B.Cheeze && enemyWorkers.CloserThan(B.Locs.MyStart.Dist(B.Locs.MapCenter), B.Locs.MyStart).Len() >= 10 {
+		// Worker rush, probably. Disable cheeze
+		B.Groups.Add(bot.Miners, B.Groups.Get(bot.ScvReserve).Units...)
+		B.Groups.Add(bot.Miners, B.Groups.Get(bot.ProxyBuilders).Units...)
+		B.Cheeze = false
+	}
+
 	workers := B.Units.My[terran.SCV].CloserThan(scl.ResourceSpreadDistance, B.Locs.MyStart)
 	enemies := B.Enemies.Visible.Filter(scl.Ground).CloserThan(enemiesRange, B.Locs.MyStart)
 	alert := enemies.CloserThan(enemiesRange-4, B.Locs.MyStart).Exists()
@@ -144,9 +151,9 @@ func WorkerRushDefence() {
 			continue
 		}
 
-		if unit.IsCoolToMove() {
+		if unit.IsCoolToAttack() {
 			unit.AttackCustom(scl.DefaultAttackFunc, WorkerMoveFunc, enemies)
-		} else {
+		} else if unit.IsCoolToMove() {
 			friends := army.InRangeOf(unit, 0)
 			friend := friends.Min(scl.CmpHits)
 			if friend != nil && friend.Hits < 45 && B.Minerals > 0 {

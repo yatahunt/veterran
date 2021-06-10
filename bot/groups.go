@@ -18,6 +18,7 @@ const (
 	Scout
 	ScoutBase
 	ScvReserve
+	ProxyBuilders
 	Marines
 	Marauders
 	Reapers

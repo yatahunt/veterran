@@ -318,7 +318,7 @@ func Mine() {
 			return unit.IsReady() && enemies.CanAttack(unit, 0).Sum(scl.CmpGroundDPS) < 30 // one banshee
 		})
 	// Move miners to first gas
-	if B.Loop < scl.TimeToLoop(1, 5) && len(B.Miners.GasForMiner) < 3 {
+	if B.Loop < scl.TimeToLoop(1, 10) && len(B.Miners.GasForMiner) < 3 {
 		if ref := B.Units.My.OfType(B.U.UnitAliases.For(terran.Refinery)...).First(scl.Ready); ref != nil {
 			B.RedistributeWorkersToRefineryIfNeeded(ref, miners, 3)
 		}
