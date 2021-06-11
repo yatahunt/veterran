@@ -80,19 +80,6 @@ func Step() {
 	}
 
 	ParseData()
-
-	if !B.GGPosted && GGCheck() {
-		B.Actions.ChatSend("(gg)")
-		if _, err := B.Client.Action(api.RequestAction{Actions: B.Actions}); err != nil {
-			log.Error(err)
-		}
-		B.GGPosted = true
-		/*if err := B.Client.LeaveGame(); err != nil {
-			log.Error(err)
-		}
-		return*/
-	}
-
 	B.Logic()
 
 	B.Cmds.Process(&B.Actions)
@@ -104,6 +91,16 @@ func Step() {
 			_ = resp.Result // todo: do something with it?
 		}
 		B.Actions = nil
+	}
+
+	if !B.GGPosted && GGCheck() {
+		B.Actions.ChatSend("(gg)")
+		_, _ = B.Client.Action(api.RequestAction{Actions: B.Actions})
+		B.Actions = nil
+		B.GGPosted = true
+		if err := B.Client.LeaveGame(); err != nil {
+			log.Error(err)
+		}
 	}
 
 	for _, cr := range B.Chat {
