@@ -375,7 +375,7 @@ func testBattle() {
 			for score == 0 {
 				if cfg == nil {
 					// client.SetRealtime()
-					// client.LaunchPortStart = 8368
+					// client.LaunchPortStart = 8268
 					client.SetMap(mapName + ".SC2Map")
 					cfg = client.LaunchAndJoin(myBot, cpu)
 					if err := cfg.Client.QuickSave(); err != nil {

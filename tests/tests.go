@@ -18,9 +18,9 @@ func VikingVsCollosus(myId, enemyId api.PlayerID, b *bot.Bot) {
 	b.DebugSend()
 }
 
-func ReapersVsDarks(myId, enemyId api.PlayerID, b *bot.Bot) {
+func MarinesVsDarks(myId, enemyId api.PlayerID, b *bot.Bot) {
 	b.DebugAddUnits(protoss.DarkTemplar, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 1)
-	b.DebugAddUnits(terran.Marine, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 8), 5)
+	b.DebugAddUnits(terran.Marine, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 10)
 	b.DebugSend()
 }
 
@@ -177,5 +177,5 @@ func Init(b *bot.Bot) {
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	BattleTest(myId, enemyId, b)
+	MarinesVsDarks(myId, enemyId, b)
 }
