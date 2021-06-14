@@ -7,6 +7,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/client"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 type GameData struct {
@@ -59,4 +60,15 @@ func LoadGameData(cheeze bool) bool { // Returns if we want to cheeze. Default r
 		return !gd.Cheeze // Switch tactics
 	}
 	return gd.Cheeze
+}
+
+func DebugGameData() {
+	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	log.Infof("I'm in dir %s running as uid %d", dir, os.Getuid())
+	if err := filepath.Walk(".", func(path string, f os.FileInfo, err error) error {
+		log.Infof("%s - dir: %v, mode: %v, size: %v, err: %v", path, f.IsDir(), f.Mode(), f.Size(), err)
+		return err
+	}); err != nil {
+		log.Error(err)
+	}
 }
