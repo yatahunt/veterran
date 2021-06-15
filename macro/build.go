@@ -86,7 +86,8 @@ var RootBuildOrder = BuildNodes{
 		Name:    "First Barrack",
 		Ability: ability.Build_Barracks,
 		Premise: func() bool {
-			return !B.Cheeze && B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
+			return !B.ProxyReapers && !B.ProxyMarines &&
+				B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
 				B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Empty()
 		},
 		Limit:  BuildOne,
@@ -97,7 +98,8 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Proxy Barracks",
 		Ability: ability.Build_Barracks,
 		Premise: func() bool {
-			return B.Cheeze && B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil
+			return (B.ProxyReapers || B.ProxyMarines) &&
+				B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil
 		},
 		Limit:  func() int { return 2 },
 		Active: func() int { return 2 },

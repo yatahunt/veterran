@@ -21,6 +21,9 @@ import (
 // > todo: Риперы пытаются бить скрытых дарков и не уворачиваются от них
 // > todo: юниты в углах карты могут отвлекать минки и всех остальных - это должны решать викинги
 
+// todo: уклонение от эффектов не работает, если цель движения не попадает в эффект
+// todo: corrosive bile игнорится из-за этого? И штормы тоже
+// todo: Марины не отступают вообще, если их атакует юнит с большим ренджем, даже если к ним близко подошли зилоты
 // todo: Было бы очень круто использовать хайграунд для атак без опасения ответа
 // todo: Было бы прикольно хватать отступающего тора медиваком и везти на починку
 // todo: А ещё в режиме защиты использовать авиацию чтобы отслеживать положение противника
@@ -39,8 +42,6 @@ import (
 // todo: Ускорение мулов?
 
 // todo: иногда рабочих запирает между зданиями -> поднять здание, которое не может построить аддон?
-// todo: уклонение от эффектов не работает, если цель движения не попадает в эффект
-// todo: corrosive bile игнорится из-за этого?
 // todo: надо как-то определять какие здания не стоит чинить, т.к. рабочий будет убит (по числу ranged?)
 // todo: строить первый CC на хайграунде если опасно?
 // todo: если есть апгрейд для минок, закапывать их, если за ними гонится кто-то быстрее их
@@ -62,6 +63,32 @@ func EmulateRealtime(speed float64) {
 	PreviousTime = time.Now().UnixNano()
 }
 
+func ChooseStrategy(B *bot.Bot) {
+	B.Strategy = bot.Default
+	if B.Stats.LastResult == "Victory" {
+		B.Strategy = B.Stats.LastStrategy
+	} else {
+		bestRatio := 0.0
+		for s := bot.Default; s < bot.MaxStrategyId; s++ {
+			if B.Stats.LastStrategy == s && B.Stats.LastResult != "Victory" {
+				continue
+			}
+			ratio := 0.95 // Default ratio for unused strategy
+			h := B.Stats.History[s]
+			if h.Victories > 0 || h.Defeats > 0 {
+				ratio = float64(h.Victories) / (float64(h.Victories) + float64(h.Defeats))
+			}
+			if ratio >= bestRatio { // >= makes newer strategies preferable
+				B.Strategy = s
+				bestRatio = ratio
+			}
+		}
+	}
+	B.ProxyReapers = B.Strategy == bot.ProxyReapers
+	B.ProxyMarines = B.Strategy == bot.ProxyMarines
+	log.Infof("Game versus: %s, strategy: %d", client.LadderOpponentID, B.Strategy)
+}
+
 func RunAgent(c *client.Client) {
 	B := &bot.Bot{
 		Bot:           scl.New(c, bot.OnUnitCreated),
@@ -70,8 +97,11 @@ func RunAgent(c *client.Client) {
 		CycloneLocks:  map[api.UnitTag]api.UnitTag{},
 	}
 	bot.B = B
-	B.TryToCheeze = false // bot.LoadGameData(true)
-	B.Cheeze = B.TryToCheeze
+
+	B.Stats = bot.LoadGameData()
+	ChooseStrategy(B)
+	// B.Strategy = bot.ProxyMarines
+
 	B.FramesPerOrder = 3
 	B.LastLoop = -math.MaxInt
 	B.MaxGroup = bot.MaxGroup
@@ -99,7 +129,8 @@ func RunAgent(c *client.Client) {
 			if err.Error() == "Not in a game" {
 				break
 			}
-			log.Fatal(err)
+			log.Error(err)
+			break
 		}
 
 		B.UpdateObservation()
@@ -110,7 +141,7 @@ func RunAgent(c *client.Client) {
 		B.UpdateObservation()
 		if len(B.Result) == 0 {
 			log.Error("Failed to get game result")
-			bot.SaveGameData("Defeat", B.TryToCheeze)
+			bot.SaveGameData(B.Stats, B.Strategy, "Defeat")
 			return
 		}
 	}
@@ -118,7 +149,7 @@ func RunAgent(c *client.Client) {
 	log.Infof("Game versus: %v, Result: %v, Time: %ds",
 		B.EnemyRace, B.Result[myId-1].Result, int(float64(B.Loop)/scl.FPS))
 
-	bot.SaveGameData(B.Result[myId-1].Result.String(), B.TryToCheeze)
+	bot.SaveGameData(B.Stats, B.Strategy, B.Result[myId-1].Result.String())
 }
 
 func run() {
@@ -149,7 +180,8 @@ func main() {
 		log.Fatal("could not start CPU profile: ", err)
 	}
 	defer pprof.StopCPUProfile()*/
-	bot.DebugGameData()
+
+	// bot.DebugGameData()
 	run()
 
 	/*f, err = os.Create("mem.prof")

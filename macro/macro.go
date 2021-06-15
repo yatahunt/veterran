@@ -22,7 +22,7 @@ func Morph() {
 	if cc != nil && B.Units.My[terran.Barracks].First(scl.Ready) != nil {
 		if B.CanBuy(ability.Morph_OrbitalCommand) {
 			OrderTrain(cc, ability.Morph_OrbitalCommand, nil)
-		} else if !B.Cheeze && B.Units.My[terran.SCV].Len() >= 16 ||
+		} else if !B.ProxyReapers && B.Units.My[terran.SCV].Len() >= 16 ||
 			B.Pending(ability.Train_Reaper) != 0 ||
 			B.Loop > scl.TimeToLoop(2, 0) {
 			B.DeductResources(ability.Morph_OrbitalCommand)
@@ -137,7 +137,7 @@ func ReserveSCVs() {
 			scv.CommandPos(ability.Move, pos)
 		}
 	}
-	if B.Cheeze && B.Loop < scl.TimeToLoop(0, 30) &&
+	if (B.ProxyReapers || B.ProxyMarines) && B.Loop < scl.TimeToLoop(0, 30) &&
 		B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Empty() {
 		pbs := B.Groups.Get(bot.ProxyBuilders).Units
 		for _, scv := range pbs {
@@ -183,10 +183,11 @@ func Cheeze() {
 		B.Obs.Score.ScoreDetails.LostMinerals.Army-B.Obs.Score.ScoreDetails.LostVespene.Army
 	/*log.Info(B.Obs.Score.ScoreDetails.KilledMinerals.Army+B.Obs.Score.ScoreDetails.KilledVespene.Army,
 		B.Obs.Score.ScoreDetails.LostMinerals.Army+B.Obs.Score.ScoreDetails.LostVespene.Army, balance)*/
-	if B.Loop >= scl.TimeToLoop(4, 0) && B.Cheeze && balance <= 0 {
-		B.Cheeze = false
+	if B.Loop >= scl.TimeToLoop(4, 0) && (B.ProxyReapers || B.ProxyMarines) && balance <= 0 {
+		B.ProxyReapers = false
+		B.ProxyMarines = false
 	}
-	if !B.Cheeze && B.Loop >= scl.TimeToLoop(4, 0) {
+	if !B.ProxyReapers && !B.ProxyMarines && B.Loop >= scl.TimeToLoop(4, 0) {
 		proxyRaxes := B.Units.My[terran.Barracks].FurtherThan(70, B.Locs.MyStart).Filter(scl.Ground)
 		for _, pr := range proxyRaxes {
 			if pr.HasAbility(ability.Cancel_Queue5) {

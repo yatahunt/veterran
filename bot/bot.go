@@ -10,6 +10,15 @@ import (
 
 const version = "VeTerran v2.3.5 (glhf)"
 
+type Strategy int
+
+const (
+	Default Strategy = iota
+	ProxyReapers
+	ProxyMarines
+	MaxStrategyId
+)
+
 type Bot struct {
 	*scl.Bot
 
@@ -23,8 +32,9 @@ type Bot struct {
 	MechPriority   bool
 	VersionPosted  bool
 	GGPosted       bool
-	TryToCheeze    bool
-	Cheeze         bool
+	Strategy       Strategy
+	ProxyReapers   bool
+	ProxyMarines   bool
 
 	BuildPos     map[scl.BuildingSize]point.Points
 	FirstBarrack point.Points
@@ -33,6 +43,8 @@ type Bot struct {
 
 	DoubleHealers []scl.GroupID
 	CycloneLocks  map[api.UnitTag]api.UnitTag
+
+	Stats *GameData
 
 	TestVal float64
 }

@@ -253,9 +253,9 @@ func OrderUnits() {
 	}
 	if rax := GetFactory(terran.Barracks, false, usedFactories); rax != nil {
 		// before 2:40 and less 4
-		if B.Loop < 3584 && B.Pending(ability.Train_Reaper) < 4 && B.CanBuy(ability.Train_Reaper) {
+		if B.Loop < 3584 && B.Pending(ability.Train_Reaper) < 4 && B.CanBuy(ability.Train_Reaper) && !B.ProxyMarines {
 			OrderTrain(rax, ability.Train_Reaper, usedFactories)
-		} else if B.CanBuy(ability.Train_Marine) && B.Loop > scl.TimeToLoop(1, 30) {
+		} else if B.CanBuy(ability.Train_Marine) && (B.Loop > scl.TimeToLoop(1, 30) || B.ProxyMarines) {
 			// Don't build marine first if we almost have gas for the reaper
 			OrderTrain(rax, ability.Train_Marine, usedFactories)
 		}

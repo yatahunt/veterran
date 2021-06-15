@@ -10,13 +10,19 @@ import (
 	"path/filepath"
 )
 
-type GameData struct {
-	Version string
-	Result  string
-	Cheeze  bool
+type StrategyResults map[Strategy]struct {
+	Victories int
+	Defeats   int
 }
 
-func SaveGameData(result string, cheeze bool) {
+type GameData struct {
+	Version      string
+	History      StrategyResults
+	LastResult   string
+	LastStrategy Strategy
+}
+
+func SaveGameData(gd *GameData, strategy Strategy, result string) {
 	if !file.Exists("data") {
 		log.Warning("No data dir")
 		if err := os.MkdirAll("data", 0755); err != nil {
@@ -24,11 +30,19 @@ func SaveGameData(result string, cheeze bool) {
 			return
 		}
 	}
-	data, err := json.MarshalIndent(GameData{
-		Version: "1.0",
-		Result:  result,
-		Cheeze:  cheeze,
-	}, "", "\t")
+
+	sh := gd.History[strategy]
+	if result == "Victory" {
+		sh.Victories++
+	} else {
+		sh.Defeats++
+	}
+	gd.History[strategy] = sh
+	gd.LastStrategy = strategy
+	gd.LastResult = result
+	gd.Version = "2.0"
+
+	data, err := json.MarshalIndent(gd, "", "\t")
 	if err != nil {
 		log.Error(err)
 		return
@@ -40,26 +54,24 @@ func SaveGameData(result string, cheeze bool) {
 	}
 }
 
-func LoadGameData(cheeze bool) bool { // Returns if we want to cheeze. Default result in param
+func LoadGameData() *GameData {
+	var gd GameData
+	gd.History = StrategyResults{}
 	if !file.Exists("data") || !file.Exists("data/"+client.LadderOpponentID+".json") {
-		return cheeze
+		return &gd
 	}
-	data, err := ioutil.ReadFile("data/"+client.LadderOpponentID+".json")
+	data, err := ioutil.ReadFile("data/" + client.LadderOpponentID + ".json")
 	if err != nil {
 		log.Error(err)
-		return cheeze
+		return &gd
 	}
 
-	var gd GameData
 	err = json.Unmarshal(data, &gd)
 	if err != nil {
 		log.Error(err)
-		return cheeze
+		return &gd
 	}
-	if gd.Result != "Victory" {
-		return !gd.Cheeze // Switch tactics
-	}
-	return gd.Cheeze
+	return &gd
 }
 
 func DebugGameData() {

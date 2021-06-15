@@ -109,11 +109,13 @@ func WorkerRushDefence() {
 		workersRange = math.Max(workersRange, building.Dist(B.Locs.MyStart)+6)
 	}
 
-	if B.Cheeze && enemyWorkers.CloserThan(B.Locs.MyStart.Dist(B.Locs.MapCenter), B.Locs.MyStart).Len() >= 10 {
+	if (B.ProxyReapers || B.ProxyMarines) &&
+		enemyWorkers.CloserThan(B.Locs.MyStart.Dist(B.Locs.MapCenter), B.Locs.MyStart).Len() >= 10 {
 		// Worker rush, probably. Disable cheeze
 		B.Groups.Add(bot.Miners, B.Groups.Get(bot.ScvReserve).Units...)
 		B.Groups.Add(bot.Miners, B.Groups.Get(bot.ProxyBuilders).Units...)
-		B.Cheeze = false
+		B.ProxyReapers = false
+		B.ProxyMarines = false
 	}
 
 	workers := B.Units.My[terran.SCV].CloserThan(scl.ResourceSpreadDistance, B.Locs.MyStart)

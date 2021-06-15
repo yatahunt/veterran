@@ -317,8 +317,8 @@ func Mine() {
 		Filter(func(unit *scl.Unit) bool {
 			return unit.IsReady() && enemies.CanAttack(unit, 0).Sum(scl.CmpGroundDPS) < 30 // one banshee
 		})
-	// Move miners to first gas
-	if B.Loop < scl.TimeToLoop(1, 10) && len(B.Miners.GasForMiner) < 3 {
+	// Move miners to first gas if not proxy marines build
+	if B.Loop < scl.TimeToLoop(1, 10) && len(B.Miners.GasForMiner) < 3 && !B.ProxyMarines {
 		if ref := B.Units.My.OfType(B.U.UnitAliases.For(terran.Refinery)...).First(scl.Ready); ref != nil {
 			B.RedistributeWorkersToRefineryIfNeeded(ref, miners, 3)
 		}
