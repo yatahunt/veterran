@@ -17,7 +17,7 @@ func BansheeRetreat(u *scl.Unit) bool {
 
 func BansheesAttack(u *scl.Unit) bool {
 	if Targets.All.Exists() {
-		u.Attack(Targets.ArmedGround, Targets.Ground)
+		u.Attack(Targets.ArmedGroundNoAA, Targets.ArmedGround, Targets.Ground)
 		return true
 	}
 	return false

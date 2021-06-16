@@ -23,10 +23,21 @@ func MedivacsLogic(us scl.Units) {
 	injured.OrderBy(func(unit *scl.Unit) float64 { return unit.Hits / unit.HitsMax }, false)
 
 	enemiesCenter := B.Enemies.AllReady.Center()
+	if enemiesCenter == 0 {
+		enemiesCenter = B.Locs.EnemyStart
+	}
 	firstPatient := patients.ClosestTo(enemiesCenter)
 
 	for _, u := range us {
-		DefaultRetreat(u)
+		if DefaultRetreat(u) {
+			continue
+		}
+
+		pos, safe := u.AirEvade(B.Enemies.AllReady.CanAttack(u, 2), 2, u)
+		if !safe {
+			u.CommandPos(ability.Move, pos)
+			continue
+		}
 
 		// This should be most damaged unit
 		closeInjured := injured.CloserThan(float64(u.Radius)+4, u).First()
@@ -37,7 +48,7 @@ func MedivacsLogic(us scl.Units) {
 			if closeInjured.IsFurtherThan(8, u) &&
 				u.HasAbility(ability.Effect_MedivacIgniteAfterburners) {
 				u.Command(ability.Effect_MedivacIgniteAfterburners)
-				u.CommandTagQueue(ability.Effect_Heal, closeInjured.Tag)
+				// u.CommandTagQueue(ability.Effect_Heal, closeInjured.Tag)
 			} else {
 				u.CommandTag(ability.Effect_Heal, closeInjured.Tag)
 			}
@@ -47,7 +58,7 @@ func MedivacsLogic(us scl.Units) {
 			closeInjured = firstPatient
 		}
 
-		pos, safe := u.AirEvade(B.Enemies.AllReady.CanAttack(u, 2), 2, closeInjured)
+		pos, safe = u.AirEvade(B.Enemies.AllReady.CanAttack(u, 2), 2, closeInjured)
 		if !safe {
 			u.CommandPos(ability.Move, pos)
 		} else {

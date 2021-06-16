@@ -49,7 +49,9 @@ func Cast() {
 		// Scan
 		if B.Orders[ability.Effect_Scan] == 0 && B.EffectPoints(effect.ScannerSweep).Empty() {
 			allEnemies := B.Enemies.All
-			visibleEnemies := allEnemies.Filter(scl.PosVisible)
+			visibleEnemies := allEnemies.Filter(func(unit *scl.Unit) bool {
+				return unit.IsPosVisible() || unit.IsVisible()
+			})
 			units := B.Units.My.All()
 			// Reveal hidden units that can be attacked
 			hiddenEnemies := allEnemies.Filter(scl.Hidden, scl.PosVisible)
@@ -81,7 +83,7 @@ func Cast() {
 			tanks := B.Units.My[terran.SiegeTankSieged]
 			tanks.OrderByDistanceTo(B.Locs.EnemyStart, false)
 			for _, tank := range tanks {
-				if B.Loop - B.U.LastAttack[tank.Tag] < scl.TimeToLoop(0, 3) {
+				if B.Loop-B.U.LastAttack[tank.Tag] < scl.TimeToLoop(0, 3) {
 					continue
 				}
 				targets := allEnemies.InRangeOf(tank, 0)
@@ -182,10 +184,10 @@ func ReserveSCVs() {
 }
 
 func Cheeze() {
-	balance := B.Obs.Score.ScoreDetails.KilledMinerals.Army+B.Obs.Score.ScoreDetails.KilledVespene.Army-
-		B.Obs.Score.ScoreDetails.LostMinerals.Army-B.Obs.Score.ScoreDetails.LostVespene.Army
+	balance := B.Obs.Score.ScoreDetails.KilledMinerals.Army + B.Obs.Score.ScoreDetails.KilledVespene.Army -
+		B.Obs.Score.ScoreDetails.LostMinerals.Army - B.Obs.Score.ScoreDetails.LostVespene.Army
 	/*log.Info(B.Obs.Score.ScoreDetails.KilledMinerals.Army+B.Obs.Score.ScoreDetails.KilledVespene.Army,
-		B.Obs.Score.ScoreDetails.LostMinerals.Army+B.Obs.Score.ScoreDetails.LostVespene.Army, balance)*/
+	B.Obs.Score.ScoreDetails.LostMinerals.Army+B.Obs.Score.ScoreDetails.LostVespene.Army, balance)*/
 	if B.Loop >= scl.TimeToLoop(4, 0) && (B.ProxyReapers || B.ProxyMarines) && balance <= 0 {
 		B.ProxyReapers = false
 		B.ProxyMarines = false

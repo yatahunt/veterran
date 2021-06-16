@@ -21,6 +21,7 @@ type TargetsTypes struct {
 	ArmedFlying        scl.Units
 	ArmedFlyingArmored scl.Units
 	ArmedGround        scl.Units
+	ArmedGroundNoAA    scl.Units
 	ArmedGroundArmored scl.Units
 	ArmedGroundLight   scl.Units
 	AntiAir            scl.Units
@@ -73,6 +74,9 @@ func InitTargets() {
 			Targets.Ground.Add(u)
 			if u.IsArmed() {
 				Targets.ArmedGround.Add(u)
+				if u.AirDPS() == 0 {
+					Targets.ArmedGroundNoAA.Add(u)
+				}
 				if u.IsArmored() {
 					Targets.ArmedGroundArmored.Add(u)
 				} else if u.IsLight() {

@@ -28,6 +28,9 @@ func RavensLogic(us scl.Units) {
 	}
 
 	enemiesCenter := B.Enemies.AllReady.Center()
+	if enemiesCenter == 0 {
+		enemiesCenter = B.Locs.EnemyStart
+	}
 	targets := []*scl.Unit{friends.ClosestTo(enemiesCenter)}
 	if target := friends.Filter(func(unit *scl.Unit) bool {
 		return unit.IsFurtherThan(8, targets[0])
@@ -41,7 +44,9 @@ func RavensLogic(us scl.Units) {
 			continue // Let him finish placing
 		}
 
-		DefaultRetreat(u)
+		if DefaultRetreat(u) {
+			continue
+		}
 
 		if u.Energy >= 50 {
 			closeEnemies := B.Enemies.AllReady.CloserThan(8, u)
