@@ -169,7 +169,7 @@ func ReserveSCVs() {
 		}
 	}
 	// Fast expansion
-	if B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Len() == 1 &&
+	if !B.BruteForce && B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Len() == 1 &&
 		B.Minerals >= 350 && B.Groups.Get(bot.ScvReserve).Tags.Empty() && !B.WorkerRush {
 		pos := B.Locs.MyExps[0]
 		if scv := bot.GetSCV(pos, bot.ScvReserve, 45); scv != nil {

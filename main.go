@@ -24,13 +24,15 @@ import (
 // todo: уклонение от эффектов не работает, если цель движения не попадает в эффект
 // todo: corrosive bile игнорится из-за этого? И штормы тоже
 // todo: Марины не отступают вообще, если их атакует юнит с большим ренджем, даже если к ним близко подошли зилоты
+// todo: Логика для скрытых баньши (зоны детекции)
+// todo: Зерглинги закопанные на экспах
+
 // todo: Было бы очень круто использовать хайграунд для атак без опасения ответа
 // todo: Было бы прикольно хватать отступающего тора медиваком и везти на починку
 // todo: А ещё в режиме защиты использовать авиацию чтобы отслеживать положение противника
 // todo: Ещё круче - вставать в защиту на его пути
 // todo: Починка юнитов стоящих в защитном режиме
 // todo: Хватать медиваком юнит, чтобы на него сбился зацеп
-
 // todo: не игнорировать свармхостов
 // todo: отступающие юниты должны оценивать скорость преследователей. Если их всё равно догоняют, то отстреливаться
 // todo: риперы (и танки) крутятся под скалой без вижна, а их атакует морпех сверху (команда атаки на хайграунд) -
@@ -70,6 +72,9 @@ func ChooseStrategy(B *bot.Bot) {
 	} else {
 		bestRatio := 0.0
 		for s := bot.Default; s < bot.MaxStrategyId; s++ {
+			if s == bot.ProxyReapers || s == bot.ProxyMarines {
+				continue // Disable until the tournament
+			}
 			if B.Stats.LastStrategy == s && B.Stats.LastResult != "Victory" {
 				continue
 			}
@@ -84,8 +89,10 @@ func ChooseStrategy(B *bot.Bot) {
 			}
 		}
 	}
+	// B.Strategy = bot.Default
 	B.ProxyReapers = B.Strategy == bot.ProxyReapers
 	B.ProxyMarines = B.Strategy == bot.ProxyMarines
+	B.BruteForce = B.Strategy == bot.BruteForce
 	log.Infof("Game versus: %s, strategy: %d", client.LadderOpponentID, B.Strategy)
 }
 
@@ -100,7 +107,6 @@ func RunAgent(c *client.Client) {
 
 	B.Stats = bot.LoadGameData()
 	ChooseStrategy(B)
-	// B.Strategy = bot.ProxyMarines
 
 	B.FramesPerOrder = 3
 	B.LastLoop = -math.MaxInt

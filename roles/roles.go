@@ -323,6 +323,22 @@ func Mine() {
 			B.RedistributeWorkersToRefineryIfNeeded(ref, miners, 3)
 		}
 	}
+	if B.BruteForce && B.Loop < scl.TimeToLoop(1, 15) && len(B.Miners.GasForMiner) < 6 {
+		if ref := B.Units.My.OfType(B.U.UnitAliases.For(terran.Refinery)...).First(func(unit *scl.Unit) bool {
+			// Select refinery without miners assigned
+			if !unit.IsReady() {
+				return false
+			}
+			for _, gasTag := range B.Miners.GasForMiner {
+				if gasTag == unit.Tag {
+					return false
+				}
+			}
+			return true
+		}); ref != nil {
+			B.RedistributeWorkersToRefineryIfNeeded(ref, miners, 3)
+		}
+	}
 	B.HandleMiners(miners, ccs, enemies, 0.5, B.Locs.MyStart-B.Locs.MyStartMinVec*3) // reserve more vespene
 
 	mules := B.Groups.Get(bot.Mules).Units.Filter(scl.Idle)

@@ -105,8 +105,16 @@ func OrderUnits() {
 		return unit.IsReady() && unit.VespeneContents > 0
 	})
 
-	// Vikings against banshees
 	if starport := GetFactory(terran.Starport, false, usedFactories); starport != nil {
+		// First medivac for marines if BruteForce
+		if B.BruteForce && B.Pending(ability.Train_Medivac) == 0 && B.Loop < scl.TimeToLoop(3, 15) {
+			if B.CanBuy(ability.Train_Medivac) {
+				OrderTrain(starport, ability.Train_Medivac, usedFactories)
+			} else {
+				B.DeductResources(ability.Train_Medivac) // Gather money
+			}
+		}
+		// Vikings against banshees
 		if (B.Units.AllEnemy[terran.Banshee].Exists() ||
 			B.Units.AllEnemy.OfType(B.U.UnitAliases.For(terran.Starport)...).Exists()) &&
 			B.Pending(ability.Train_VikingFighter) < 2 {
@@ -202,7 +210,9 @@ func OrderUnits() {
 		}
 	}
 
-	if factory := GetFactory(terran.Factory, false, usedFactories); factory != nil {
+	if B.BruteForce && B.PendingAliases(ability.Train_SiegeTank) == 0 && B.Loop < scl.TimeToLoop(2, 35) {
+		// Wait for first tank
+	} else if factory := GetFactory(terran.Factory, false, usedFactories); factory != nil {
 		mines := B.PendingAliases(ability.Train_WidowMine)
 		hellions := B.PendingAliases(ability.Train_Hellion)
 
@@ -253,9 +263,11 @@ func OrderUnits() {
 	}
 	if rax := GetFactory(terran.Barracks, false, usedFactories); rax != nil {
 		// before 2:40 and less 4
-		if B.Loop < 3584 && B.Pending(ability.Train_Reaper) < 4 && B.CanBuy(ability.Train_Reaper) && !B.ProxyMarines {
+		if B.Loop < 3584 && B.Pending(ability.Train_Reaper) < 4 && B.CanBuy(ability.Train_Reaper) &&
+			!B.ProxyMarines && !B.BruteForce {
 			OrderTrain(rax, ability.Train_Reaper, usedFactories)
-		} else if B.CanBuy(ability.Train_Marine) && (B.Loop > scl.TimeToLoop(1, 30) || B.ProxyMarines) {
+		} else if B.CanBuy(ability.Train_Marine) &&
+			(B.Loop > scl.TimeToLoop(1, 30) || B.ProxyMarines) {
 			// Don't build marine first if we almost have gas for the reaper
 			OrderTrain(rax, ability.Train_Marine, usedFactories)
 		}

@@ -116,6 +116,7 @@ func WorkerRushDefence() {
 		B.Groups.Add(bot.Miners, B.Groups.Get(bot.ProxyBuilders).Units...)
 		B.ProxyReapers = false
 		B.ProxyMarines = false
+		B.BruteForce = false
 	}
 
 	workers := B.Units.My[terran.SCV].CloserThan(scl.ResourceSpreadDistance, B.Locs.MyStart)

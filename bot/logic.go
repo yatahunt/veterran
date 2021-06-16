@@ -285,7 +285,9 @@ func DefensivePlayCheck() {
 	enemyScore := B.Enemies.All.Filter(scl.NotWorker).Sum(scl.CmpFood)
 	// todo: optimize constants
 	if B.ProxyReapers || B.ProxyMarines || B.FoodUsed > 180 ||
-		armyScore > enemyScore*2 && B.Obs.Score.ScoreDetails.FoodUsed.Army >= 25 {
+		armyScore > enemyScore*2 &&
+			(B.Obs.Score.ScoreDetails.FoodUsed.Army >= 25 ||
+				B.BruteForce && B.Obs.Score.ScoreDetails.FoodUsed.Army >= 16 && B.Loop < scl.TimeToLoop(4, 0)) {
 		DisableDefensivePlay()
 	} else if armyScore < enemyScore {
 		EnableDefensivePlay()

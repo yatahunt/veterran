@@ -51,6 +51,9 @@ var RootBuildOrder = BuildNodes{
 			return B.Enemies.All.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()
 		},
 		Limit: func() int {
+			if B.BruteForce && B.Loop < scl.TimeToLoop(2, 40) {
+				return 0
+			}
 			if B.Loop < scl.TimeToLoop(2, 0) {
 				return 1
 			} else if B.Loop < scl.TimeToLoop(4, 0) {
@@ -106,6 +109,36 @@ var RootBuildOrder = BuildNodes{
 		Method: BuildProxyBarrack,
 	},
 	{
+		Name:    "Barracks reactor for brute force",
+		Ability: ability.Build_Reactor_Barracks,
+		Premise: func() bool {
+			rax := B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
+			return B.BruteForce &&
+				((B.Vespene >= 50 && rax != nil && B.Enemies.Visible.CloserThan(SafeBuildRange, rax).Empty()) ||
+					B.Units.My[terran.BarracksFlying].First() != nil)
+		},
+		Limit:  BuildOne,
+		Active: BuildOne,
+		Method: func() {
+			if rax := B.Units.My[terran.BarracksFlying].First(); rax != nil {
+				rax.CommandPos(ability.Build_Reactor_Barracks, B.FirstBarrack[1])
+				return
+			}
+
+			rax := B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
+			if rax.IsCloserThan(3, B.FirstBarrack[0]) {
+				if B.FirstBarrack[0] != B.FirstBarrack[1] {
+					if B.Enemies.Visible.CloserThan(SafeBuildRange, rax).Exists() {
+						return
+					}
+					rax.Command(ability.Lift_Barracks)
+				} else {
+					rax.Command(ability.Build_Reactor_Barracks)
+				}
+			}
+		},
+	},
+	{
 		Name:    "Refinery",
 		Ability: ability.Build_Refinery,
 		Premise: func() bool {
@@ -123,7 +156,7 @@ var RootBuildOrder = BuildNodes{
 					return true
 				}
 				if ccs.Len() < 3 {
-					return refPending < ccs.Len()+1
+					return refPending < ccs.Len()+1 || B.BruteForce
 				}
 				return true
 			}
@@ -143,6 +176,9 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Factory",
 		Ability: ability.Build_Factory,
 		Premise: func() bool {
+			if B.Units.My.OfType(B.U.UnitAliases.For(terran.Factory)...).Len() == 1 && B.Minerals <= 400 {
+				return false // Don't build second if not plenty of resources
+			}
 			return B.Units.My[terran.Factory].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func() int {
@@ -150,7 +186,8 @@ var RootBuildOrder = BuildNodes{
 			if B.EnemyRace == api.Race_Zerg && buildFacts > 1 {
 				buildFacts--
 			}
-			return scl.MinInt(3, buildFacts)
+			starports := B.Units.My.OfType(B.U.UnitAliases.For(terran.Starport)...).Len()
+			return scl.MinInt(3, scl.MinInt(buildFacts, starports+1))
 		},
 		Active:  BuildOne,
 		Unlocks: FactoryBuildOrder,
@@ -159,11 +196,15 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Starport",
 		Ability: ability.Build_Starport,
 		Premise: func() bool {
+			if B.Units.My.OfType(B.U.UnitAliases.For(terran.Starport)...).Len() == 1 && B.Minerals <= 400 {
+				return false // Don't build second if not plenty of resources
+			}
 			return B.Units.My[terran.Starport].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func() int {
 			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
-			return scl.MinInt(3, ccs)
+			factories := B.Units.My.OfType(B.U.UnitAliases.For(terran.Factory)...).Len()
+			return scl.MinInt(3, scl.MinInt(ccs, factories+1))
 		},
 		Active:  BuildOne,
 		Unlocks: StarportBuildOrder,
@@ -190,7 +231,7 @@ var RaxBuildOrder = BuildNodes{
 			tanks := B.PendingAliases(ability.Train_SiegeTank)
 			return cyclones > 0 && tanks > 0 && B.Units.My[terran.EngineeringBay].First(scl.Ready) != nil
 		},
-		WaitRes: Yes,
+		// WaitRes: Yes,
 		Limit: func() int {
 			if B.Units.My[terran.FusionCore].First(scl.Ready) != nil {
 				return 2
@@ -206,8 +247,11 @@ var RaxBuildOrder = BuildNodes{
 			return !B.WorkerRush && B.Units.My[terran.BarracksFlying].Empty()
 		},
 		Limit: func() int {
-			// ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
-			return 2 // scl.MinInt(2, ccs.Len())
+			if B.BruteForce {
+				ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
+				return scl.MinInt(2, ccs.Len())
+			}
+			return 2
 		},
 		Active: func() int {
 			return 2
@@ -251,6 +295,10 @@ var RaxBuildOrder = BuildNodes{
 			}
 
 			rax := B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
+			if B.BruteForce {
+				rax.Command(ability.Build_TechLab_Barracks)
+				return
+			}
 			if rax.IsCloserThan(3, B.FirstBarrack[0]) {
 				if B.FirstBarrack[0] != B.FirstBarrack[1] {
 					if B.Enemies.Visible.CloserThan(SafeBuildRange, rax).Exists() {
@@ -332,6 +380,9 @@ var StarportBuildOrder = BuildNodes{
 		Name:    "Starport Tech Lab",
 		Ability: ability.Build_TechLab_Starport,
 		Premise: func() bool {
+			if B.BruteForce && B.Pending(ability.Train_Medivac) == 0 {
+				return false
+			}
 			starport := B.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle)
 			return (starport != nil) && B.Enemies.Visible.CloserThan(SafeBuildRange, starport).Empty()
 		},

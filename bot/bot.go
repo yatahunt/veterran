@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.3.5 (glhf)"
+const version = "VeTerran v2.4.0 (glhf)"
 
 type Strategy int
 
@@ -16,6 +16,7 @@ const (
 	Default Strategy = iota
 	ProxyReapers
 	ProxyMarines
+	BruteForce
 	MaxStrategyId
 )
 
@@ -35,6 +36,7 @@ type Bot struct {
 	Strategy       Strategy
 	ProxyReapers   bool
 	ProxyMarines   bool
+	BruteForce     bool
 
 	BuildPos     map[scl.BuildingSize]point.Points
 	FirstBarrack point.Points
