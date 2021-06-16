@@ -109,7 +109,7 @@ func WorkerRushDefence() {
 		workersRange = math.Max(workersRange, building.Dist(B.Locs.MyStart)+6)
 	}
 
-	if (B.ProxyReapers || B.ProxyMarines) &&
+	if (B.ProxyReapers || B.ProxyMarines || B.BruteForce) &&
 		enemyWorkers.CloserThan(B.Locs.MyStart.Dist(B.Locs.MapCenter), B.Locs.MyStart).Len() >= 10 {
 		// Worker rush, probably. Disable cheeze
 		B.Groups.Add(bot.Miners, B.Groups.Get(bot.ScvReserve).Units...)

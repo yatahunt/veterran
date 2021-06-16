@@ -81,6 +81,9 @@ func Cast() {
 			tanks := B.Units.My[terran.SiegeTankSieged]
 			tanks.OrderByDistanceTo(B.Locs.EnemyStart, false)
 			for _, tank := range tanks {
+				if B.Loop - B.U.LastAttack[tank.Tag] < scl.TimeToLoop(0, 3) {
+					continue
+				}
 				targets := allEnemies.InRangeOf(tank, 0)
 				if targets.Exists() && visibleEnemies.InRangeOf(tank, 0).Empty() {
 					target := targets.ClosestTo(B.Locs.EnemyStart)
