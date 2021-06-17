@@ -250,9 +250,10 @@ func MechRetreat() {
 		if u.IsFlying {
 			if u.UnitType == terran.Medivac && u.HasAbility(ability.Effect_MedivacIgniteAfterburners) {
 				u.Command(ability.Effect_MedivacIgniteAfterburners)
+			} else {
+				pos, _ := u.AirEvade(enemies, 2, healingPoint)
+				u.CommandPos(ability.Move, pos)
 			}
-			pos, _ := u.AirEvade(enemies, 2, healingPoint)
-			u.CommandPos(ability.Move, pos)
 		} else {
 			u.GroundFallback(healingPoint)
 		}
