@@ -360,7 +360,7 @@ func testBattle() {
 	}
 
 	minVal := 1.0
-	maxVal := 12.0
+	maxVal := 1.0
 	valStep := 1.0
 	testVal := minVal
 

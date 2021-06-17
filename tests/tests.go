@@ -70,13 +70,16 @@ func MarauderTest(myId, enemyId api.PlayerID, b *bot.Bot) {
 }
 
 func MarineTest(myId, enemyId api.PlayerID, b *bot.Bot) {
-	// b.DebugAddUnits(protoss.Zealot, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 6), 1)
+	// b.DebugAddUnits(protoss.Zealot, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 8), 1)
 	// b.DebugAddUnits(zerg.Zergling, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 4), 6)
 	// b.DebugAddUnits(zerg.Mutalisk, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 4), 1)
 	// b.DebugAddUnits(zerg.Roach, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 3), 1)
-	// b.DebugAddUnits(protoss.Stalker, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 6), 1)
-	b.DebugAddUnits(zerg.Queen, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 6), 1)
+	b.DebugAddUnits(protoss.Stalker, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 6), 1)
+	// b.DebugAddUnits(zerg.Queen, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 6), 1)
+	// b.DebugAddUnits(protoss.Sentry, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 6), 1)
 	b.DebugAddUnits(terran.Marine, myId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 12), 4)
+	// b.DebugAddUnits(terran.Medivac, myId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 12), 1)
+	// b.DebugAddUnits(terran.Raven, myId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 12), 1)
 	b.DebugSend()
 	b.Actions.MoveCamera(b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 8))
 }
@@ -172,10 +175,19 @@ func BattleTest(myId, enemyId api.PlayerID, b *bot.Bot) {
 	b.Actions.MoveCamera(b.Locs.MyStart.Towards(b.Locs.MapCenter, 8))
 }
 
+func RangeRetreatTest(myId, enemyId api.PlayerID, b *bot.Bot) {
+	b.DebugAddUnits(protoss.Zealot, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 8), 1)
+	b.DebugAddUnits(protoss.Stalker, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 6), 1)
+	b.DebugAddUnits(terran.Marine, myId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 12), 4)
+	b.DebugAddUnits(terran.SiegeTank, myId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 14), 1)
+	b.DebugSend()
+	b.Actions.MoveCamera(b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 8))
+}
+
 func Init(b *bot.Bot) {
 	myId := b.Obs.PlayerCommon.PlayerId
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	MarinesVsDarks(myId, enemyId, b)
+	RangeRetreatTest(myId, enemyId, b)
 }

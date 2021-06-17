@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.4.2 (glhf)"
+const version = "VeTerran v2.4.3 (glhf)"
 
 type Strategy int
 
@@ -19,6 +19,13 @@ const (
 	BruteForce
 	MaxStrategyId
 )
+
+var StrategyPriority = map[Strategy]float64 { // More is better
+	BruteForce: 0.95,
+	ProxyReapers: 0.9,
+	Default: 0.85,
+	ProxyMarines: 0.8,
+}
 
 type Bot struct {
 	*scl.Bot
