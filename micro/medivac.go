@@ -33,10 +33,16 @@ func MedivacsLogic(us scl.Units) {
 			continue
 		}
 
-		pos, safe := u.AirEvade(B.Enemies.AllReady.CanAttack(u, 2), 2, u)
+		enemies := B.Enemies.AllReady.CanAttack(u, 2)
+		pos, safe := u.AirEvade(enemies, 2, u)
 		if !safe {
-			u.CommandPos(ability.Move, pos)
-			continue
+			outranged, stronger := u.AssessStrength(enemies)
+			if !outranged || stronger {
+				safe = true
+			} else {
+				u.CommandPos(ability.Move, pos)
+				continue
+			}
 		}
 
 		// This should be most damaged unit

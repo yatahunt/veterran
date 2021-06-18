@@ -65,7 +65,14 @@ func RavensLogic(us scl.Units) {
 			ravenPos = u.Point()
 		}
 		pos := targets[scl.MinInt(n, len(targets)-1)].Towards(enemiesCenter, 2)
-		pos, safe := u.AirEvade(B.Enemies.AllReady.CanAttack(u, 2), 2, pos)
+		enemies := B.Enemies.AllReady.CanAttack(u, 2)
+		pos, safe := u.AirEvade(enemies, 2, pos)
+		if !safe {
+			outranged, stronger := u.AssessStrength(enemies)
+			if !outranged || stronger {
+				safe = true
+			}
+		}
 		if !safe || pos.IsFurtherThan(1, ravenPos) {
 			u.CommandPos(ability.Move, pos)
 			continue

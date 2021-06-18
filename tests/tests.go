@@ -117,10 +117,10 @@ func ThorTest(myId, enemyId api.PlayerID, b *bot.Bot) {
 }
 
 func VikingTest(myId, enemyId api.PlayerID, b *bot.Bot) {
-	// b.DebugAddUnits(terran.MissileTurret, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 6), 1)
-	// b.DebugAddUnits(zerg.Overlord, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 0), 1)
+	b.DebugAddUnits(terran.MissileTurret, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 6), 1)
+	b.DebugAddUnits(zerg.Overlord, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 0), 1)
 	// b.DebugAddUnits(zerg.Mutalisk, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 1)
-	b.DebugAddUnits(protoss.Tempest, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 1)
+	// b.DebugAddUnits(protoss.Tempest, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 1)
 	b.DebugAddUnits(terran.VikingFighter, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 28), 2)
 	b.DebugSend()
 	b.Actions.MoveCamera(b.Locs.MyStart.Towards(b.Locs.MapCenter, 8))
@@ -198,10 +198,17 @@ func VikingsEffectsEvasion(myId, enemyId api.PlayerID, b *bot.Bot) {
 	b.Actions.MoveCamera(b.Locs.MyStart.Towards(b.Locs.MapCenter, 8))
 }
 
+func SiegeEvasion(myId, enemyId api.PlayerID, b *bot.Bot) {
+	b.DebugAddUnits(terran.SiegeTankSieged, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 14), 1)
+	b.DebugAddUnits(terran.Marine, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 8)
+	b.DebugSend()
+	b.Actions.MoveCamera(b.Locs.MyStart.Towards(b.Locs.MapCenter, 8))
+}
+
 func Init(b *bot.Bot) {
 	myId := b.Obs.PlayerCommon.PlayerId
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	VikingsEffectsEvasion(myId, enemyId, b)
+	VikingTest(myId, enemyId, b)
 }
