@@ -216,12 +216,12 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Bunkers",
 		Ability: ability.Build_Bunker,
 		Premise: func() bool {
-			return B.Units.My.OfType(terran.Marine, terran.Reaper).Len() >= 2 &&
-				B.Enemies.Visible.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()
+			return B.Units.My[terran.Marine].Len() >= 2 /*&&
+				B.Enemies.Visible.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()*/
 		},
 		Limit:   func() int { return B.BunkersPos.Len() },
 		Active:  func() int { return B.BunkersPos.Len() },
-		WaitRes: Yes,
+		// WaitRes: Yes,
 	},
 	{
 		Name:    "Armory",
@@ -274,7 +274,7 @@ var RaxBuildOrder = BuildNodes{
 		},
 		Limit:   func() int { return B.TurretsPos.Len() },
 		Active:  func() int { return B.TurretsPos.Len() },
-		WaitRes: Yes,
+		// WaitRes: Yes,
 	},
 	{
 		Name:    "Barracks techlabs",

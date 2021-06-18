@@ -289,7 +289,7 @@ func DefensivePlayCheck() {
 			(B.Obs.Score.ScoreDetails.FoodUsed.Army >= 25 ||
 				B.BruteForce && B.Obs.Score.ScoreDetails.FoodUsed.Army >= 16 && B.Loop < scl.TimeToLoop(4, 0)) {
 		DisableDefensivePlay()
-	} else if armyScore < enemyScore*0.75 {
+	} else if armyScore < enemyScore {
 		EnableDefensivePlay()
 	}
 	/*if B.Loop >= 3584 && B.Loop < 3594 { // 2:40
