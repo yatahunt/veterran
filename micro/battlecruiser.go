@@ -59,7 +59,7 @@ func BattlecruisersLogic(us scl.Units) {
 	}
 
 	for _, u := range us {
-		_ = BattlecruiserRetreat(u) || BattlecruiserCast(u, yamatoTargets) || BattlecruisersAttack(u) ||
-			DefaultExplore(u)
+		_ = BattlecruiserRetreat(u) || u.EvadeEffects() || BattlecruiserCast(u, yamatoTargets) ||
+			BattlecruisersAttack(u) || DefaultExplore(u)
 	}
 }

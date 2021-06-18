@@ -184,10 +184,24 @@ func RangeRetreatTest(myId, enemyId api.PlayerID, b *bot.Bot) {
 	b.Actions.MoveCamera(b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 8))
 }
 
+func MarinesEffectsEvasion(myId, enemyId api.PlayerID, b *bot.Bot) {
+	b.DebugAddUnits(zerg.Ravager, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 10), 2)
+	b.DebugAddUnits(terran.Marine, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 6), 10)
+	b.DebugSend()
+	b.Actions.MoveCamera(b.Locs.MyStart.Towards(b.Locs.MapCenter, 8))
+}
+
+func VikingsEffectsEvasion(myId, enemyId api.PlayerID, b *bot.Bot) {
+	b.DebugAddUnits(zerg.Ravager, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 10), 2)
+	b.DebugAddUnits(terran.VikingFighter, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 4)
+	b.DebugSend()
+	b.Actions.MoveCamera(b.Locs.MyStart.Towards(b.Locs.MapCenter, 8))
+}
+
 func Init(b *bot.Bot) {
 	myId := b.Obs.PlayerCommon.PlayerId
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	RangeRetreatTest(myId, enemyId, b)
+	VikingsEffectsEvasion(myId, enemyId, b)
 }

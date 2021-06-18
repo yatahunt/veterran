@@ -29,7 +29,7 @@ func MedivacsLogic(us scl.Units) {
 	firstPatient := patients.ClosestTo(enemiesCenter)
 
 	for _, u := range us {
-		if DefaultRetreat(u) {
+		if DefaultRetreat(u) || u.EvadeEffects() {
 			continue
 		}
 

@@ -21,7 +21,6 @@ type TargetsTypes struct {
 	ArmedFlying        scl.Units
 	ArmedFlyingArmored scl.Units
 	ArmedGround        scl.Units
-	ArmedGroundNoAA    scl.Units
 	ArmedGroundArmored scl.Units
 	ArmedGroundLight   scl.Units
 	AntiAir            scl.Units
@@ -74,9 +73,6 @@ func InitTargets() {
 			Targets.Ground.Add(u)
 			if u.IsArmed() {
 				Targets.ArmedGround.Add(u)
-				if u.AirDPS() == 0 {
-					Targets.ArmedGroundNoAA.Add(u)
-				}
 				if u.IsArmored() {
 					Targets.ArmedGroundArmored.Add(u)
 				} else if u.IsLight() {
@@ -190,12 +186,12 @@ func MechRetreat() {
 
 	enemies := B.Enemies.AllReady
 	scvs := B.Units.My[terran.SCV]
-	var healingPoints []int
-	for expNum, expLoc := range B.Locs.MyExps {
+	var healingPoints []point.Point
+	for _, expLoc := range append(B.Locs.MyExps, B.Locs.MyStart) {
 		if scvs.CloserThan(scl.ResourceSpreadDistance, expLoc).Len() < 4 {
 			continue
 		}
-		healingPoints = append(healingPoints, expNum)
+		healingPoints = append(healingPoints, expLoc)
 	}
 	if len(healingPoints) == 0 {
 		return
@@ -210,10 +206,10 @@ func MechRetreat() {
 		// Find closest healing point
 		var healingPoint point.Point
 		dist := math.Inf(1)
-		for _, expNum := range healingPoints {
-			newDist := u.Dist2(B.Locs.MyExps[expNum])
+		for _, expLoc := range healingPoints {
+			newDist := u.Dist2(expLoc)
 			if newDist < dist {
-				healingPoint = B.Locs.MyExps[expNum] - B.Locs.MyStartMinVec*3
+				healingPoint = expLoc - B.Locs.MyStartMinVec*3
 				dist = newDist
 			}
 		}
@@ -228,23 +224,23 @@ func MechRetreat() {
 		}
 		if u.UnitType == terran.Cyclone && u.HasAbility(ability.Effect_LockOn) {
 			targets := enemies.Filter(scl.Visible).InRangeOf(u, 2)
-			if targets.Exists() {
-				CycloneAttackFunc(u, 0, targets)
+			if targets.Exists() && CycloneAttackFunc(u, 0, targets) {
 				continue
 			}
 		}
-		// Not for siegetank. It can't fire & retreat
-		// Hellion is bad in that too
-		if /*u.UnitType == terran.Hellion ||*/ u.UnitType == terran.HellionTank {
+		if u.Is(terran.Banshee, terran.Hellion, terran.HellionTank, terran.SiegeTank, terran.VikingFighter) {
 			targets := enemies.Filter(scl.Visible).InRangeOf(u, 0)
-			if targets.Exists() {
-				u.Attack(targets)
+			if targets.Exists() && u.IsCoolToAttack() && u.IsCoolToAttackAgain() &&
+				scl.DefaultAttackFunc(u, 0, targets) {
 				continue
 			}
 		}
 
 		if u.IsCloserThan(8, healingPoint) {
 			u.CommandPos(ability.Move, healingPoint)
+			continue
+		}
+		if u.EvadeEffects() {
 			continue
 		}
 		if u.IsFlying {

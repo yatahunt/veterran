@@ -44,7 +44,7 @@ func RavensLogic(us scl.Units) {
 			continue // Let him finish placing
 		}
 
-		if DefaultRetreat(u) {
+		if DefaultRetreat(u) || u.EvadeEffects() {
 			continue
 		}
 

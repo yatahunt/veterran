@@ -53,7 +53,7 @@ func CycloneManeuver(u *scl.Unit) bool {
 			return true
 		}
 	}
-	return false
+	return u.EvadeEffects()
 }
 
 func CycloneAttack(u *scl.Unit) bool {

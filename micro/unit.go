@@ -46,7 +46,7 @@ func DefaultManeuver(u *scl.Unit) bool {
 			}
 		}
 	}
-	return false
+	return u.EvadeEffects()
 }
 
 func DefaultAttack(u *scl.Unit) bool {

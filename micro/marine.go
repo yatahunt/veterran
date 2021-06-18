@@ -36,7 +36,7 @@ func MarineStim(u *scl.Unit) bool {
 func MarineAttack(u *scl.Unit) bool {
 	if Targets.All.Exists() {
 		ics := B.Units.Enemy[protoss.Interceptor]
-		if ics.Exists() {
+		if ics.Exists() { // Here could be problems with storms evasion and evasion per se
 			u.CommandPos(ability.Attack_Attack, ics.ClosestTo(u))
 			B.U.LastAttack[u.Tag] = B.Loop
 		} else {
