@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.5.0 (glhf)"
+const version = "VeTerran v2.5.1 (glhf)"
 
 type Strategy int
 

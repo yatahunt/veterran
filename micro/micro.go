@@ -228,7 +228,7 @@ func MechRetreat() {
 				continue
 			}
 		}
-		if u.Is(terran.Banshee, terran.Hellion, terran.HellionTank, terran.SiegeTank, terran.VikingFighter) {
+		if u.Is(terran.HellionTank, terran.SiegeTank) {
 			targets := enemies.Filter(scl.Visible).InRangeOf(u, 0)
 			if targets.Exists() && u.IsCoolToAttack() && u.IsCoolToAttackAgain() &&
 				scl.DefaultAttackFunc(u, 0, targets) {
