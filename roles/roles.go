@@ -3,7 +3,6 @@ package roles
 import (
 	"bitbucket.org/aisee/veterran/bot"
 	"github.com/aiseeq/s2l/lib/scl"
-	"github.com/aiseeq/s2l/protocol/api"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
 	"github.com/aiseeq/s2l/protocol/enums/protoss"
 	"github.com/aiseeq/s2l/protocol/enums/terran"
@@ -223,7 +222,7 @@ func Recon() {
 }
 
 func ReconBase() {
-	if B.Loop > 2688 { // 2:00
+	if B.Loop > scl.TimeToLoop(3, 0) {
 		return
 	}
 
@@ -246,28 +245,9 @@ func ReconBase() {
 		return
 	}
 
-	enemies := B.Enemies.All.Filter(scl.DpsGt5)
-	if enemies.Exists() || B.Loop > 2240 { // 1:40
+	enemies := B.Enemies.All.Filter(scl.DpsGt5).CanAttack(scv, 2)
+	if enemies.Exists() || B.Loop > scl.TimeToLoop(2, 40) {
 		B.Groups.Add(bot.Miners, scv) // dismiss scout
-
-		if B.EnemyRace == api.Race_Terran {
-			if B.Units.AllEnemy[terran.Barracks].Len() >= 2 {
-				bot.EnableDefensivePlay()
-			}
-		}
-		if B.EnemyRace == api.Race_Zerg {
-			if B.Units.AllEnemy[zerg.SpawningPool].First(scl.Ready) != nil || B.Units.AllEnemy[zerg.Zergling].Exists() {
-				bot.EnableDefensivePlay()
-			}
-			if B.Units.AllEnemy[zerg.Zergling].Exists() {
-				B.LingRush = true
-			}
-		}
-		if B.EnemyRace == api.Race_Protoss {
-			if B.Units.AllEnemy[protoss.Gateway].Len() >= 2 {
-				bot.EnableDefensivePlay()
-			}
-		}
 	}
 
 	vec := (scv.Point() - B.Locs.EnemyStart).Norm().Rotate(math.Pi / 10)
@@ -395,9 +375,11 @@ func Roles(b *bot.Bot) {
 	Build()
 	Repair()
 	DoubleHeal()
-	// Recon()
-	// ReconBase()
-	ReconHellion()
+	if B.BruteForce {
+		Recon()
+		ReconBase()
+	}
+	// ReconHellion()
 	Mine()
 	// TanksOnExpansions()
 	BuildingsCheck()

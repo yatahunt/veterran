@@ -422,8 +422,8 @@ var StarportBuildOrder = BuildNodes{
 		Name:    "Fusion Core",
 		Ability: ability.Build_FusionCore,
 		Premise: func() bool {
-			return B.Units.My[terran.Raven].Exists() && B.Units.My[terran.Banshee].Exists() &&
-				B.Units.My[terran.VikingFighter].Exists()
+			return B.Units.My[terran.Raven].Exists() && (B.Units.My[terran.Banshee].Exists() ||
+				B.Units.My[terran.VikingFighter].Exists()) && B.Units.My[terran.Starport].Filter(scl.Ready).Len() >= 2
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,
@@ -445,7 +445,7 @@ func Build(aid api.AbilityID) point.Point {
 	}
 
 	techReq := B.U.Types[B.U.AbilityUnit[aid]].TechRequirement
-	if techReq != 0 && B.Units.My.OfType(B.U.UnitAliases.For(techReq)...).Empty() {
+	if techReq != 0 && B.Units.My.OfType(B.U.UnitAliases.For(techReq)...).First(scl.Ready) == nil {
 		log.Debugf("Tech requirement didn't met for %v", B.U.Types[B.U.AbilityUnit[aid]].Name)
 		return 0 // Not available because of tech reqs, like: supply is needed for barracks
 	}

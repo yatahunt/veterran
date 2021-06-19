@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.4.7 (glhf)"
+const version = "VeTerran v2.5.0 (glhf)"
 
 type Strategy int
 
@@ -33,11 +33,9 @@ type Bot struct {
 	Logic func()
 
 	WorkerRush     bool
-	LingRush       bool
 	PlayDefensive  bool
 	DefensiveRange float64
 	BuildTurrets   bool
-	MechPriority   bool
 	VersionPosted  bool
 	GGPosted       bool
 	Strategy       Strategy

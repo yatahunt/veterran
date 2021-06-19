@@ -64,7 +64,8 @@ func OrderUpgrades() {
 
 	// todo: aliases
 	if arm := B.Units.My[terran.Armory].First(scl.Ready, scl.Idle); arm != nil && B.Units.My.OfType(terran.WidowMine,
-		terran.Hellion, terran.Cyclone, terran.SiegeTank, terran.Raven, terran.Battlecruiser).Len() > 4 {
+		terran.WidowMineBurrowed, terran.Hellion, terran.HellionTank, terran.Cyclone, terran.SiegeTank,
+		terran.SiegeTankSieged, terran.Raven, terran.Battlecruiser, terran.Thor).Len() > 4 {
 		upgrades := []api.AbilityID{
 			ability.Research_TerranVehicleAndShipPlatingLevel1,
 			ability.Research_TerranVehicleAndShipPlatingLevel2,

@@ -59,10 +59,11 @@ func DefaultAttack(u *scl.Unit) bool {
 
 func GetDefensivePos(u *scl.Unit) point.Point {
 	pos := B.Ramps.My.Top
-	bunkers := B.Units.My[terran.Bunker]
-	if bunkers.Exists() {
-		bunkers.OrderByDistanceTo(B.Locs.MyStart, false)
-		pos = bunkers[int(u.Tag)%bunkers.Len()].Point()
+	ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).
+		FurtherThan(scl.ResourceSpreadDistance, B.Locs.MyStart)
+	if ccs.Exists() {
+		ccs.OrderByDistanceTo(B.Locs.MyStart, false)
+		pos = ccs[int(u.Tag)%ccs.Len()].Towards(B.Locs.MapCenter, 4)
 	}
 	return pos
 }

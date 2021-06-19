@@ -8,6 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/enums/protoss"
 	"github.com/aiseeq/s2l/protocol/enums/terran"
 	"github.com/aiseeq/s2l/protocol/enums/zerg"
+	"sort"
 )
 
 /*type TrainNode struct {
@@ -72,9 +73,19 @@ func OrderTrain(factory *scl.Unit, aid api.AbilityID, usedFactories scl.TagsMap)
 }
 
 func GetFactory(id api.UnitTypeID, needTechlab bool, usedFactories scl.TagsMap) *scl.Unit {
-	factory := B.Units.My[id].First(func(unit *scl.Unit) bool {
-		return unit.IsReady() && unit.IsUnused() && (!needTechlab || unit.HasTechlab()) && !usedFactories[unit.Tag]
-	})
+	var factory *scl.Unit
+	if needTechlab == false {
+		// Try to find factory with reactor first
+		factory = B.Units.My[id].First(func(unit *scl.Unit) bool {
+			return unit.IsReady() && unit.IsUnused() && unit.HasReactor() && !usedFactories[unit.Tag]
+		})
+	}
+	if factory == nil {
+		// We need a tech lab or there is no factories with a reactor
+		factory = B.Units.My[id].First(func(unit *scl.Unit) bool {
+			return unit.IsReady() && unit.IsUnused() && (!needTechlab || unit.HasTechlab()) && !usedFactories[unit.Tag]
+		})
+	}
 	if factory == nil {
 		return nil
 	}
@@ -86,12 +97,31 @@ func GetFactory(id api.UnitTypeID, needTechlab bool, usedFactories scl.TagsMap) 
 	return factory
 }
 
+func Order(unit api.AbilityID, factoryType api.UnitTypeID, needTechlab, gatherMoney bool, usedFactories scl.TagsMap) {
+	techReq := B.U.Types[B.U.AbilityUnit[unit]].TechRequirement
+	if techReq != 0 && B.Units.My.OfType(B.U.UnitAliases.For(techReq)...).First(scl.Ready) == nil {
+		// log.Debugf("Tech requirement didn't met for %v", B.U.Types[B.U.AbilityUnit[unit]].Name)
+		return // Not available because of tech reqs, like: supply is needed for barracks
+	}
+	if factory := GetFactory(factoryType, needTechlab, usedFactories); factory != nil {
+		if B.CanBuy(unit) {
+			OrderTrain(factory, unit, usedFactories)
+			log.Debugf("Ordered %v", B.U.Types[B.U.AbilityUnit[unit]].Name)
+		} else if gatherMoney {
+			B.DeductResources(unit) // Gather money
+			// log.Debugf("Waiting for %v", B.U.Types[B.U.AbilityUnit[unit]].Name)
+		}
+	}
+}
+
+func NormalizeScore(score map[api.AbilityID]int, a api.AbilityID, qty, defQty int) {
+	ut := B.U.AbilityUnit[a]
+	price := int(B.U.Types[ut].MineralCost + B.U.Types[ut].VespeneCost)
+	score[a] = 1000 * (score[a] + defQty*price/100) / ((qty + 1) * price)
+}
+
 func OrderUnits() {
 	usedFactories := scl.TagsMap{}
-	B.MechPriority = false
-	if B.EnemyRace != api.Race_Zerg {
-		B.MechPriority = true
-	}
 
 	if B.WorkerRush && B.CanBuy(ability.Train_Marine) {
 		if rax := GetFactory(terran.Barracks, false, usedFactories); rax != nil {
@@ -104,172 +134,208 @@ func OrderUnits() {
 	refs := B.Units.My[terran.Refinery].Filter(func(unit *scl.Unit) bool {
 		return unit.IsReady() && unit.VespeneContents > 0
 	})
-
-	if starport := GetFactory(terran.Starport, false, usedFactories); starport != nil {
-		// First medivac for marines if BruteForce
-		if B.BruteForce && B.Pending(ability.Train_Medivac) == 0 && B.Loop < scl.TimeToLoop(3, 15) {
-			if B.CanBuy(ability.Train_Medivac) {
-				OrderTrain(starport, ability.Train_Medivac, usedFactories)
-			} else {
-				B.DeductResources(ability.Train_Medivac) // Gather money
-			}
-		}
-		// Vikings against banshees
-		if (B.Units.AllEnemy[terran.Banshee].Exists() ||
-			B.Units.AllEnemy.OfType(B.U.UnitAliases.For(terran.Starport)...).Exists()) &&
-			B.Pending(ability.Train_VikingFighter) < 2 {
-			if B.CanBuy(ability.Train_VikingFighter) {
-				OrderTrain(starport, ability.Train_VikingFighter, usedFactories)
-			} else {
-				B.DeductResources(ability.Train_VikingFighter) // Gather money
-			}
-		}
-	}
-
-	// Build SCVs
+	// Build SCVs todo: check if all minerals & gas are saturated
 	if cc != nil && B.Units.My[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70-refs.Len()) &&
 		B.CanBuy(ability.Train_SCV) && !B.WorkerRush {
 		OrderTrain(cc, ability.Train_SCV, usedFactories)
 	}
 
-	if factory := GetFactory(terran.Factory, true, usedFactories); factory != nil {
-		thors := B.PendingAliases(ability.Train_Thor)
-		cyclones := B.PendingAliases(ability.Train_Cyclone)
-		tanks := B.PendingAliases(ability.Train_SiegeTank)
+	// Tank strong: Photon Cannon, Stalker, Bunker, Planetary Fortress, Marine, Cyclone, Spine, Roach, Hydralisk,
+	// Lurker
+	// Tank weak: Immortal, Carrier, Banshee, Mutalisk, Ravager, Viper
+	// Cyclone strong: Adept, Marauder, Roach
+	// Cyclone weak: Immortal, Tank, Zergling
+	// Thor strong: Archon, Disruptor, Stalker, Planetary Fortress, Marine, Battlecruiser, Mutalisk
+	// Thor weak: Immortal, Marauder, Zergling
+	// Mine strong: Zealot, Adept, Mutalisk, Zergling, Baneling
+	// Mine weak: Stalker, Marauder, Ravager
+	// Hellion strong: Zealot, Marine, Zergling, Swarm Host
+	// Hellion weak: Stalker, Marauder, Roach, Queen
+	// Viking strong: Colossus, Void Ray, Oracle, Tempest, Carrier, Mothership, Banshee, Liberator, Battlecruiser,
+	// Brood Lord, Overseer, Corruptor, Viper
+	// Viking weak: Stalker, Marine, Hydralisk, Mutalisk
+	// Banshee strong: Colossus, Tank, Ultralisk, Swarm Host
+	// Banshee weak: Observer, Phoenix, Viking, Raven, Hydralisk, Overseer
+	// Battlecruiser strong: Phoenix, Carrier, Mutalisk
+	// Battlecruiser weak: Void Ray, Viking, Thor, Corruptor
+	// Raven strong: Dark Templar, Banshee, Roach
+	// Raven weak: Phoenix, Ghost, Corruptor
+	// Liberator strong: Phoenix, Mutalisk
+	// Liberator weak: Tempest, Void Ray, Viking, Corruptor
+	// Marine strong: Immortal, Viking, Marauder, Hydralisk, Queen
+	// Marine weak: Adept, High Templar, Archon, Colossus, Tank, Thor, Hellion, Baneling, Lurker, Infestor, Ultralisk,
+	// Brood Lord
+	// Marauder strong: Stalker, Adept, Thor, Reaper, Ghost, Hellion, Mine, Roach, Ravager, Baneling
+	// Marauder weak: Zealot, Disruptor, Marine, Cyclone, Zergling
+	// Reaper strong: Sentry
+	// Reaper weak: Stalker, Marauder, Roach
+	// Ghost strong: High Templar, Raven, Infestor, Ultralisk
+	// Ghost weak: Stalker, Marauder, Zergling
 
-		buyCyclones := cyclones == 0 // B.EnemyProduction.Len(terran.Banshee) > 0 &&
-		buyTanks := tanks == 0       // B.PlayDefensive &&
-		if !buyCyclones && !buyTanks {
-			cyclonesScore := B.EnemyProduction.Score(protoss.WarpPrism, protoss.Phoenix, protoss.VoidRay,
-				protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.VikingFighter, terran.Medivac,
-				terran.Liberator, terran.Raven, terran.Banshee, terran.Battlecruiser, zerg.Queen, zerg.Mutalisk,
-				zerg.Corruptor, zerg.Viper, zerg.Ultralisk, zerg.BroodLord) + 1
-			tanksScore := B.EnemyProduction.Score(protoss.Stalker, protoss.Colossus, protoss.PhotonCannon,
-				terran.Marine, terran.Reaper, terran.Marauder, terran.Bunker, terran.PlanetaryFortress, terran.Cyclone,
-				zerg.Roach, zerg.Ravager, zerg.Hydralisk, zerg.LurkerMP, zerg.SpineCrawler) + 1
-			buyCyclones = cyclonesScore/float64(cyclones+1) >= tanksScore/float64(tanks+1)
-			buyTanks = !buyCyclones
-		}
+	score := map[api.AbilityID]int{}
+	tanks := B.PendingAliases(ability.Train_SiegeTank)
+	score[ability.Train_SiegeTank] = B.EnemyProduction.Score(protoss.PhotonCannon, protoss.Stalker, terran.Bunker,
+		terran.PlanetaryFortress, terran.Marine, terran.Cyclone, zerg.SpineCrawler, zerg.Roach, zerg.Hydralisk,
+		zerg.LurkerMP) -
+		B.EnemyProduction.Score(protoss.Immortal, protoss.Carrier, terran.Banshee, zerg.Mutalisk, zerg.Ravager,
+			zerg.Viper)
+	NormalizeScore(score, ability.Train_SiegeTank, tanks, 1)
 
-		if B.Units.My[terran.Armory].First(scl.Ready) != nil {
-			if tanks > 0 && cyclones > 0 && thors < scl.MinInt(4, ccs.Len()) && B.CanBuy(ability.Train_Thor) {
-				OrderTrain(factory, ability.Train_Thor, usedFactories)
-				buyTanks = false
-				buyCyclones = false
-			} else if thors == 0 && B.MechPriority {
-				B.DeductResources(ability.Train_Thor) // Gather money
-			}
-		}
+	cyclones := B.PendingAliases(ability.Train_Cyclone)
+	score[ability.Train_Cyclone] = B.EnemyProduction.Score(protoss.Adept, terran.Marauder, zerg.Roach, // from wiki
+		protoss.WarpPrism, protoss.Phoenix, protoss.VoidRay, protoss.Oracle, terran.Reaper, // mine
+		terran.VikingFighter, terran.Liberator, terran.Banshee, terran.Battlecruiser, zerg.Ravager, zerg.Mutalisk,
+		zerg.Corruptor, zerg.Viper, zerg.Ultralisk) -
+		B.EnemyProduction.Score(protoss.Immortal, terran.SiegeTank, zerg.Zergling)
+	NormalizeScore(score, ability.Train_Cyclone, cyclones, 1)
 
-		if buyTanks {
-			if B.CanBuy(ability.Train_SiegeTank) {
-				OrderTrain(factory, ability.Train_SiegeTank, usedFactories)
-			} else if tanks == 0 || B.MechPriority {
-				B.DeductResources(ability.Train_SiegeTank) // Gather money
-			}
-		} else if buyCyclones {
-			if B.CanBuy(ability.Train_Cyclone) {
-				OrderTrain(factory, ability.Train_Cyclone, usedFactories)
-			} else if cyclones == 0 || B.MechPriority {
-				B.DeductResources(ability.Train_Cyclone) // Gather money
-			}
-		}
+	thors := B.PendingAliases(ability.Train_Thor)
+	score[ability.Train_Thor] = B.EnemyProduction.Score(protoss.Archon, protoss.Disruptor, protoss.Stalker,
+		terran.PlanetaryFortress, terran.Marine, terran.Battlecruiser, zerg.Mutalisk) -
+		B.EnemyProduction.Score(protoss.Immortal, terran.Marauder, zerg.Zergling)
+	NormalizeScore(score, ability.Train_Thor, thors, 1)
+
+	mines := B.PendingAliases(ability.Train_WidowMine)
+	score[ability.Train_WidowMine] = B.EnemyProduction.Score(protoss.Zealot, protoss.Adept, zerg.Zergling,
+		zerg.Baneling) -
+		B.EnemyProduction.Score(protoss.Stalker, terran.Marauder, zerg.Ravager)
+	NormalizeScore(score, ability.Train_WidowMine, mines, 1)
+
+	hellions := B.PendingAliases(ability.Train_Hellion)
+	score[ability.Train_Hellion] = B.EnemyProduction.Score(protoss.Zealot, terran.Marine, zerg.Zergling,
+		zerg.SwarmHostMP) -
+		B.EnemyProduction.Score(protoss.Stalker, terran.Marauder, zerg.Roach, zerg.Queen)
+	NormalizeScore(score, ability.Train_Hellion, hellions, 1)
+
+	vikings := B.PendingAliases(ability.Train_VikingFighter)
+	score[ability.Train_VikingFighter] = B.EnemyProduction.Score(protoss.Colossus, protoss.VoidRay, protoss.Oracle,
+		protoss.Tempest, protoss.Carrier, protoss.Mothership, terran.Banshee, terran.Liberator, terran.Battlecruiser,
+		zerg.BroodLord, zerg.Overseer, zerg.Corruptor, zerg.Viper, // from wiki
+		protoss.WarpPrism, protoss.Phoenix, terran.VikingFighter, terran.Medivac, terran.Raven) - // mine
+		B.EnemyProduction.Score(protoss.Stalker, terran.Marine, zerg.Hydralisk, zerg.Mutalisk)
+	NormalizeScore(score, ability.Train_VikingFighter, vikings, 1)
+
+	banshees := B.PendingAliases(ability.Train_Banshee)
+	score[ability.Train_Banshee] = B.EnemyProduction.Score(protoss.Colossus, terran.SiegeTank, zerg.Ultralisk,
+		zerg.SwarmHostMP) -
+		B.EnemyProduction.Score(protoss.Observer, protoss.Phoenix, terran.VikingFighter, terran.Raven, zerg.Hydralisk,
+			zerg.Overseer)
+	NormalizeScore(score, ability.Train_Banshee, banshees, 1)
+
+	cruisers := B.PendingAliases(ability.Train_Battlecruiser)
+	score[ability.Train_Battlecruiser] = B.EnemyProduction.Score(protoss.Phoenix, protoss.Carrier, zerg.Mutalisk) -
+		B.EnemyProduction.Score(protoss.VoidRay, terran.VikingFighter, terran.Thor, zerg.Corruptor)
+	NormalizeScore(score, ability.Train_Battlecruiser, cruisers, 1)
+
+	medivacs := B.PendingAliases(ability.Train_Medivac)
+	score[ability.Train_Medivac] = 10 * (B.Units.My[terran.Marine].Len()*50 + B.Units.My[terran.Marauder].Len()*125)
+	score[ability.Train_Medivac] /= medivacs + 1
+
+	ravens := B.PendingAliases(ability.Train_Raven)
+	score[ability.Train_Raven] = 1000
+
+	marines := B.PendingAliases(ability.Train_Marine)
+	score[ability.Train_Marine] = B.EnemyProduction.Score(protoss.Immortal, terran.VikingFighter, terran.Marauder,
+		zerg.Hydralisk, zerg.Queen, // from wiki
+		protoss.VoidRay, protoss.Carrier, zerg.Zergling) - // mine
+		B.EnemyProduction.Score(protoss.Adept, protoss.HighTemplar, protoss.Archon, protoss.Colossus, terran.SiegeTank,
+			terran.Thor, terran.Hellion, zerg.Baneling, zerg.LurkerMP, zerg.Infestor, zerg.Ultralisk, zerg.BroodLord)
+	NormalizeScore(score, ability.Train_Marine, marines, 2)
+
+	marauders := B.PendingAliases(ability.Train_Marauder)
+	score[ability.Train_Marauder] = B.EnemyProduction.Score(protoss.Stalker, protoss.Adept, terran.Thor,
+		terran.Hellion, terran.WidowMine, zerg.Roach, zerg.Ravager, zerg.Baneling, // from wiki
+		terran.Reaper) - // mine
+		B.EnemyProduction.Score(protoss.Zealot, protoss.Disruptor, terran.Marine, terran.Cyclone, zerg.Zergling)
+	NormalizeScore(score, ability.Train_Marauder, marauders, 1)
+
+	reapers := B.PendingAliases(ability.Train_Reaper)
+	score[ability.Train_Reaper] = 0
+
+	// Priority train score
+	if B.BruteForce && tanks == 0 && B.Loop < scl.TimeToLoop(2, 45) {
+		score[ability.Train_SiegeTank] += 10000
+	}
+	if tanks == 0 && score[ability.Train_SiegeTank] > 0 && cyclones > 0 {
+		score[ability.Train_Cyclone] = -1
+	}
+	if cyclones == 0 && score[ability.Train_Cyclone] > 0 && tanks > 0 {
+		score[ability.Train_SiegeTank] = -1
+	}
+	if (B.Units.AllEnemy[terran.Banshee].Exists() ||
+		B.Units.AllEnemy.OfType(B.U.UnitAliases.For(terran.Starport)...).Exists()) && vikings == 0 {
+		score[ability.Train_VikingFighter] += 10000
+	}
+	if B.BruteForce && medivacs == 0 && B.Loop < scl.TimeToLoop(3, 15) {
+		score[ability.Train_Medivac] += 10000
+	}
+	if medivacs >= 4 {
+		score[ability.Train_Medivac] = -1
+	}
+	if ravens == 0 {
+		score[ability.Train_Raven] += 10000
+	}
+	if ravens >= 2 {
+		score[ability.Train_Raven] = -1
+	}
+	if B.Loop < scl.TimeToLoop(2, 40) && reapers < 4 && !B.ProxyMarines && !B.BruteForce {
+		score[ability.Train_Reaper] += 10000
+	}
+	/*if B.Loop < scl.TimeToLoop(3, 0) && (B.ProxyMarines || B.BruteForce) {
+		score[ability.Train_Marine] += 5000
+	}*/
+	if B.Loop < scl.TimeToLoop(1, 30) && !B.ProxyMarines {
+		// Don't build marine first if we almost have gas for the reaper
+		score[ability.Train_Marine] = -1
 	}
 
-	if starport := GetFactory(terran.Starport, true, usedFactories); starport != nil {
-		if B.Pending(ability.Train_Banshee) < scl.MinInt(4, ccs.Len()) && B.CanBuy(ability.Train_Banshee) {
-			OrderTrain(starport, ability.Train_Banshee, usedFactories)
-		} else {
-			ravens := B.Pending(ability.Train_Raven)
+	abils := []api.AbilityID{ability.Train_SiegeTank, ability.Train_Cyclone, ability.Train_Thor,
+		ability.Train_WidowMine, ability.Train_Hellion, ability.Train_VikingFighter, ability.Train_Banshee,
+		ability.Train_Battlecruiser, ability.Train_Medivac, ability.Train_Raven, ability.Train_Marine,
+		ability.Train_Marauder, ability.Train_Reaper}
+	sort.Slice(abils, func(i, j int) bool {
+		return score[abils[i]] > score[abils[j]]
+	})
+
+	for _, abil := range abils {
+		if score[abil] <= 0 || B.Minerals < 50 && B.Vespene < 0 {
+			break
+		}
+		// fmt.Printf("%s: %d, ", B.U.Types[B.U.AbilityUnit[abil]].Name, score[abil])
+		switch abil {
+		case ability.Train_SiegeTank:
+			Order(abil, terran.Factory, true, true, usedFactories)
+		case ability.Train_Cyclone:
+			Order(abil, terran.Factory, true, true, usedFactories)
+		case ability.Train_Thor:
+			if B.Units.My[terran.Armory].First(scl.Ready) != nil {
+				Order(abil, terran.Factory, true, true, usedFactories)
+			}
+		case ability.Train_WidowMine:
+			Order(abil, terran.Factory, false, true, usedFactories)
+		case ability.Train_Hellion:
+			Order(abil, terran.Factory, false, true, usedFactories)
+		case ability.Train_VikingFighter:
+			Order(abil, terran.Starport, false, true, usedFactories)
+		case ability.Train_Banshee:
+			Order(abil, terran.Starport, true, true, usedFactories)
+		case ability.Train_Battlecruiser:
 			if B.Units.My[terran.FusionCore].First(scl.Ready) != nil {
-				if B.CanBuy(ability.Train_Battlecruiser) {
-					OrderTrain(starport, ability.Train_Battlecruiser, usedFactories)
-				} else if ravens > 0 { // && B.Units.AllEnemy[zerg.Ultralisk].Empty()
-					B.DeductResources(ability.Train_Battlecruiser) // Gather money
-				}
+				Order(abil, terran.Starport, true, true, usedFactories)
 			}
-			if ravens < 2 {
-				if B.CanBuy(ability.Train_Raven) {
-					OrderTrain(starport, ability.Train_Raven, usedFactories)
-				} else if ravens == 0 {
-					B.DeductResources(ability.Train_Raven) // Gather money
-				}
-			}
+		case ability.Train_Medivac:
+			Order(abil, terran.Starport, false, true, usedFactories)
+		case ability.Train_Raven:
+			Order(abil, terran.Starport, true, true, usedFactories)
+		case ability.Train_Marine:
+			Order(abil, terran.Barracks, false, true, usedFactories)
+		case ability.Train_Marauder:
+			Order(abil, terran.Barracks, true, true, usedFactories)
+		case ability.Train_Reaper:
+			Order(abil, terran.Barracks, false, true, usedFactories)
+		default:
+			log.Error("Unknown ability %v", abil)
 		}
 	}
-	if starport := GetFactory(terran.Starport, false, usedFactories); starport != nil {
-		medivacs := B.Pending(ability.Train_Medivac)
-		infantry := B.Units.My[terran.Marine].Len() + B.Units.My[terran.Marauder].Len()*2
-		if (medivacs == 0 || medivacs*8 < infantry) && B.CanBuy(ability.Train_Medivac) {
-			OrderTrain(starport, ability.Train_Medivac, usedFactories)
-		} else if medivacs == 0 {
-			B.DeductResources(ability.Train_Medivac) // Gather money
-		} else if B.Pending(ability.Train_VikingFighter) < scl.MinInt(4, ccs.Len()) &&
-			B.CanBuy(ability.Train_VikingFighter) {
-			OrderTrain(starport, ability.Train_VikingFighter, usedFactories)
-		}
-	}
-
-	if B.BruteForce && B.PendingAliases(ability.Train_SiegeTank) == 0 && B.Loop < scl.TimeToLoop(2, 35) {
-		// Wait for first tank
-	} else if factory := GetFactory(terran.Factory, false, usedFactories); factory != nil {
-		mines := B.PendingAliases(ability.Train_WidowMine)
-		hellions := B.PendingAliases(ability.Train_Hellion)
-
-		minesScore := B.EnemyProduction.Score(protoss.Stalker, protoss.Archon, protoss.Phoenix, protoss.VoidRay,
-			protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.Cyclone, terran.SiegeTank, terran.Thor,
-			terran.VikingFighter, terran.Medivac, terran.Liberator, terran.Raven, terran.Banshee,
-			terran.Battlecruiser, zerg.Hydralisk, zerg.Queen, zerg.Roach, zerg.Ravager, zerg.Mutalisk, zerg.Corruptor,
-			zerg.Viper, zerg.Ultralisk, zerg.BroodLord) + 1
-		hellionsScore := B.EnemyProduction.Score(zerg.Zergling, zerg.Baneling, zerg.SwarmHostMP) + 1
-		buyMines := minesScore/float64(mines+1) >= hellionsScore/float64(hellions+1)
-		minesNotEnough := B.PendingAliases(ability.Train_WidowMine) < 4
-		hellionsNotEnough := B.Pending(ability.Train_Hellion)+B.Pending(ability.Train_Hellbat) < 4
-
-		if buyMines && (mines == 0 || hellions != 0) && minesNotEnough {
-			if B.CanBuy(ability.Train_WidowMine) {
-				OrderTrain(factory, ability.Train_WidowMine, usedFactories)
-			} else if (mines == 0 || B.MechPriority) && minesNotEnough {
-				B.DeductResources(ability.Train_WidowMine) // Gather money
-			}
-		} else {
-			if B.CanBuy(ability.Train_Hellion) && hellionsNotEnough {
-				OrderTrain(factory, ability.Train_Hellion, usedFactories)
-			} else if (hellions == 0 || B.MechPriority) && hellionsNotEnough {
-				B.DeductResources(ability.Train_Hellion) // Gather money
-			}
-		}
-	}
-
-	if rax := GetFactory(terran.Barracks, true, usedFactories); rax != nil {
-		marines := B.PendingAliases(ability.Train_Marine)
-		marauders := B.PendingAliases(ability.Train_Marauder)
-		marinesScore := B.EnemyProduction.Score(protoss.Immortal, protoss.WarpPrism, protoss.Phoenix, protoss.VoidRay,
-			protoss.Oracle, protoss.Tempest, protoss.Carrier, terran.VikingFighter, terran.Medivac, terran.Liberator,
-			terran.Raven, terran.Banshee, terran.Battlecruiser, zerg.Mutalisk, zerg.Corruptor, zerg.Viper,
-			zerg.BroodLord) + 1 //  zerg.Zergling,
-		maraudersScore := B.EnemyProduction.Score(protoss.Zealot, protoss.Stalker, protoss.Adept, terran.Reaper,
-			terran.Hellion, terran.WidowMine, terran.Cyclone, terran.Thor, zerg.Baneling, zerg.Roach, zerg.Ravager,
-			zerg.Ultralisk) + 1
-		buyMarauders := marinesScore/float64(marines+1) < maraudersScore/float64(marauders+1)
-
-		if buyMarauders {
-			if B.CanBuy(ability.Train_Marauder) {
-				OrderTrain(rax, ability.Train_Marauder, usedFactories)
-			} else {
-				B.DeductResources(ability.Train_Marauder) // Gather money
-			}
-		}
-	}
-	if rax := GetFactory(terran.Barracks, false, usedFactories); rax != nil {
-		// before 2:40 and less 4
-		if B.Loop < 3584 && B.Pending(ability.Train_Reaper) < 4 && B.CanBuy(ability.Train_Reaper) &&
-			!B.ProxyMarines && !B.BruteForce {
-			OrderTrain(rax, ability.Train_Reaper, usedFactories)
-		} else if B.CanBuy(ability.Train_Marine) &&
-			(B.Loop > scl.TimeToLoop(1, 30) || B.ProxyMarines) {
-			// Don't build marine first if we almost have gas for the reaper
-			OrderTrain(rax, ability.Train_Marine, usedFactories)
-		}
-	}
+	// fmt.Println()
 }
