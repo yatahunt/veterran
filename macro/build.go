@@ -176,7 +176,7 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Factory",
 		Ability: ability.Build_Factory,
 		Premise: func() bool {
-			if B.Units.My.OfType(B.U.UnitAliases.For(terran.Factory)...).Len() == 1 && B.Minerals <= 400 {
+			if B.Units.My.OfType(B.U.UnitAliases.For(terran.Factory)...).Len() >= 1 && B.Minerals <= 400 {
 				return false // Don't build second if not plenty of resources
 			}
 			return B.Units.My[terran.Factory].First(scl.Ready, scl.Unused) == nil
@@ -187,7 +187,7 @@ var RootBuildOrder = BuildNodes{
 				buildFacts--
 			}
 			starports := B.Units.My.OfType(B.U.UnitAliases.For(terran.Starport)...).Len()
-			return scl.MinInt(3, scl.MinInt(buildFacts, starports+1))
+			return scl.MinInt(4, scl.MinInt(buildFacts, starports+1))
 		},
 		Active:  BuildOne,
 		Unlocks: FactoryBuildOrder,
@@ -196,7 +196,7 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Starport",
 		Ability: ability.Build_Starport,
 		Premise: func() bool {
-			if B.Units.My.OfType(B.U.UnitAliases.For(terran.Starport)...).Len() == 1 && B.Minerals <= 400 {
+			if B.Units.My.OfType(B.U.UnitAliases.For(terran.Starport)...).Len() >= 1 && B.Minerals <= 400 {
 				return false // Don't build second if not plenty of resources
 			}
 			return B.Units.My[terran.Starport].First(scl.Ready, scl.Unused) == nil
@@ -204,7 +204,7 @@ var RootBuildOrder = BuildNodes{
 		Limit: func() int {
 			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
 			factories := B.Units.My.OfType(B.U.UnitAliases.For(terran.Factory)...).Len()
-			return scl.MinInt(3, scl.MinInt(ccs, factories+1))
+			return scl.MinInt(4, scl.MinInt(ccs, factories+1))
 		},
 		Active:  BuildOne,
 		Unlocks: StarportBuildOrder,

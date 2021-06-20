@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.5.1 (glhf)"
+const version = "VeTerran v2.5.2 (glhf)"
 
 type Strategy int
 
@@ -89,7 +89,7 @@ func Step() {
 		B.Actions.ChatSend("Realtime mode detected")
 	}*/                                  // todo: fix later
 	if B.Loop >= 9 && !B.VersionPosted { // && !B.IsRealtime
-		B.Actions.ChatSend(version)
+		B.Actions.ChatSend(version, api.ActionChat_Broadcast)
 		B.VersionPosted = true
 	}
 	if B.Loop < B.LastLoop+B.FramesPerOrder {
@@ -113,7 +113,7 @@ func Step() {
 	}
 
 	if !B.GGPosted && GGCheck() {
-		B.Actions.ChatSend("(gg)")
+		B.Actions.ChatSend("(gg)", api.ActionChat_Broadcast)
 		_, _ = B.Client.Action(api.RequestAction{Actions: B.Actions})
 		B.Actions = nil
 		B.GGPosted = true

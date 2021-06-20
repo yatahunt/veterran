@@ -83,9 +83,9 @@ func ChooseStrategy(B *bot.Bot) {
 			ratio := bot.StrategyPriority[s] // Default ratio for unused strategy
 			h := B.Stats.History[s]
 			if h.Victories > 0 || h.Defeats > 0 {
-				ratio = float64(h.Victories) / (float64(h.Victories) + float64(h.Defeats))
+				ratio = float64(h.Victories+1) / (float64(h.Victories + h.Defeats + 1))
 			}
-			if ratio > bestRatio {
+			if ratio >= bestRatio {
 				B.Strategy = s
 				bestRatio = ratio
 			}
@@ -145,9 +145,9 @@ func RunAgent(c *client.Client) {
 	}
 
 	stop <- struct{}{}
-	if len(B.Result) == 0 {
+	if len(B.Result) == 0 || B.Obs == nil {
 		B.UpdateObservation()
-		if len(B.Result) == 0 {
+		if len(B.Result) == 0 || B.Obs == nil {
 			log.Error("Failed to get game result")
 			bot.SaveGameData(B.Stats, B.Strategy, "Defeat")
 			return
