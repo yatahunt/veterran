@@ -262,15 +262,21 @@ func OrderUnits() {
 	if cyclones == 0 && score[ability.Train_Cyclone] > 0 && tanks > 0 {
 		score[ability.Train_SiegeTank] = -1
 	}
+	if hellions >= 4 {
+		score[ability.Train_Hellion] = -1
+	}
+	if mines >= 8 {
+		score[ability.Train_WidowMine] = -1
+	}
 	if (B.Units.AllEnemy[terran.Banshee].Exists() ||
 		B.Units.AllEnemy.OfType(B.U.UnitAliases.For(terran.Starport)...).Exists()) && vikings == 0 {
 		score[ability.Train_VikingFighter] += 10000
 	}
+	if medivacs >= 4 || medivacs > (marines+marauders*2)/8 {
+		score[ability.Train_Medivac] = -1
+	}
 	if B.BruteForce && medivacs == 0 && B.Loop < scl.TimeToLoop(3, 15) {
 		score[ability.Train_Medivac] += 10000
-	}
-	if medivacs >= 4 {
-		score[ability.Train_Medivac] = -1
 	}
 	if ravens == 0 {
 		score[ability.Train_Raven] += 10000
