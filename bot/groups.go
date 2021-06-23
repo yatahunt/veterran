@@ -3,6 +3,7 @@ package bot
 import (
 	"github.com/aiseeq/s2l/lib/point"
 	"github.com/aiseeq/s2l/lib/scl"
+	"github.com/aiseeq/s2l/protocol/enums/ability"
 	"github.com/aiseeq/s2l/protocol/enums/terran"
 )
 
@@ -87,6 +88,9 @@ func OnUnitCreated(unit *scl.Unit) {
 	}
 	if unit.UnitType == terran.Medivac {
 		B.Groups.Add(Medivacs, unit)
+		if unit.HasAbility(ability.Effect_MedivacIgniteAfterburners) {
+			unit.Command(ability.Effect_MedivacIgniteAfterburners)
+		}
 		return
 	}
 	if unit.UnitType == terran.VikingAssault || unit.UnitType == terran.VikingFighter {
