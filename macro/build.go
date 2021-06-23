@@ -235,7 +235,7 @@ var RaxBuildOrder = BuildNodes{
 		Premise: func() bool {
 			cyclones := B.PendingAliases(ability.Train_Cyclone)
 			tanks := B.PendingAliases(ability.Train_SiegeTank)
-			return cyclones > 0 && tanks > 0 && B.Units.My[terran.EngineeringBay].First(scl.Ready) != nil
+			return (cyclones > 0 || tanks > 0) && B.Units.My[terran.EngineeringBay].First(scl.Ready) != nil
 		},
 		// WaitRes: Yes,
 		Limit: func() int {
