@@ -179,6 +179,9 @@ var RootBuildOrder = BuildNodes{
 			if B.Units.My.OfType(B.U.UnitAliases.For(terran.Factory)...).Len() >= 1 && B.Minerals <= 400 {
 				return false // Don't build second if not plenty of resources
 			}
+			if B.Minerals > 800 {
+				return true
+			}
 			return B.Units.My[terran.Factory].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func() int {
@@ -199,6 +202,9 @@ var RootBuildOrder = BuildNodes{
 			if B.Units.My.OfType(B.U.UnitAliases.For(terran.Starport)...).Len() >= 1 && B.Minerals <= 400 {
 				return false // Don't build second if not plenty of resources
 			}
+			if B.Minerals > 800 {
+				return true
+			}
 			return B.Units.My[terran.Starport].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func() int {
@@ -217,10 +223,10 @@ var RaxBuildOrder = BuildNodes{
 		Ability: ability.Build_Bunker,
 		Premise: func() bool {
 			return B.Units.My[terran.Marine].Len() >= 2 /*&&
-				B.Enemies.Visible.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()*/
+			B.Enemies.Visible.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()*/
 		},
-		Limit:   func() int { return B.BunkersPos.Len() },
-		Active:  func() int { return B.BunkersPos.Len() },
+		Limit:  func() int { return B.BunkersPos.Len() },
+		Active: func() int { return B.BunkersPos.Len() },
 		// WaitRes: Yes,
 	},
 	{
@@ -272,8 +278,8 @@ var RaxBuildOrder = BuildNodes{
 		Premise: func() bool {
 			return B.BuildTurrets
 		},
-		Limit:   func() int { return B.TurretsPos.Len() },
-		Active:  func() int { return B.TurretsPos.Len() },
+		Limit:  func() int { return B.TurretsPos.Len() },
+		Active: func() int { return B.TurretsPos.Len() },
 		// WaitRes: Yes,
 	},
 	{
@@ -422,8 +428,7 @@ var StarportBuildOrder = BuildNodes{
 		Name:    "Fusion Core",
 		Ability: ability.Build_FusionCore,
 		Premise: func() bool {
-			return B.Units.My[terran.Raven].Exists() && (B.Units.My[terran.Banshee].Exists() ||
-				B.Units.My[terran.VikingFighter].Exists()) && B.Units.My[terran.Starport].Filter(scl.Ready).Len() >= 2
+			return B.Units.My[terran.Raven].Exists() && B.Units.My[terran.Starport].Filter(scl.Ready).Len() >= 2
 		},
 		Limit:  BuildOne,
 		Active: BuildOne,

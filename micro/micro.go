@@ -178,6 +178,18 @@ func WorkerRushDefence() {
 	}
 }
 
+func GetHealingPoints() point.Points {
+	var healingPoints point.Points
+	scvs := B.Units.My[terran.SCV]
+	for _, expLoc := range append(B.Locs.MyExps, B.Locs.MyStart) {
+		if scvs.CloserThan(scl.ResourceSpreadDistance, expLoc).Len() < 4 {
+			continue
+		}
+		healingPoints = append(healingPoints, expLoc)
+	}
+	return healingPoints
+}
+
 func MechRetreat() {
 	us := B.Groups.Get(bot.MechRetreat).Units
 	if us.Empty() {
@@ -185,16 +197,9 @@ func MechRetreat() {
 	}
 
 	enemies := B.Enemies.AllReady
-	scvs := B.Units.My[terran.SCV]
-	var healingPoints []point.Point
-	for _, expLoc := range append(B.Locs.MyExps, B.Locs.MyStart) {
-		if scvs.CloserThan(scl.ResourceSpreadDistance, expLoc).Len() < 4 {
-			continue
-		}
-		healingPoints = append(healingPoints, expLoc)
-	}
+	healingPoints := GetHealingPoints()
 	if len(healingPoints) == 0 {
-		return
+		return // todo: something with units if no healing points
 	}
 
 	for _, u := range us {
@@ -204,15 +209,7 @@ func MechRetreat() {
 		}
 
 		// Find closest healing point
-		var healingPoint point.Point
-		dist := math.Inf(1)
-		for _, expLoc := range healingPoints {
-			newDist := u.Dist2(expLoc)
-			if newDist < dist {
-				healingPoint = expLoc - B.Locs.MyStartMinVec*3
-				dist = newDist
-			}
-		}
+		healingPoint := healingPoints.ClosestTo(u) - B.Locs.MyStartMinVec*3
 		if u.UnitType == terran.Battlecruiser && u.HasAbility(ability.Effect_TacticalJump) {
 			u.CommandPos(ability.Effect_TacticalJump, healingPoint)
 			continue
@@ -292,6 +289,30 @@ func FlyingBuildings() {
 	}
 }
 
+func ThorEvacs() {
+	for _, med := range B.Groups.Get(bot.ThorEvacs).Units {
+		if med.HasAbility(ability.Effect_MedivacIgniteAfterburners) {
+			med.Command(ability.Effect_MedivacIgniteAfterburners)
+			continue
+		}
+		if len(med.Passengers) == 0 {
+			thor := B.Groups.Get(bot.MechRetreat).Units.OfType(terran.Thor, terran.ThorAP).ClosestTo(med)
+			if thor == nil {
+				B.Groups.Add(bot.Medivacs, med)
+				continue
+			}
+			med.CommandTag(ability.Load_Medivac, thor.Tag)
+			continue
+		}
+		healingPoints := GetHealingPoints()
+		if healingPoints.Empty() {
+			healingPoints.Add(B.Locs.MyStart - B.Locs.MyStartMinVec*3)
+		}
+		healingPoint := healingPoints.ClosestTo(med) - B.Locs.MyStartMinVec*3
+		med.CommandPos(ability.UnloadAllAt_Medivac, healingPoint)
+	}
+}
+
 func Micro(b *bot.Bot) {
 	B = b // todo: better
 
@@ -321,4 +342,5 @@ func Micro(b *bot.Bot) {
 	MechRetreat()
 	StaticDefense()
 	FlyingBuildings()
+	ThorEvacs()
 }

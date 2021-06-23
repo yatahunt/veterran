@@ -62,25 +62,20 @@ func OrderUpgrades() {
 		}
 	}
 
-	// todo: aliases
 	if arm := B.Units.My[terran.Armory].First(scl.Ready, scl.Idle); arm != nil && B.Units.My.OfType(terran.WidowMine,
 		terran.WidowMineBurrowed, terran.Hellion, terran.HellionTank, terran.Cyclone, terran.SiegeTank,
-		terran.SiegeTankSieged, terran.Raven, terran.Battlecruiser, terran.Thor).Len() > 4 {
+		terran.SiegeTankSieged, terran.Raven, terran.Battlecruiser, terran.Thor, terran.Banshee,
+		terran.VikingFighter).Len() > 4 {
 		upgrades := []api.AbilityID{
 			ability.Research_TerranVehicleAndShipPlatingLevel1,
-			ability.Research_TerranVehicleAndShipPlatingLevel2,
-			ability.Research_TerranVehicleAndShipPlatingLevel3,
 			ability.Research_TerranVehicleWeaponsLevel1,
+			ability.Research_TerranShipWeaponsLevel1,
+			ability.Research_TerranVehicleAndShipPlatingLevel2,
 			ability.Research_TerranVehicleWeaponsLevel2,
+			ability.Research_TerranShipWeaponsLevel2,
+			ability.Research_TerranVehicleAndShipPlatingLevel3,
 			ability.Research_TerranVehicleWeaponsLevel3,
-		}
-		if B.Units.My[terran.Battlecruiser].Exists() ||
-			B.Units.My.OfType(terran.Banshee, terran.VikingFighter).Len() >= 4 {
-			upgrades = append([]api.AbilityID{
-				ability.Research_TerranShipWeaponsLevel1,
-				ability.Research_TerranShipWeaponsLevel2,
-				ability.Research_TerranShipWeaponsLevel3,
-			}, upgrades...)
+			ability.Research_TerranShipWeaponsLevel3,
 		}
 		for _, a := range upgrades {
 			if B.Upgrades[a] {

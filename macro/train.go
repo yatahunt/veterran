@@ -211,7 +211,7 @@ func OrderUnits() {
 	score[ability.Train_VikingFighter] = B.EnemyProduction.Score(protoss.Colossus, protoss.VoidRay, protoss.Oracle,
 		protoss.Tempest, protoss.Carrier, protoss.Mothership, terran.Banshee, terran.Liberator, terran.Battlecruiser,
 		zerg.BroodLord, zerg.Overseer, zerg.Corruptor, zerg.Viper, // from wiki
-		protoss.WarpPrism, protoss.Phoenix, terran.VikingFighter, terran.Medivac, terran.Raven) - // mine
+		protoss.WarpPrism, protoss.Phoenix, terran.VikingFighter) - // mine
 		B.EnemyProduction.Score(protoss.Stalker, terran.Marine, zerg.Hydralisk, zerg.Mutalisk)
 	NormalizeScore(score, ability.Train_VikingFighter, vikings, 1)
 
@@ -224,7 +224,7 @@ func OrderUnits() {
 
 	cruisers := B.PendingAliases(ability.Train_Battlecruiser)
 	score[ability.Train_Battlecruiser] = B.EnemyProduction.Score(protoss.Phoenix, protoss.Carrier, zerg.Mutalisk) -
-		B.EnemyProduction.Score(protoss.VoidRay, terran.VikingFighter, terran.Thor, zerg.Corruptor)
+		B.EnemyProduction.Score(protoss.VoidRay, terran.VikingFighter, terran.Thor, zerg.Corruptor) + 4000 // BCS++
 	NormalizeScore(score, ability.Train_Battlecruiser, cruisers, 1)
 
 	medivacs := B.PendingAliases(ability.Train_Medivac)
@@ -267,6 +267,9 @@ func OrderUnits() {
 	}
 	if mines >= 8 {
 		score[ability.Train_WidowMine] = -1
+	}
+	if vikings >= 8 {
+		score[ability.Train_VikingFighter] = -1
 	}
 	if (B.Units.AllEnemy[terran.Banshee].Exists() ||
 		B.Units.AllEnemy.OfType(B.U.UnitAliases.For(terran.Starport)...).Exists()) && vikings == 0 {

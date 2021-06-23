@@ -32,6 +32,7 @@ const (
 	TanksOnExps
 	Thors
 	Medivacs
+	ThorEvacs
 	Vikings
 	Ravens
 	Banshees
