@@ -13,7 +13,10 @@ func MedivacsLogic(us scl.Units) {
 
 	patients := append(B.Groups.Get(bot.Marines).Units, B.Groups.Get(bot.Marauders).Units...)
 	if patients.Empty() {
-		patients = B.Groups.Get(bot.Miners).Units
+		patients = B.Groups.Get(bot.Thors).Units
+		if patients.Empty() {
+			patients = B.Groups.Get(bot.Miners).Units
+		}
 	}
 	if patients.Empty() {
 		return
