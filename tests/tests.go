@@ -210,5 +210,5 @@ func Init(b *bot.Bot) {
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	ThorTest(myId, enemyId, b)
+	TankTest(myId, enemyId, b)
 }

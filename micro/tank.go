@@ -76,6 +76,10 @@ func TankAttack(u *scl.Unit) bool {
 		if u.UnitType == terran.SiegeTank {
 			u.Attack(Targets.ArmedGroundArmored, Targets.ArmedGround, Targets.Ground)
 		} else if u.UnitType == terran.SiegeTankSieged {
+			if u.WeaponCooldown > 9 {
+				u.Command(ability.Stop_Stop) // Used to swich targets if needed
+				return true
+			}
 			targets := Targets.ArmedGroundArmored.Filter(scl.NotStructure).InRangeOf(u, 0)
 			if targets.Empty() {
 				targets = Targets.ArmedGround.Filter(scl.NotStructure).InRangeOf(u, 0)
