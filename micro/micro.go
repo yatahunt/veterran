@@ -227,7 +227,7 @@ func MechRetreat() {
 		}
 		if u.Is(terran.HellionTank, terran.SiegeTank) {
 			targets := enemies.Filter(scl.Visible).InRangeOf(u, 0)
-			if targets.Exists() && u.IsCoolToAttack() && u.IsCoolToAttackAgain() &&
+			if targets.Exists() && u.IsCoolToAttack() && !u.IsAlreadyAttackingTargetInRange() &&
 				scl.DefaultAttackFunc(u, 0, targets) {
 				continue
 			}
@@ -248,7 +248,7 @@ func MechRetreat() {
 				u.CommandPos(ability.Move, pos)
 			}
 		} else {
-			u.GroundFallback(healingPoint)
+			u.GroundFallback(healingPoint, false)
 		}
 	}
 }

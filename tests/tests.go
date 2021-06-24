@@ -12,7 +12,7 @@ func VikingVsCollosus(myId, enemyId api.PlayerID, b *bot.Bot) {
 	b.DebugAddUnits(protoss.Colossus, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 1)
 	// b.DebugAddUnits(protoss.WarpPrism, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 1)
 	// b.DebugAddUnits(terran.MissileTurret, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 8), 1)
-	b.DebugAddUnits(terran.VikingFighter, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, -10), 1)
+	b.DebugAddUnits(terran.VikingFighter, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, -6), 1)
 	// b.DebugAddUnits(terran.Banshee, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, -10), 1)
 	// b.DebugAddUnits(terran.SiegeTank, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, -10), 1)
 	b.DebugSend()
@@ -210,5 +210,5 @@ func Init(b *bot.Bot) {
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	VikingTest(myId, enemyId, b)
+	SiegeEvasion(myId, enemyId, b)
 }

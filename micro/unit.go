@@ -29,7 +29,7 @@ func DefaultManeuver(u *scl.Unit) bool {
 			// Not outranged - we can safely fall back
 			// Or we are weaker - fall back (there should be no attack)
 			if scl.Ground(u) {
-				u.GroundFallback(B.Locs.MyStart - B.Locs.MyStartMinVec*3)
+				u.GroundFallback(B.Locs.MyStart - B.Locs.MyStartMinVec*3, false)
 				return true
 			} else {
 				target := u.TargetPos()

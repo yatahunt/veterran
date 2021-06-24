@@ -96,6 +96,6 @@ func ReapersRetreatLogic(us scl.Units) {
 			continue
 		}
 
-		u.GroundFallback(B.Locs.MyStart-B.Locs.MyStartMinVec*3)
+		u.GroundFallback(B.Locs.MyStart-B.Locs.MyStartMinVec*3, false)
 	}
 }

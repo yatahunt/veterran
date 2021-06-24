@@ -49,7 +49,7 @@ func CycloneManeuver(u *scl.Unit) bool {
 	if lockedOn || !u.IsCoolToAttack() {
 		attackers := B.Enemies.AllReady.CanAttack(u, 4)
 		if attackers.Exists() {
-			u.GroundFallback(B.Locs.MyStart-B.Locs.MyStartMinVec*3)
+			u.GroundFallback(B.Locs.MyStart - B.Locs.MyStartMinVec*3, true)
 			return true
 		}
 	}
@@ -57,6 +57,9 @@ func CycloneManeuver(u *scl.Unit) bool {
 }
 
 func CycloneAttack(u *scl.Unit) bool {
+	if u.HasAbility(ability.Cancel_LockOn) {
+		return false
+	}
 	if Targets.All.Exists() {
 		u.AttackCustom(CycloneAttackFunc, scl.DefaultMoveFunc, Targets.ArmedFlyingArmored, Targets.ArmedFlying,
 			Targets.ArmedArmored, Targets.Armed, Targets.All)

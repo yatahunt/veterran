@@ -278,7 +278,7 @@ func OrderUnits() {
 	if medivacs >= 4 || medivacs > (marines+marauders*2)/8 {
 		score[ability.Train_Medivac] = -1
 	}
-	if B.BruteForce && medivacs == 0 && B.Loop < scl.TimeToLoop(3, 15) {
+	if  medivacs == 0 && (B.BruteForce && B.Loop < scl.TimeToLoop(3, 15) || thors > 0) {
 		score[ability.Train_Medivac] += 10000
 	}
 	if ravens == 0 {
