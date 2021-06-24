@@ -210,5 +210,5 @@ func Init(b *bot.Bot) {
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	SiegeEvasion(myId, enemyId, b)
+	ThorTest(myId, enemyId, b)
 }
