@@ -44,6 +44,16 @@ var BuildingsSizes = map[api.AbilityID]scl.BuildingSize{
 }
 
 var RootBuildOrder = BuildNodes{
+	/*{
+		Name:    "Priority order workers",
+		Ability: ability.Train_SCV,
+		Premise: func() bool {
+			return (B.CcAfterRax || B.CcBeforeRax) && B.Minerals < 150 // todo: time limit
+		},
+		Limit:  func() int { return 42 },
+		Active: func() int { return 2 },
+		Method: TrainScv,
+	},*/
 	{
 		Name:    "Expansion CCs",
 		Ability: ability.Build_CommandCenter,
@@ -51,6 +61,9 @@ var RootBuildOrder = BuildNodes{
 			return B.Enemies.All.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()
 		},
 		Limit: func() int {
+			if B.CcAfterRax || B.CcBeforeRax {
+				return 2
+			}
 			if B.BruteForce && B.Loop < scl.TimeToLoop(2, 40) {
 				return 0
 			}
@@ -80,6 +93,16 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Supplies",
 		Ability: ability.Build_SupplyDepot,
 		Premise: func() bool {
+			if B.CcAfterRax || B.CcBeforeRax {
+				if B.Pending(ability.Train_SCV) < 14 {
+					return false
+				}
+				if B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).Len() == 1 &&
+					(B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Empty() ||
+						B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Len() < 2) {
+					return false
+				}
+			}
 			return B.FoodLeft < 6+B.FoodUsed/20 && B.FoodCap < 200
 		},
 		Limit:  func() int { return 30 },
@@ -89,6 +112,10 @@ var RootBuildOrder = BuildNodes{
 		Name:    "First Barrack",
 		Ability: ability.Build_Barracks,
 		Premise: func() bool {
+			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
+			if B.CcBeforeRax && ccs.Len() == 1 {
+				return false
+			}
 			return !B.ProxyReapers && !B.ProxyMarines &&
 				B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).First(scl.Ready) != nil &&
 				B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Empty()
@@ -145,6 +172,10 @@ var RootBuildOrder = BuildNodes{
 			if B.WorkerRush {
 				return false
 			}
+			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
+			if (B.CcBeforeRax || B.CcAfterRax) && ccs.Len() == 1 {
+				return false
+			}
 			if B.Vespene < B.Minerals*2 {
 				raxPending := B.Pending(ability.Build_Barracks)
 				refPending := B.Pending(ability.Build_Refinery)
@@ -162,8 +193,25 @@ var RootBuildOrder = BuildNodes{
 			}
 			return false
 		},
-		Limit:  func() int { return 20 },
-		Active: func() int { return 2 },
+		Limit: func() int {
+			if B.CcBeforeRax {
+				ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
+				if ccs == 1 {
+					return 1
+				}
+				if ccs == 2 {
+					return 3
+				}
+			}
+			return 20
+		},
+		Active: func() int {
+			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len()
+			if (B.CcAfterRax || B.CcBeforeRax) && ccs < 3 {
+				return 1
+			}
+			return 2
+		},
 		Method: func() {
 			ccs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 			if cc := ccs.First(scl.Ready); cc != nil {
@@ -250,6 +298,9 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Barracks",
 		Ability: ability.Build_Barracks,
 		Premise: func() bool {
+			if B.CcAfterRax && B.Units.My[terran.Barracks].First(scl.Unused) != nil {
+				return false
+			}
 			return !B.WorkerRush && B.Units.My[terran.BarracksFlying].Empty()
 		},
 		Limit: func() int {
@@ -267,6 +318,9 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Engineering Bay",
 		Ability: ability.Build_EngineeringBay,
 		Premise: func() bool {
+			if B.CcAfterRax || B.CcBeforeRax {
+				return B.Units.My.OfType(B.U.UnitAliases.For(terran.Factory)...).First(scl.Ready) != nil
+			}
 			return B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Filter(scl.Ready).Len() >= 2
 		},
 		Limit:  BuildOne,
@@ -352,14 +406,14 @@ var FactoryBuildOrder = BuildNodes{
 			if allFactories.Len() == 1 {
 				return 1
 			}
-			return allFactories.Len() - 1
+			return allFactories.Len() // - 1
 		},
 		Active: BuildOne,
 		Method: func() {
 			B.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_TechLab_Factory)
 		},
 	},
-	{
+	/*{
 		Name:    "Factory Reactor",
 		Ability: ability.Build_Reactor_Factory,
 		Premise: func() bool {
@@ -378,7 +432,7 @@ var FactoryBuildOrder = BuildNodes{
 		Method: func() {
 			B.Units.My[terran.Factory].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Factory)
 		},
-	},
+	},*/
 }
 
 var StarportBuildOrder = BuildNodes{
@@ -397,14 +451,14 @@ var StarportBuildOrder = BuildNodes{
 			if allStarports.Len() == 1 {
 				return 1
 			}
-			return allStarports.Len() - 1
+			return allStarports.Len() // - 1
 		},
 		Active: BuildOne,
 		Method: func() {
 			B.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_TechLab_Starport)
 		},
 	},
-	{
+	/*{
 		Name:    "Starport Reactor",
 		Ability: ability.Build_Reactor_Starport,
 		Premise: func() bool {
@@ -423,7 +477,7 @@ var StarportBuildOrder = BuildNodes{
 		Method: func() {
 			B.Units.My[terran.Starport].First(scl.Ready, scl.NoAddon, scl.Idle).Command(ability.Build_Reactor_Starport)
 		},
-	},
+	},*/
 	{
 		Name:    "Fusion Core",
 		Ability: ability.Build_FusionCore,
@@ -517,7 +571,10 @@ func Build(aid api.AbilityID) point.Point {
 
 func BuildFirstBarrack() {
 	pos := B.FirstBarrack[0]
-	scv := B.Units.My[terran.SCV].ClosestTo(pos)
+	scv := B.Units.My[terran.SCV].CloserThan(5, pos).ClosestTo(pos)
+	if scv == nil {
+		scv = bot.GetSCV(pos, 0, 45)
+	}
 	if scv != nil {
 		B.Groups.Add(bot.Builders, scv)
 		OrderBuild(scv, pos, ability.Build_Barracks)
@@ -526,7 +583,10 @@ func BuildFirstBarrack() {
 
 func BuildProxyBarrack() {
 	pos := B.Locs.EnemyExps[B.Units.My[terran.Barracks].Len()+2]
-	scv := B.Units.My[terran.SCV].ClosestTo(pos)
+	scv := B.Units.My[terran.SCV].CloserThan(5, pos).ClosestTo(pos)
+	if scv == nil {
+		scv = bot.GetSCV(pos, 0, 45)
+	}
 	if scv != nil {
 		B.Groups.Add(bot.Builders, scv)
 		OrderBuild(scv, pos, ability.Build_Barracks)

@@ -21,6 +21,9 @@ import (
 
 // todo: Логика для скрытых баньши (зоны детекции)
 // todo: Зерглинги закопанные на экспах
+// todo: Рассчитывать сколько урона сплешем нанесёт танк своим и чужим, и т.о. выбирать лучшую цель
+// todo: Похоже, туррель рейвена не ставится потому что на клетке уже юнит стоит
+// todo: Починить приказы в очереди для мины
 
 // todo: разведка первым марином
 // todo: Было бы очень круто использовать хайграунд для атак без опасения ответа
@@ -88,6 +91,8 @@ func ChooseStrategy(B *bot.Bot) {
 	B.ProxyReapers = B.Strategy == bot.ProxyReapers
 	B.ProxyMarines = B.Strategy == bot.ProxyMarines
 	B.BruteForce = B.Strategy == bot.BruteForce
+	B.CcAfterRax = B.Strategy == bot.CcAfterRax
+	B.CcBeforeRax = B.Strategy == bot.CcBeforeRax
 	log.Infof("Game versus: %s, strategy: %d", client.LadderOpponentID, B.Strategy)
 }
 

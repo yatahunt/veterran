@@ -120,15 +120,7 @@ func NormalizeScore(score map[api.AbilityID]int, a api.AbilityID, qty, defQty in
 	score[a] = 1000 * (score[a] + defQty*price/100) / ((qty + 1) * price)
 }
 
-func OrderUnits() {
-	usedFactories := scl.TagsMap{}
-
-	if B.WorkerRush && B.CanBuy(ability.Train_Marine) {
-		if rax := GetFactory(terran.Barracks, false, usedFactories); rax != nil {
-			OrderTrain(rax, ability.Train_Marine, usedFactories)
-		}
-	}
-
+func TrainScv() {
 	ccs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
 	cc := ccs.First(scl.Ready, scl.Idle)
 	refs := B.Units.My[terran.Refinery].Filter(func(unit *scl.Unit) bool {
@@ -137,8 +129,19 @@ func OrderUnits() {
 	// Build SCVs todo: check if all minerals & gas are saturated
 	if cc != nil && B.Units.My[terran.SCV].Len() < scl.MinInt(21*ccs.Len(), 70-refs.Len()) &&
 		B.CanBuy(ability.Train_SCV) && !B.WorkerRush {
-		OrderTrain(cc, ability.Train_SCV, usedFactories)
+		OrderTrain(cc, ability.Train_SCV, nil)
 	}
+}
+
+func OrderUnits() {
+	usedFactories := scl.TagsMap{}
+
+	if B.WorkerRush && B.CanBuy(ability.Train_Marine) {
+		if rax := GetFactory(terran.Barracks, false, usedFactories); rax != nil {
+			OrderTrain(rax, ability.Train_Marine, usedFactories)
+		}
+	}
+	TrainScv()
 
 	// Tank strong: Photon Cannon, Stalker, Bunker, Planetary Fortress, Marine, Cyclone, Spine, Roach, Hydralisk,
 	// Lurker
@@ -255,6 +258,8 @@ func OrderUnits() {
 	// Priority train score
 	if B.BruteForce && tanks == 0 && B.Loop < scl.TimeToLoop(2, 45) {
 		score[ability.Train_SiegeTank] += 10000
+	} else {
+		score[ability.Train_SiegeTank] += 1000
 	}
 	if tanks == 0 && score[ability.Train_SiegeTank] > 0 && cyclones > 0 {
 		score[ability.Train_Cyclone] = -1
@@ -278,7 +283,7 @@ func OrderUnits() {
 	if medivacs >= 4 || medivacs > (marines+marauders*2)/8 {
 		score[ability.Train_Medivac] = -1
 	}
-	if  medivacs == 0 && (B.BruteForce && B.Loop < scl.TimeToLoop(3, 15) || thors > 0) {
+	if medivacs == 0 && (B.BruteForce && B.Loop < scl.TimeToLoop(3, 15) || thors > 0) {
 		score[ability.Train_Medivac] += 10000
 	}
 	if ravens == 0 {
@@ -293,7 +298,7 @@ func OrderUnits() {
 	/*if B.Loop < scl.TimeToLoop(3, 0) && (B.ProxyMarines || B.BruteForce) {
 		score[ability.Train_Marine] += 5000
 	}*/
-	if B.Loop < scl.TimeToLoop(1, 30) && !B.ProxyMarines {
+	if B.Loop < scl.TimeToLoop(1, 30) && !B.ProxyMarines && !B.CcAfterRax && !B.CcBeforeRax {
 		// Don't build marine first if we almost have gas for the reaper
 		score[ability.Train_Marine] = -1
 	}

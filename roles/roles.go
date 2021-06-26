@@ -227,7 +227,8 @@ func ReconBase() {
 	}
 
 	scv := B.Groups.Get(bot.ScoutBase).Units.First()
-	if scv == nil && B.Locs.EnemyStarts.Len() <= 1 && !B.WorkerRush && B.Loop > 896 && B.Loop < 906 {
+	if scv == nil && B.Locs.EnemyStarts.Len() <= 1 && !B.WorkerRush && B.Loop > scl.TimeToLoop(0, 45) &&
+		B.Loop < scl.TimeToLoop(1, 0) {
 		// 0:50 hire scout
 		scv = bot.GetSCV(B.Locs.EnemyStart, bot.Scout, 45)
 		if scv != nil {

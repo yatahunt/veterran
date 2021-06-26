@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.5.11 (glhf)"
+const version = "VeTerran v2.5.12 (glhf)"
 
 type Strategy int
 
@@ -17,13 +17,17 @@ const (
 	ProxyReapers
 	ProxyMarines
 	BruteForce
+	CcAfterRax
+	CcBeforeRax
 	MaxStrategyId
 )
 
-var StrategyPriority = map[Strategy]float64 { // More is better
-	BruteForce: 0.95,
+var StrategyPriority = map[Strategy]float64{ // More is better
+	CcBeforeRax:  0.97, // temp
+	CcAfterRax:   0.96, // temp
+	BruteForce:   0.95,
 	ProxyReapers: 0.9,
-	Default: 0.85,
+	Default:      0.85,
 	ProxyMarines: 0.8,
 }
 
@@ -42,6 +46,8 @@ type Bot struct {
 	ProxyReapers   bool
 	ProxyMarines   bool
 	BruteForce     bool
+	CcAfterRax     bool
+	CcBeforeRax    bool
 
 	BuildPos     map[scl.BuildingSize]point.Points
 	FirstBarrack point.Points

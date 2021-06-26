@@ -89,7 +89,7 @@ func WidowMinesRetreatLogic(us scl.Units) {
 
 			u.CommandPos(ability.Move, p1)
 			u.CommandPosQueue(ability.Move, p2)
-			u.CommandQueue(ability.BurrowDown_WidowMine)
+			u.CommandQueue(ability.BurrowDown_WidowMine) // todo: это 100% не работает как надо и выдаёт ошибку очереди
 		}
 	}
 }

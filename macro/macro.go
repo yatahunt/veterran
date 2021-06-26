@@ -137,7 +137,11 @@ func ReserveSCVs() {
 		B.Groups.Get(bot.ScvReserve).Tags.Empty() {
 		pos := B.BuildPos[scl.S2x2][0]
 		scv := bot.GetSCV(pos, 0, 45) // Get SCV but don't change its group
-		if scv != nil && scv.FramesToPos(pos)*B.MineralsPerFrame+float64(B.Minerals) >= 100 {
+		mineralsOnPos := scv.FramesToPos(pos)*B.MineralsPerFrame+float64(B.Minerals)
+		if B.CcAfterRax || B.CcBeforeRax {
+			mineralsOnPos -= 40 // Send worker little later
+		}
+		if scv != nil && mineralsOnPos >= 100 {
 			B.Groups.Add(bot.ScvReserve, scv)
 			scv.CommandPos(ability.Move, pos)
 		}
@@ -175,7 +179,7 @@ func ReserveSCVs() {
 	}
 	// Fast expansion
 	if !B.BruteForce && B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Len() == 1 &&
-		B.Minerals >= 350 && B.Groups.Get(bot.ScvReserve).Tags.Empty() && !B.WorkerRush {
+		B.Minerals >= 320 && B.Groups.Get(bot.ScvReserve).Tags.Empty() && !B.WorkerRush {
 		pos := B.Locs.MyExps[0]
 		if scv := bot.GetSCV(pos, bot.ScvReserve, 45); scv != nil {
 			scv.CommandPos(ability.Move, pos)

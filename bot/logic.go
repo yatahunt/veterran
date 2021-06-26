@@ -13,7 +13,7 @@ func FindMainBuildingTypesPositions(startLoc point.Point) (point.Points, point.P
 	start := startLoc + 9
 
 	for y := -3.0; y <= 3; y++ {
-		for x := -6.0; x <= 6; x++ {
+		for x := -8.0; x <= 8; x++ {
 			pos := start + point.Pt(3, 2).Mul(x) + point.Pt(-6, 8).Mul(y)
 			if B.Grid.HeightAt(pos) == slh && B.IsPosOk(pos, scl.S3x3, 2, scl.IsBuildable) {
 				if B.IsPosOk(pos+2-1i, scl.S2x2, 2, scl.IsBuildable) {
@@ -293,21 +293,19 @@ func DefensivePlayCheck() {
 	} else if armyScore < enemyScore {
 		EnableDefensivePlay()
 	}
-	/*if B.Loop >= 3584 && B.Loop < 3594 { // 2:40
-		townHalls := append(B.U.UnitAliases.For(terran.CommandCenter), B.U.UnitAliases.For(zerg.Hatchery)...)
-		townHalls = append(townHalls, protoss.Nexus)
-		if B.Units.AllEnemy.OfType(townHalls...).Len() < 2 {
-			B.EnableDefensivePlay()
-		}
-	}*/
-	/*if B.Loop < 4480 && B.Units.AllEnemy[protoss.Stalker].Len() > 2 { // 3:20
-		B.EnableDefensivePlay()
-	}*/
+
 	if B.PlayDefensive {
 		buildings := append(B.Groups.Get(Buildings).Units, B.Groups.Get(UnderConstruction).Units...)
 		farBuilding := buildings.FurthestTo(B.Locs.MyStart)
 		if farBuilding != nil {
 			B.DefensiveRange = farBuilding.Dist(B.Locs.MyStart) + 20
 		}
+	}
+
+	// Disable greed if enemies are close (but one scout is ok)
+	if (B.CcAfterRax || B.CcBeforeRax) &&
+		B.Enemies.All.Filter(scl.NotWorker).CloserThan(50, B.Locs.MyStart).Len() >= 2 {
+		B.CcAfterRax = false
+		B.CcBeforeRax = false
 	}
 }

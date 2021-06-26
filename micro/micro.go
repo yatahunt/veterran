@@ -117,6 +117,8 @@ func WorkerRushDefence() {
 		B.ProxyReapers = false
 		B.ProxyMarines = false
 		B.BruteForce = false
+		B.CcAfterRax = false
+		B.CcBeforeRax = false
 	}
 
 	workers := B.Units.My[terran.SCV].CloserThan(scl.ResourceSpreadDistance, B.Locs.MyStart)
