@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.5.12 (glhf)"
+const version = "VeTerran v2.5.13 (glhf)"
 
 type Strategy int
 
@@ -29,6 +29,25 @@ var StrategyPriority = map[Strategy]float64{ // More is better
 	ProxyReapers: 0.9,
 	Default:      0.85,
 	ProxyMarines: 0.8,
+}
+
+func (s Strategy) String() string {
+	switch s {
+	case Default:
+		return "Default"
+	case ProxyReapers:
+		return "Proxy_Reapers"
+	case ProxyMarines:
+		return "Proxy_Marines"
+	case BruteForce:
+		return "Brute_Force"
+	case CcAfterRax:
+		return "Cc_After_Rax"
+	case CcBeforeRax:
+		return "Cc_Before_Rax"
+	default:
+		return "Unknown"
+	}
 }
 
 type Bot struct {
@@ -88,14 +107,9 @@ func Step() {
 
 	B.Cmds = &scl.CommandsStack{} // todo: move this block into the lib
 	B.Loop = int(B.Obs.GameLoop)
-	/*if B.Loop != 0 && B.Loop-B.LastLoop != 1 && !B.IsRealtime {
-		B.FramesPerOrder = 6
-		B.IsRealtime = true
-		B.Actions.ChatSend(version)
-		B.Actions.ChatSend("Realtime mode detected")
-	}*/                                  // todo: fix later
-	if B.Loop >= 9 && !B.VersionPosted { // && !B.IsRealtime
+	if B.Loop >= 9 && !B.VersionPosted {
 		B.Actions.ChatSend(version, api.ActionChat_Broadcast)
+		B.Actions.ChatSend("Tag: Strategy_" + B.Strategy.String(), api.ActionChat_Team)
 		B.VersionPosted = true
 	}
 	if B.Loop < B.LastLoop+B.FramesPerOrder {
