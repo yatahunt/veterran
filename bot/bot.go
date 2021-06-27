@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.5.13 (glhf)"
+const version = "VeTerran v2.5.14 (glhf)"
 
 type Strategy int
 
@@ -42,9 +42,9 @@ func (s Strategy) String() string {
 	case BruteForce:
 		return "Brute_Force"
 	case CcAfterRax:
-		return "Cc_After_Rax"
+		return "CC_After_Rax"
 	case CcBeforeRax:
-		return "Cc_Before_Rax"
+		return "CC_Before_Rax"
 	default:
 		return "Unknown"
 	}

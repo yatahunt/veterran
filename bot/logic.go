@@ -80,7 +80,8 @@ func FindBuildingsPositions() {
 		}
 		// Position for turret
 		closeSupply := rp2x2.ClosestTo(B.Locs.MyStart)
-		pos := B.FindClosestPos(closeSupply, scl.S2x2, 0, 2, 2, scl.IsBuildable, scl.IsPathable)
+		pos := B.FindClosestPos(closeSupply, scl.S2x2, ability.Build_MissileTurret,
+			0, 2, 2, scl.IsBuildable, scl.IsPathable)
 		if pos != 0 {
 			B.TurretsPos.Add(pos.CellCenter())
 		}
@@ -186,8 +187,10 @@ func FindTurretPosition(ptr point.Pointer) {
 	// B.DebugPoints(rekt...)
 
 	for _, corner := range rekt {
-		if pos = B.FindClosestPos(corner, scl.S2x2, 0, 0, 1, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep); pos == 0 {
-			pos = B.FindClosestPos(corner, scl.S2x2, 0, 1, 1, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep)
+		if pos = B.FindClosestPos(corner, scl.S2x2, ability.Build_MissileTurret,
+			0, 0, 1, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep); pos == 0 {
+			pos = B.FindClosestPos(corner, scl.S2x2, ability.Build_MissileTurret,
+				0, 1, 1, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep)
 		}
 		if pos == 0 {
 			continue

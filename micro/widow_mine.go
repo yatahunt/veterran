@@ -5,7 +5,6 @@ import (
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
 	"github.com/aiseeq/s2l/protocol/enums/effect"
-	"math/rand"
 )
 
 func WidowMineManeuver(u *scl.Unit) bool {
@@ -74,7 +73,7 @@ func WidowMinesRetreatLogic(us scl.Units) {
 		if u.IsIdle() {
 			vec := (B.Locs.EnemyStart - u.Point()).Norm()
 			p1 := u.Point() - vec*20
-			p2 := p1
+			/*p2 := p1
 			if rand.Intn(2) == 1 {
 				vec *= 1i
 			} else {
@@ -85,11 +84,11 @@ func WidowMinesRetreatLogic(us scl.Units) {
 					break
 				}
 				p2 += vec * 10
-			}
+			}*/
 
 			u.CommandPos(ability.Move, p1)
-			u.CommandPosQueue(ability.Move, p2)
-			u.CommandQueue(ability.BurrowDown_WidowMine) // todo: это 100% не работает как надо и выдаёт ошибку очереди
+			// u.CommandPosQueue(ability.Move, p2)
+			u.CommandQueue(ability.BurrowDown_WidowMine)
 		}
 	}
 }

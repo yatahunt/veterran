@@ -51,10 +51,12 @@ func RavensLogic(us scl.Units) {
 		if u.Energy >= 50 {
 			closeEnemies := B.Enemies.AllReady.CloserThan(8, u)
 			if closeEnemies.Exists() && closeEnemies.Sum(scl.CmpHits) >= 300 {
-				pos := u.Towards(closeEnemies.Center(), 3)
-				pos = B.FindClosestPos(pos, scl.S2x2, 0, 1, 1, scl.IsBuildable, scl.IsPathable)
+				enemy := closeEnemies.ClosestTo(u)
+				pos := enemy.Towards(u, float64(enemy.Radius+2))
+				pos = B.FindClosestPos(pos, scl.S2x2, ability.Effect_AutoTurret,
+					0, 1, 1, scl.IsBuildable, scl.IsPathable)
 				if pos != 0 {
-					u.CommandPos(ability.Effect_AutoTurret, pos.CellCenter())
+					u.CommandPos(ability.Effect_AutoTurret, pos)
 					continue
 				}
 			}

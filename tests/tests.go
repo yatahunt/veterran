@@ -205,10 +205,18 @@ func SiegeEvasion(myId, enemyId api.PlayerID, b *bot.Bot) {
 	b.Actions.MoveCamera(b.Locs.MyStart.Towards(b.Locs.MapCenter, 8))
 }
 
+func RavenTest(myId, enemyId api.PlayerID, b *bot.Bot) {
+	b.DebugAddUnits(zerg.Roach, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 4), 6)
+	b.DebugAddUnits(terran.Marine, myId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 10), 16)
+	b.DebugAddUnits(terran.Raven, myId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 12), 1)
+	b.DebugSend()
+	b.Actions.MoveCamera(b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 8))
+}
+
 func Init(b *bot.Bot) {
 	myId := b.Obs.PlayerCommon.PlayerId
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	TankTest(myId, enemyId, b)
+	RavenTest(myId, enemyId, b)
 }

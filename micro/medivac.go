@@ -35,6 +35,11 @@ func MedivacsLogic(us scl.Units) {
 		if DefaultRetreat(u) || u.EvadeEffects() {
 			continue
 		}
+		// quickfix: I don't know how medivac can grab thor while he is not in ThorEvacs group
+		if len(u.Passengers) > 0 {
+			u.CommandPos(ability.UnloadAllAt_Medivac, u)
+			continue
+		}
 
 		enemies := B.Enemies.AllReady.CanAttack(u, 2)
 		pos, safe := u.AirEvade(enemies, 2, u)
