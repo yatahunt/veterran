@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.5.14 (glhf)"
+const version = "VeTerran v2.5.15 (glhf)"
 
 type Strategy int
 
@@ -23,12 +23,12 @@ const (
 )
 
 var StrategyPriority = map[Strategy]float64{ // More is better
-	CcBeforeRax:  0.97, // temp
-	CcAfterRax:   0.96, // temp
 	BruteForce:   0.95,
-	ProxyReapers: 0.9,
-	Default:      0.85,
-	ProxyMarines: 0.8,
+	CcBeforeRax:  0.9,
+	ProxyReapers: 0.85,
+	CcAfterRax:   0.8,
+	Default:      0.75,
+	ProxyMarines: 0.7,
 }
 
 func (s Strategy) String() string {

@@ -27,7 +27,7 @@ func TankMorph(u *scl.Unit) bool {
 	if u.UnitType == terran.SiegeTank {
 		targets := Targets.Ground.InRangeOf(u, 0)
 		farTargets := Targets.Ground.InRangeOf(u, 13-7) // Sieged range - mobile range
-		inSight := Targets.Ground.InRangeOf(u, 4-0.5) // 7+4=11 - sight range
+		inSight := Targets.Ground.InRangeOf(u, 4-0.5)   // 7+4=11 - sight range
 
 		// Tank can't attack anyone now and there is a far target that can hit tank if it closes or
 		// there is a lot of far targets that worth morphing
@@ -71,33 +71,87 @@ func TankMorph(u *scl.Unit) bool {
 	return false
 }
 
+func CalcDamageScore(target *scl.Unit, mul float64) float64 {
+	var dmg float64
+	if target.IsArmored() {
+		dmg = 70 * mul
+	} else {
+		dmg = 40 * mul
+	}
+	// I've tried to add some points here if target dies but it seems that its not worth it
+	// Benchmark: 4004 - old algo, 4459 - current, 3996 - if I add score for kills
+	return dmg
+}
+
+func GetDamageScore(target *scl.Unit, targets scl.Units) float64 {
+	var dmg float64
+	for _, subTarget := range targets {
+		if target.Tag == subTarget.Tag {
+			continue
+		}
+		if subTarget.IsFurtherThan(1.25+float64(subTarget.Radius), target) {
+			continue
+		}
+		mul := 0.25
+		if subTarget.IsCloserThan(0.7812+float64(subTarget.Radius), target) {
+			mul = 0.5
+			if subTarget.IsCloserThan(0.4687+float64(subTarget.Radius), target) {
+				mul = 1
+			}
+		}
+		dmg += CalcDamageScore(subTarget, mul)
+	}
+	return dmg
+}
+
+func FindBestTarget(u *scl.Unit, targets, friends scl.Units) *scl.Unit {
+	targets = targets.Filter(func(unit *scl.Unit) bool {
+		if !unit.IsVisible() {
+			return false
+		}
+		dist := u.Dist(unit) - float64(u.Radius+unit.Radius)
+		return dist >= 2 && dist <= 13
+	})
+	if targets.Empty() {
+		return nil
+	}
+	friends = friends.CloserThan(16, u)
+
+	var maxDmg float64
+	var bestTarget *scl.Unit
+	for _, target := range targets {
+		dmg := CalcDamageScore(target, 1)
+		dmg += GetDamageScore(target, targets)
+		dmg -= GetDamageScore(target, friends)
+
+		if dmg > maxDmg {
+			bestTarget = target
+			maxDmg = dmg
+		}
+	}
+	return bestTarget
+}
+
 func TankAttack(u *scl.Unit) bool {
 	if Targets.Ground.Exists() {
 		if u.UnitType == terran.SiegeTank {
 			u.Attack(Targets.ArmedGroundArmored, Targets.ArmedGround, Targets.Ground)
 		} else if u.UnitType == terran.SiegeTankSieged {
-			if u.WeaponCooldown > 9 {
-				u.Command(ability.Stop_Stop) // Used to swich targets if needed
+			if u.WeaponCooldown < 6 && u.IsAlreadyAttackingTargetInRange() {
+				// Don't switch targets, it's time to shoot soon
 				return true
 			}
-			targets := Targets.ArmedGroundArmored.Filter(scl.NotStructure).InRangeOf(u, 0)
-			if targets.Empty() {
-				targets = Targets.ArmedGround.Filter(scl.NotStructure).InRangeOf(u, 0)
+
+			target := FindBestTarget(u, Targets.ArmedGroundNotBuildings, Targets.MyGround)
+			if target == nil {
+				target = FindBestTarget(u, Targets.ArmedGround, Targets.MyGround)
 			}
-			if targets.Empty() {
-				targets = Targets.Ground.Filter(scl.NotStructure).InRangeOf(u, 0)
+			if target == nil {
+				target = FindBestTarget(u, Targets.Ground, Targets.MyGround)
 			}
-			if targets.Empty() {
-				targets = Targets.ArmedGroundArmored.InRangeOf(u, 0)
-			}
-			if targets.Empty() {
-				targets = Targets.ArmedGround.InRangeOf(u, 0)
-			}
-			if targets.Empty() {
-				targets = Targets.Ground.InRangeOf(u, 0)
-			}
-			if targets.Exists() {
-				u.Attack(targets)
+			if target != nil {
+				u.CommandTag(ability.Attack_Attack, target.Tag)
+				B.U.LastAttack[u.Tag] = B.Loop
 			}
 		}
 		return true

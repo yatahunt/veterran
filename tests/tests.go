@@ -213,10 +213,20 @@ func RavenTest(myId, enemyId api.PlayerID, b *bot.Bot) {
 	b.Actions.MoveCamera(b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 8))
 }
 
+func SplashOptimizationTest(myId, enemyId api.PlayerID, b *bot.Bot) {
+	b.DebugAddUnits(zerg.Hydralisk, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 4), 6)
+	b.DebugAddUnits(zerg.Zergling, enemyId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 6), 16)
+	b.DebugAddUnits(terran.Marine, myId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 10), 16)
+	b.DebugAddUnits(terran.Medivac, myId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 12), 2)
+	b.DebugAddUnits(terran.SiegeTankSieged, myId, b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 16), 1)
+	b.DebugSend()
+	b.Actions.MoveCamera(b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 10))
+}
+
 func Init(b *bot.Bot) {
 	myId := b.Obs.PlayerCommon.PlayerId
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	RavenTest(myId, enemyId, b)
+	SplashOptimizationTest(myId, enemyId, b)
 }

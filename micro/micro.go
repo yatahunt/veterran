@@ -13,21 +13,23 @@ import (
 )
 
 type TargetsTypes struct {
-	All                scl.Units
-	Flying             scl.Units
-	Ground             scl.Units
-	Armed              scl.Units
-	ArmedArmored       scl.Units
-	ArmedFlying        scl.Units
-	ArmedFlyingArmored scl.Units
-	ArmedGround        scl.Units
-	ArmedGroundArmored scl.Units
-	ArmedGroundLight   scl.Units
-	AntiAir            scl.Units
-	ReaperOk           scl.Units
-	ReaperGood         scl.Units
-	ForMines           scl.Units
-	ForYamato          scl.Units
+	All                     scl.Units
+	Flying                  scl.Units
+	Ground                  scl.Units
+	Armed                   scl.Units
+	ArmedArmored            scl.Units
+	ArmedFlying             scl.Units
+	ArmedFlyingArmored      scl.Units
+	ArmedGround             scl.Units
+	ArmedGroundArmored      scl.Units
+	ArmedGroundLight        scl.Units
+	ArmedGroundNotBuildings scl.Units
+	AntiAir                 scl.Units
+	ReaperOk                scl.Units
+	ReaperGood              scl.Units
+	ForMines                scl.Units
+	ForYamato               scl.Units
+	MyGround                scl.Units // My units that can be damaged by my tanks with splash
 }
 
 var B *bot.Bot
@@ -78,6 +80,9 @@ func InitTargets() {
 				} else if u.IsLight() {
 					Targets.ArmedGroundLight.Add(u)
 				}
+				if !u.IsStructure() {
+					Targets.ArmedGroundNotBuildings.Add(u)
+				}
 			}
 		}
 		if !u.IsStructure() {
@@ -86,6 +91,11 @@ func InitTargets() {
 		if u.AirDamage() > 0 && u.Hits > 120 || u.UnitType == protoss.Carrier || u.UnitType == zerg.Ultralisk ||
 			u.UnitType == zerg.Viper || u.UnitType == zerg.Infestor {
 			Targets.ForYamato.Add(u)
+		}
+	}
+	for _, u := range B.Units.My.All() {
+		if !u.IsFlying {
+			Targets.MyGround.Add(u)
 		}
 	}
 }
