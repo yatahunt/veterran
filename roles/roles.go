@@ -280,7 +280,7 @@ func ReconHellion() {
 		for _, pos := range B.Locs.EnemyExps {
 			if B.IsVisible(pos) ||
 				B.Enemies.Visible.CloserThan(3, pos).Exists() ||
-				B.Units.My.All().CloserThan(3, pos).Exists() {
+				B.Units.MyAll.CloserThan(3, pos).Exists() {
 				continue
 			}
 			hellion.CommandPosQueue(ability.Move, pos)

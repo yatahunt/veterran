@@ -199,7 +199,8 @@ func VikingsEffectsEvasion(myId, enemyId api.PlayerID, b *bot.Bot) {
 }
 
 func SiegeEvasion(myId, enemyId api.PlayerID, b *bot.Bot) {
-	b.DebugAddUnits(terran.SiegeTankSieged, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 14), 1)
+	b.DebugAddUnits(terran.SiegeTankSieged, enemyId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 14), 2)
+	b.DebugAddUnits(terran.Marauder, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 4)
 	b.DebugAddUnits(terran.Marine, myId, b.Locs.MyStart.Towards(b.Locs.MapCenter, 4), 8)
 	b.DebugSend()
 	b.Actions.MoveCamera(b.Locs.MyStart.Towards(b.Locs.MapCenter, 8))
@@ -228,5 +229,5 @@ func Init(b *bot.Bot) {
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	SplashOptimizationTest(myId, enemyId, b)
+	SiegeEvasion(myId, enemyId, b)
 }

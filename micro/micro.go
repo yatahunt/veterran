@@ -93,7 +93,7 @@ func InitTargets() {
 			Targets.ForYamato.Add(u)
 		}
 	}
-	for _, u := range B.Units.My.All() {
+	for _, u := range B.Units.MyAll {
 		if !u.IsFlying {
 			Targets.MyGround.Add(u)
 		}
@@ -115,7 +115,7 @@ func WorkerRushDefence() {
 	enemyWorkers := B.Units.Enemy.OfType(terran.SCV, zerg.Drone, protoss.Probe)
 	if B.WorkerRush {
 		workersRange = 50.0
-	} else if building := B.Units.My.All().Filter(scl.Structure).ClosestTo(B.Ramps.My.Top); building != nil {
+	} else if building := B.Units.MyAll.Filter(scl.Structure).ClosestTo(B.Ramps.My.Top); building != nil {
 		workersRange = math.Max(workersRange, building.Dist(B.Locs.MyStart)+6)
 	}
 

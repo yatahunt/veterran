@@ -35,8 +35,7 @@ func GetSCV(ptr point.Pointer, assignGroup scl.GroupID, minHits float64) *scl.Un
 
 func AlreadyTraining(abilityID api.AbilityID) int {
 	count := 0
-	units := B.Units.My.All()
-	for _, unit := range units {
+	for _, unit := range B.Units.MyAll {
 		if unit.IsStructure() && unit.TargetAbility() == abilityID {
 			count++
 		}

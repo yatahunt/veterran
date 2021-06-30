@@ -93,7 +93,7 @@ func ChooseStrategy(B *bot.Bot) {
 	B.BruteForce = B.Strategy == bot.BruteForce
 	B.CcAfterRax = B.Strategy == bot.CcAfterRax
 	B.CcBeforeRax = B.Strategy == bot.CcBeforeRax
-	log.Infof("Game versus: %s, strategy: %d", client.LadderOpponentID, B.Strategy)
+	log.Infof("Game versus: %s, strategy: %s", client.LadderOpponentID, B.Strategy.String())
 }
 
 func RunAgent(c *client.Client) {

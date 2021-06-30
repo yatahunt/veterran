@@ -80,6 +80,16 @@ func CalcDamageScore(target *scl.Unit, mul float64) float64 {
 	}
 	// I've tried to add some points here if target dies but it seems that its not worth it
 	// Benchmark: 4004 - old algo, 4459 - current, 3996 - if I add score for kills
+	// But then I made another test:
+	// 4604 - no score for kill, 4390 - +1 for kill, 4090 - count only real HP, 4073 - double score for kill
+	if target.Hits <= dmg {
+		// But I think that my benchmark could be bad for measuring all the changes. For instance, how this could be
+		// bad? I add score for destroyed units. Ex: 2 same units could be hit by splash. But one has more hits, so
+		// direct hit won't kill it but it will kill other unit. In case of +1 later variant will be chosen
+		dmg += 1
+		// dmg = target.Hits
+		// dmg *= 2
+	}
 	return dmg
 }
 

@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.5.16 (glhf)"
+const version = "VeTerran v2.6.0 (glhf)"
 
 type Strategy int
 
@@ -97,9 +97,9 @@ func ParseData() {
 
 func GGCheck() bool {
 	return (B.Minerals < 50 &&
-		B.Units.My.All().First(func(unit *scl.Unit) bool { return !unit.IsStructure() }) == nil &&
+		B.Units.MyAll.First(func(unit *scl.Unit) bool { return !unit.IsStructure() }) == nil &&
 		B.Enemies.All.First(scl.DpsGt5) != nil) ||
-		B.Units.My.All().Filter(scl.Structure, scl.Ground).Empty()
+		B.Units.MyAll.Filter(scl.Structure, scl.Ground).Empty()
 }
 
 func RecoverPanic() {

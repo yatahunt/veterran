@@ -52,7 +52,7 @@ func Cast() {
 			visibleEnemies := allEnemies.Filter(func(unit *scl.Unit) bool {
 				return unit.IsPosVisible() || unit.IsVisible()
 			})
-			units := B.Units.My.All()
+			units := B.Units.MyAll
 			// Reveal hidden units that can be attacked
 			hiddenEnemies := allEnemies.Filter(scl.Hidden, scl.PosVisible)
 			if hiddenEnemies.Exists() {

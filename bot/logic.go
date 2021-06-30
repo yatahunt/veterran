@@ -284,7 +284,7 @@ func DisableDefensivePlay() {
 }
 
 func DefensivePlayCheck() {
-	armyScore := B.Units.My.All().Filter(scl.NotWorker).Sum(scl.CmpFood)
+	armyScore := B.Units.MyAll.Filter(scl.NotWorker).Sum(scl.CmpFood)
 	enemyScore := B.Enemies.All.Filter(scl.NotWorker).Sum(scl.CmpFood)
 	balance := B.Obs.Score.ScoreDetails.KilledMinerals.Army + B.Obs.Score.ScoreDetails.KilledVespene.Army -
 		B.Obs.Score.ScoreDetails.LostMinerals.Army - B.Obs.Score.ScoreDetails.LostVespene.Army
