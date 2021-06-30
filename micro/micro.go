@@ -162,8 +162,23 @@ func WorkerRushDefence() {
 
 	for _, unit := range army {
 		if unit.Hits < 11 {
-			B.Groups.Add(bot.Miners, unit)
-			continue
+			if !unit.IsGathering() && enemies.CloserThan(4, unit).Exists() {
+				// Retreat using mineral walk
+				mfs := B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, B.Locs.MyStart)
+				if mfs.Exists() {
+					mfs = mfs.Filter(func(unit *scl.Unit) bool {
+						return enemies.CloserThan(4, unit).Empty()
+					})
+					if mfs.Exists() {
+						unit.CommandTag(ability.Smart, mfs.ClosestTo(unit).Tag)
+						continue
+					}
+				}
+			} else {
+				// Its safe to join miners
+				B.Groups.Add(bot.Miners, unit)
+				continue
+			}
 		}
 
 		if unit.IsCoolToAttack() {

@@ -220,7 +220,8 @@ func OrderUnits() {
 
 	banshees := B.PendingAliases(ability.Train_Banshee)
 	score[ability.Train_Banshee] = B.EnemyProduction.Score(protoss.Colossus, terran.SiegeTank, zerg.Ultralisk,
-		zerg.SwarmHostMP) -
+		zerg.SwarmHostMP, // from wiki
+		zerg.Zergling) - // mine - ultimate response versus mass lings
 		B.EnemyProduction.Score(protoss.Observer, protoss.Phoenix, terran.VikingFighter, terran.Raven, zerg.Hydralisk,
 			zerg.Overseer)
 	NormalizeScore(score, ability.Train_Banshee, banshees, 1)

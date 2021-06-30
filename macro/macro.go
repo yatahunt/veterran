@@ -137,13 +137,15 @@ func ReserveSCVs() {
 		B.Groups.Get(bot.ScvReserve).Tags.Empty() {
 		pos := B.BuildPos[scl.S2x2][0]
 		scv := bot.GetSCV(pos, 0, 45) // Get SCV but don't change its group
-		mineralsOnPos := scv.FramesToPos(pos)*B.MineralsPerFrame+float64(B.Minerals)
-		if B.CcAfterRax || B.CcBeforeRax {
-			mineralsOnPos -= 40 // Send worker little later
-		}
-		if scv != nil && mineralsOnPos >= 100 {
-			B.Groups.Add(bot.ScvReserve, scv)
-			scv.CommandPos(ability.Move, pos)
+		if scv != nil {
+			mineralsOnPos := scv.FramesToPos(pos)*B.MineralsPerFrame + float64(B.Minerals)
+			if B.CcAfterRax || B.CcBeforeRax {
+				mineralsOnPos -= 40 // Send worker little later
+			}
+			if mineralsOnPos >= 100 {
+				B.Groups.Add(bot.ScvReserve, scv)
+				scv.CommandPos(ability.Move, pos)
+			}
 		}
 	}
 	if (B.ProxyReapers || B.ProxyMarines) && B.Loop < scl.TimeToLoop(0, 30) &&

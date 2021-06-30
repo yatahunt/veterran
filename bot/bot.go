@@ -8,7 +8,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/api"
 )
 
-const version = "VeTerran v2.5.15 (glhf)"
+const version = "VeTerran v2.5.16 (glhf)"
 
 type Strategy int
 
@@ -61,6 +61,7 @@ type Bot struct {
 	BuildTurrets   bool
 	VersionPosted  bool
 	GGPosted       bool
+	PanicPosted    bool
 	Strategy       Strategy
 	ProxyReapers   bool
 	ProxyMarines   bool
@@ -101,15 +102,31 @@ func GGCheck() bool {
 		B.Units.My.All().Filter(scl.Structure, scl.Ground).Empty()
 }
 
+func RecoverPanic() {
+	if p := recover(); p != nil {
+		helpers.ReportPanic(p)
+		if !B.PanicPosted {
+			B.Actions.ChatSend("Tag: Panic", api.ActionChat_Team)
+			B.PanicPosted = true
+		}
+		B.Cmds.Process(&B.Actions)
+		if len(B.Actions) > 0 {
+			// Send actions if there were any before panic has occurred
+			_, _ = B.Client.Action(api.RequestAction{Actions: B.Actions})
+			B.Actions = nil
+		}
+	}
+}
+
 // OnStep is called each game step (every game update by default)
 func Step() {
-	defer helpers.RecoverPanic()
+	defer RecoverPanic()
 
 	B.Cmds = &scl.CommandsStack{} // todo: move this block into the lib
 	B.Loop = int(B.Obs.GameLoop)
 	if B.Loop >= 9 && !B.VersionPosted {
 		B.Actions.ChatSend(version, api.ActionChat_Broadcast)
-		B.Actions.ChatSend("Tag: Strategy_" + B.Strategy.String(), api.ActionChat_Team)
+		B.Actions.ChatSend("Tag: Strategy_"+B.Strategy.String(), api.ActionChat_Team)
 		B.VersionPosted = true
 	}
 	if B.Loop < B.LastLoop+B.FramesPerOrder {
