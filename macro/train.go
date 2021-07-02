@@ -194,7 +194,7 @@ func OrderUnits() {
 
 	thors := B.PendingAliases(ability.Train_Thor)
 	score[ability.Train_Thor] = B.EnemyProduction.Score(protoss.Archon, protoss.Disruptor, protoss.Stalker,
-		terran.PlanetaryFortress, terran.Marine, terran.Battlecruiser, zerg.Mutalisk) -
+		protoss.Tempest, terran.PlanetaryFortress, terran.Marine, terran.Battlecruiser, zerg.Mutalisk) -
 		B.EnemyProduction.Score(protoss.Immortal, terran.Marauder, zerg.Zergling)
 	NormalizeScore(score, ability.Train_Thor, thors, 1)
 
