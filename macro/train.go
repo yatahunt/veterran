@@ -277,6 +277,9 @@ func OrderUnits() {
 	if vikings >= 8 {
 		score[ability.Train_VikingFighter] = -1
 	}
+	if vikings == 0 && (medivacs != 0 || ravens != 0 || banshees != 0) {
+		score[ability.Train_VikingFighter] += 1000 * (medivacs + ravens + banshees)
+	}
 	if (B.Units.AllEnemy[terran.Banshee].Exists() ||
 		B.Units.AllEnemy.OfType(B.U.UnitAliases.For(terran.Starport)...).Exists()) && vikings == 0 {
 		score[ability.Train_VikingFighter] += 10000

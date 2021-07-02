@@ -601,8 +601,20 @@ func BuildRefinery(cc *scl.Unit) {
 			unit.FindAssignedBuilder(builders) == nil
 	})
 	if geyser != nil {
-		scv := bot.GetSCV(geyser, bot.Builders, 45)
+		enemies := B.Enemies.All.Filter(scl.DpsGt5)
+		if enemies.CloserThan(SafeBuildRange, geyser).Exists() || enemies.First(func(unit *scl.Unit) bool {
+			return unit.IsCloserThan(unit.GroundRange()+4, geyser)
+		}) != nil {
+			return
+		}
+		scv := bot.GetSCV(geyser, 0, 45)
 		if scv != nil {
+			if !scv.IsSafeToApproach(geyser) {
+				log.Debugf("Can't find safe path from %v to build %v @ %v",
+					scv.Pos, B.U.Types[B.U.AbilityUnit[ability.Build_Refinery]].Name, geyser.Point())
+				return
+			}
+			B.Groups.Add(bot.Builders, scv)
 			scv.CommandTag(ability.Build_Refinery, geyser.Tag)
 			B.DeductResources(ability.Build_Refinery)
 			log.Debugf("%d: Building Refinery", B.Loop)

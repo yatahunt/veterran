@@ -224,10 +224,19 @@ func SplashOptimizationTest(myId, enemyId api.PlayerID, b *bot.Bot) {
 	b.Actions.MoveCamera(b.Locs.EnemyStart.Towards(b.Locs.MapCenter, 10))
 }
 
+func BurrowLing(myId, enemyId api.PlayerID, b *bot.Bot) {
+	b.DebugAddUnits(zerg.ZerglingBurrowed, enemyId+1, b.Locs.MyExps[1], 1)
+	b.DebugAddUnits(zerg.ZerglingBurrowed, enemyId+1, b.Locs.MyExps[2], 1)
+	b.DebugAddUnits(zerg.ZerglingBurrowed, enemyId+1, b.Locs.MyExps[3], 1)
+	b.DebugAddUnits(zerg.ZerglingBurrowed, enemyId+1, b.Locs.MyExps[4], 1)
+	b.DebugAddUnits(zerg.ZerglingBurrowed, enemyId+1, b.Locs.MyExps[5], 1)
+	b.DebugSend()
+}
+
 func Init(b *bot.Bot) {
 	myId := b.Obs.PlayerCommon.PlayerId
 	enemyId := 3 - myId
 	b.PlayDefensive = false
 
-	SiegeEvasion(myId, enemyId, b)
+	BurrowLing(myId, enemyId, b)
 }

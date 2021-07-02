@@ -6,9 +6,10 @@ import (
 	"github.com/aiseeq/s2l/lib/point"
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/api"
+	"github.com/aiseeq/s2l/protocol/enums/zerg"
 )
 
-const version = "VeTerran v2.6.0 (glhf)"
+const version = "VeTerran v2.6.1 (glhf)"
 
 type Strategy int
 
@@ -84,6 +85,33 @@ type Bot struct {
 
 var B *Bot
 
+func (b *Bot) ParseActionErrors() {
+	for _, err := range b.Errors {
+		log.Debugf("Action tag: %v, ability: %v, error: %v", err.UnitTag, err.AbilityId, err.Result)
+		if err.AbilityId == 318 && err.Result == api.ActionResult_CantBuildLocationInvalid {
+			// Probably it's a burrowed zergling. Not a best solution but works most times
+			scv := b.Units.ByTag[err.UnitTag]
+			if scv == nil {
+				log.Error("Wat?")
+				continue
+			}
+			exp := B.Locs.MyExps.ClosestTo(scv)
+			ling := scl.Unit{
+				Unit: api.Unit{
+					DisplayType: api.DisplayType_Hidden,
+					Alliance:    api.Alliance_Enemy,
+					UnitType:    zerg.ZerglingBurrowed,
+					Pos:         exp.Point().To3D(),
+					Cloak:       api.CloakState_Cloaked,
+					IsBurrowed:  true,
+				},
+			}
+			b.Enemies.All.Add(&ling)
+			b.Enemies.AllReady.Add(&ling)
+		}
+	}
+}
+
 func ParseData() {
 	B.ParseObservation()
 	B.ParseUnits()
@@ -92,7 +120,8 @@ func ParseData() {
 	if len(B.BuildPos) == 0 {
 		FindBuildingsPositions()
 	}
-	B.FindClusters()
+	B.FindClusters() // Not used yet
+	B.ParseActionErrors()
 }
 
 func GGCheck() bool {

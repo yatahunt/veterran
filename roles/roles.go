@@ -2,8 +2,10 @@ package roles
 
 import (
 	"bitbucket.org/aisee/veterran/bot"
+	"github.com/aiseeq/s2l/lib/point"
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
+	"github.com/aiseeq/s2l/protocol/enums/effect"
 	"github.com/aiseeq/s2l/protocol/enums/protoss"
 	"github.com/aiseeq/s2l/protocol/enums/terran"
 	"github.com/aiseeq/s2l/protocol/enums/zerg"
@@ -288,15 +290,28 @@ func ReconHellion() {
 	}*/
 }
 
+func GetLiberatorsCircles() (ps point.Points) {
+	for _, e := range B.Obs.RawData.Effects {
+		if e.EffectId == effect.LiberatorDefenderZoneSetup || e.EffectId == effect.LiberatorDefenderZone {
+			for _, p := range e.Pos {
+				ps.Add(point.Pt2(p))
+			}
+		}
+	}
+	return
+}
+
 func Mine() {
 	enemies := B.Enemies.Visible.Filter(scl.DpsGt5)
 	miners := B.Groups.Get(bot.Miners).Units
 
 	// Std miners handler
 	miners = B.Groups.Get(bot.Miners).Units
+	lcs := GetLiberatorsCircles()
 	ccs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).
 		Filter(func(unit *scl.Unit) bool {
-			return unit.IsReady() && enemies.CanAttack(unit, 0).Sum(scl.CmpGroundDPS) < 30 // one banshee
+			return unit.IsReady() && enemies.CanAttack(unit, 0).Sum(scl.CmpGroundDPS) < 30 && // one banshee
+				(lcs.Empty() || lcs.CloserThan(scl.ResourceSpreadDistance, unit).Empty())
 		})
 	// Move miners to first gas if not proxy marines build
 	if B.Loop < scl.TimeToLoop(1, 10) && len(B.Miners.GasForMiner) < 3 && !B.ProxyMarines {
