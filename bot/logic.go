@@ -60,6 +60,17 @@ func MarkGeysersAsUnbuildable() {
 func FindBuildingsPositions() {
 	MarkGeysersAsUnbuildable()
 	FindTurretPosition(B.Locs.MyStart)
+	for _, exp := range B.Locs.MyExps {
+		FindTurretPosition(exp)
+		FindBunkerPosition(exp)
+	}
+
+	// Make positions for mining targets calculations
+	B.TurretsMiningPos = make(point.Points, len(B.TurretsPos))
+	copy(B.TurretsMiningPos, B.TurretsPos)
+	for n := range B.TurretsMiningPos {
+		B.TurretsMiningPos[n] += 0.5+0.5i
+	}
 
 	// Positions for first 2 supplies and barrack
 	// todo: grid := grid.New(B.Grid.StartRaw, B.Grid.MapState) - держать отдельную сетку с пометками где что строить собрался
@@ -154,48 +165,102 @@ func FindBuildingsPositions() {
 
 func FindTurretPosition(ptr point.Pointer) {
 	mfs := B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, ptr)
-	if mfs.Empty() {
-		return
+	if mfs.Len() != 8 {
+		return // Unorthodox expansion, its better to skip it
 	}
+	mfsCenter := mfs.Center()
 
-	MarkGeysersAsUnbuildable()
-
-	var pos point.Point
-	vec := (mfs.Center() - ptr.Point()).Norm()
-	rekt := mfs.Rekt()
-	rekt[0] -= 1 + 1i // Move LOWER point DOWN and LEFT because 2x2 building is placed on lower-left corner
-	side := vec.Compas()
-	if side.IsDiagonal() {
-		// Minerals are in quarter of a circle. We need do find corners of rectangle that wraps all crystals
-		if side == point.NE || side == point.SW {
-			// Switch corners
-			rekt[0], rekt[1] = point.Pt(rekt[0].X(), rekt[1].Y()), point.Pt(rekt[1].X(), rekt[0].Y())
+	var corners point.Points
+	ccVec := (mfsCenter - ptr.Point()).Norm()
+	minSide := ccVec.Compas()
+	ccDir := mfsCenter.Dir(ptr)
+	geysers := B.Units.Geysers.All().CloserThan(10, ptr)
+	if minSide.IsDiagonal() {
+		// Minerals are in quarter-circle
+		// We need to find minerals on the edge of field
+		mfs.OrderByDistanceTo(mfsCenter, true)           // furthest are in corners
+		corners = append(corners, mfs[0].Point()-1-0.5i) // Bottom left corner of the mineral field
+		for _, mf := range mfs[1:4] {
+			if mf.IsCloserThan(4, mfs[0]) {
+				continue
+			}
+			corners = append(corners, mf.Point()-1-0.5i)
+			break
+		}
+		// Move corners so they become turrets positions
+		for n, corner := range corners {
+			side := (corner - ptr.Point()).Compas()
+			corners[n] += ccDir
+			switch side {
+			case point.N:
+				corners[n] -= 1i
+			case point.S:
+				// nothing
+			case point.E:
+				corners[n] -= 1
+				if imag(ccDir) == -1 {
+					corners[n] -= 1i
+				}
+			case point.W:
+				corners[n] += 1
+				if imag(ccDir) == -1 {
+					corners[n] -= 1i
+				}
+			}
+		}
+		// Check if geysers are close
+		if len(geysers) == 2 && geysers[0].Dist2(geysers[1]) < 8*8 {
+			geysersCenter := geysers.Center()
+			n := 0
+			if geysersCenter.Dist2(corners[1]) < geysersCenter.Dist2(corners[0]) {
+				n = 1
+			}
+			// Here we need to move position horizontally or vertically to touch both geysers
+			furthestGeyser := geysers.FurthestTo(corners[n])
+			side := (corners[n] - furthestGeyser.Point()).Compas()
+			switch side {
+			case point.N:
+				corners[n].SetY(furthestGeyser.Point().Y() + 1.5)
+			case point.S:
+				corners[n].SetY(furthestGeyser.Point().Y() - 3.5)
+			case point.E:
+				corners[n].SetX(furthestGeyser.Point().X() + 1.5)
+			case point.W:
+				corners[n].SetX(furthestGeyser.Point().X() - 3.5)
+			}
 		}
 	} else {
-		// Move closest to CC point behind the mineral line
-		switch side {
-		case point.E:
-			rekt[0] = point.Pt(rekt[1].X(), rekt[0].Y())
-		case point.W:
-			rekt[1] = point.Pt(rekt[0].X(), rekt[1].Y())
-		case point.N:
-			rekt[0] = point.Pt(rekt[0].X(), rekt[1].Y())
-		case point.S:
-			rekt[1] = point.Pt(rekt[1].X(), rekt[0].Y())
+		// Minerals are in line or half-circle
+		for _, geyser := range geysers {
+			corner := geyser.Point() - 1.5 - 1.5i
+			side := (geyser.Point() - geysers.Center()).Compas()
+			switch side {
+			case point.N:
+				corner -= 2i
+			case point.S:
+				corner += 3i
+			case point.E:
+				corner -= 2
+			case point.W:
+				corner += 3
+			}
+			switch minSide {
+			case point.N:
+				corner += 1i
+			case point.E:
+				corner += 1
+			}
+			corners = append(corners, corner)
 		}
 	}
-	// B.DebugPoints(rekt...)
+	// B.DebugPoints(corners...)
 
-	for _, corner := range rekt {
-		if pos = B.FindClosestPos(corner, scl.S2x2, ability.Build_MissileTurret,
-			0, 0, 1, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep); pos == 0 {
-			pos = B.FindClosestPos(corner, scl.S2x2, ability.Build_MissileTurret,
-				0, 1, 1, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep)
-		}
-		if pos == 0 {
+	var pos point.Point
+	for _, corner := range corners {
+		if !B.IsPosOk(corner, scl.S2x2, 0, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep)  {
 			continue
 		}
-		pos = pos.CellCenter()
+		pos = corner.CellCenter()
 		if !B.TurretsPos.Has(pos) {
 			B.TurretsPos.Add(pos)
 		}
@@ -224,21 +289,24 @@ func FindBunkerPosition(ptr point.Pointer) {
 	centerVec := (ccPos - B.Locs.MapCenter).Norm()
 	for x := 4.0; x < 8; x++ {
 		pos = (ccPos - minVec.Mul(x)).Floor().CellCenter()
-		/*if B.BunkersPos.Has(pos) {
-			return // There is already position for one bunker
-		}*/
 		if B.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep) {
 			B.BunkersPos.Add(pos)
+			for _, p := range B.GetBuildingPoints(pos, scl.S3x3) {
+				B.Grid.SetBuildable(p, false)
+				B.Grid.SetPathable(p, false)
+			}
 			break
 		}
 		pos = (ccPos - centerVec.Mul(x)).Floor().CellCenter()
 		if B.IsPosOk(pos, scl.S3x3, 0, scl.IsBuildable, scl.IsPathable, scl.IsNoCreep) {
 			B.BunkersPos.Add(pos)
+			for _, p := range B.GetBuildingPoints(pos, scl.S3x3) {
+				B.Grid.SetBuildable(p, false)
+				B.Grid.SetPathable(p, false)
+			}
 			break
 		}
 	}
-	/*B.Debug3x3Buildings(B.BunkersPos...)
-	B.DebugSend()*/
 }
 
 func GetEmptyBunker(ptr point.Pointer) *scl.Unit {
@@ -260,12 +328,6 @@ func EnableDefensivePlay() {
 		return
 	}
 	B.PlayDefensive = true
-	/*for _, cc := range B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress) {
-		if cc.IsCloserThan(1, B.Locs.MyStart) {
-			continue
-		}
-		FindBunkerPosition(cc)
-	}*/
 }
 
 func DisableDefensivePlay() {
@@ -273,14 +335,10 @@ func DisableDefensivePlay() {
 		return
 	}
 	B.PlayDefensive = false
-	B.BunkersPos = nil
 	if bunkers := B.Units.My[terran.Bunker]; bunkers.Exists() {
 		bunkers.Command(ability.UnloadAll_Bunker)
 		// bunkers.CommandQueue(ability.Effect_Salvage)
 	}
-	/*if tanks := B.Groups.Get(TanksOnExps).Units; tanks.Exists() {
-		B.Groups.Add(Tanks, tanks...)
-	}*/
 }
 
 func DefensivePlayCheck() {

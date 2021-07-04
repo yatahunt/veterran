@@ -9,7 +9,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/enums/zerg"
 )
 
-const version = "VeTerran v2.6.1 (glhf)"
+const version = "VeTerran v2.6.2 (glhf)"
 
 type Strategy int
 
@@ -70,10 +70,11 @@ type Bot struct {
 	CcAfterRax     bool
 	CcBeforeRax    bool
 
-	BuildPos     map[scl.BuildingSize]point.Points
-	FirstBarrack point.Points
-	TurretsPos   point.Points
-	BunkersPos   point.Points
+	BuildPos         map[scl.BuildingSize]point.Points
+	FirstBarrack     point.Points
+	TurretsPos       point.Points
+	TurretsMiningPos point.Points
+	BunkersPos       point.Points
 
 	DoubleHealers []scl.GroupID
 	CycloneLocks  map[api.UnitTag]api.UnitTag
@@ -119,6 +120,7 @@ func ParseData() {
 	B.DetectEnemyRace()
 	if len(B.BuildPos) == 0 {
 		FindBuildingsPositions()
+		B.InitMining(B.TurretsMiningPos)
 	}
 	B.FindClusters() // Not used yet
 	B.ParseActionErrors()
@@ -194,14 +196,6 @@ func Step() {
 		}
 	}
 
-	/*if B.Loop%3 == 0 && B.Loop/3 >= 4 && B.Loop/3 < len(B.Locs.MyExps)+4 {
-		FindTurretPosition(B.Locs.MyExps[B.Loop/3-4])
-	}
-	if B.Loop >= 60 && B.Loop < 63 {
-		B.Debug2x2Buildings(B.TurretsPos...)
-		B.DebugSend()
-		log.Info(B.Loop)
-	}*/
 	// B.DebugOrders()
 	// B.DebugMap()
 	// B.DebugRamps()
@@ -216,7 +210,13 @@ func Step() {
 	B.Debug3x3Buildings(B.BuildPos[scl.S3x3]...)
 	B.Debug5x3Buildings(B.BuildPos[scl.S5x3]...)
 	B.Debug3x3Buildings(B.BuildPos[scl.S5x5]...)
+	B.Debug3x3Buildings(B.BunkersPos...)
 	B.Debug2x2Buildings(B.TurretsPos...)*/
+	/*if B.Loop < 3 {
+		for _, pos := range B.TurretsPos {
+			B.DebugAddUnits(terran.MissileTurret, B.Obs.PlayerCommon.PlayerId, pos, 1)
+		}
+	}*/
 	// B.DebugSend()
 
 	return

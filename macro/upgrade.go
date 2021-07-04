@@ -55,11 +55,11 @@ func OrderUpgrades() {
 				}
 			}
 		}
-		if !B.Upgrades[ability.Research_HiSecAutoTracking] && B.Units.AllEnemy[terran.Banshee].Exists() &&
+		/*if !B.Upgrades[ability.Research_HiSecAutoTracking] && B.Units.AllEnemy[terran.Banshee].Exists() &&
 			eng.HasIrrAbility(ability.Research_HiSecAutoTracking) && B.CanBuy(ability.Research_HiSecAutoTracking) {
 			eng.Command(ability.Research_HiSecAutoTracking)
 			return
-		}
+		}*/
 	}
 
 	if arm := B.Units.My[terran.Armory].First(scl.Ready, scl.Idle); arm != nil && B.Units.My.OfType(terran.WidowMine,

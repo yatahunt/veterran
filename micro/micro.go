@@ -212,7 +212,7 @@ func GetHealingPoints() point.Points {
 		if scvs.CloserThan(scl.ResourceSpreadDistance, expLoc).Len() < 4 {
 			continue
 		}
-		healingPoints = append(healingPoints, expLoc)
+		healingPoints = append(healingPoints, expLoc.Towards(B.Locs.MapCenter, 4))
 	}
 	return healingPoints
 }
@@ -236,7 +236,7 @@ func MechRetreat() {
 		}
 
 		// Find closest healing point
-		healingPoint := healingPoints.ClosestTo(u) - B.Locs.MyStartMinVec*3
+		healingPoint := healingPoints.ClosestTo(u)
 		if u.UnitType == terran.Battlecruiser && u.HasAbility(ability.Effect_TacticalJump) {
 			u.CommandPos(ability.Effect_TacticalJump, healingPoint)
 			continue
@@ -333,9 +333,9 @@ func ThorEvacs() {
 		}
 		healingPoints := GetHealingPoints()
 		if healingPoints.Empty() {
-			healingPoints.Add(B.Locs.MyStart - B.Locs.MyStartMinVec*3)
+			healingPoints.Add(B.Locs.MyStart.Towards(B.Locs.MapCenter, 4))
 		}
-		healingPoint := healingPoints.ClosestTo(med) - B.Locs.MyStartMinVec*3
+		healingPoint := healingPoints.ClosestTo(med)
 		med.CommandPos(ability.UnloadAllAt_Medivac, healingPoint)
 	}
 }

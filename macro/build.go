@@ -48,7 +48,7 @@ var RootBuildOrder = BuildNodes{
 		Name:    "Priority order workers",
 		Ability: ability.Train_SCV,
 		Premise: func() bool {
-			return (B.CcAfterRax || B.CcBeforeRax) && B.Minerals < 150 // todo: time limit
+			return (B.CcAfterRax || B.CcBeforeRax) && B.Minerals < 150
 		},
 		Limit:  func() int { return 42 },
 		Active: func() int { return 2 },
@@ -81,12 +81,6 @@ var RootBuildOrder = BuildNodes{
 				return true
 			}
 			return false
-		},
-		Method: func() {
-			pos := Build(ability.Build_CommandCenter)
-			if pos != 0 { // && B.PlayDefensive
-				bot.FindBunkerPosition(pos)
-			}
 		},
 	},
 	{
@@ -270,8 +264,7 @@ var RaxBuildOrder = BuildNodes{
 		Name:    "Bunkers",
 		Ability: ability.Build_Bunker,
 		Premise: func() bool {
-			return B.Units.My[terran.Marine].Len() >= 2 /*&&
-			B.Enemies.Visible.Filter(scl.DpsGt5).CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty()*/
+			return B.PlayDefensive && B.Units.My[terran.Marine].Len() >= 2
 		},
 		Limit:  func() int { return B.BunkersPos.Len() },
 		Active: func() int { return B.BunkersPos.Len() },
@@ -525,6 +518,13 @@ func Build(aid api.AbilityID) point.Point {
 	}
 	if aid == ability.Build_Bunker {
 		positions = B.BunkersPos
+	}
+	if aid == ability.Build_MissileTurret || aid == ability.Build_Bunker {
+		// Build only if CC exists or in construction nearby
+		ccs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+		positions = positions.Filter(func(pt point.Point) bool {
+			return ccs.CloserThan(scl.ResourceSpreadDistance, pt).Exists()
+		})
 	}
 	for _, pos := range positions {
 		if buildersTargets.CloserThan(math.Sqrt2, pos).Exists() {

@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"github.com/aiseeq/s2l/lib/point"
 	"github.com/aiseeq/s2l/lib/scl"
 	"github.com/aiseeq/s2l/protocol/enums/ability"
 	"github.com/aiseeq/s2l/protocol/enums/terran"
@@ -110,9 +109,8 @@ func OnUnitCreated(unit *scl.Unit) {
 		return
 	}
 	if unit.UnitType == terran.CommandCenter {
-		// Ignore first CC, turrets poses will be found for him separately
 		if B.Loop >= 12 {
-			FindTurretPosition(point.Pt3(unit.Pos))
+			// Ignore first CC
 		} else {
 			B.Groups.Add(Buildings, unit)
 		}

@@ -142,10 +142,11 @@ func Repair() {
 			bot.OnUnitCreated(mech) // Add to corresponding group
 			continue
 		}
-		if mech.IsFlying { // Move flying units away from CC
-			if cc := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress).
-				CloserThan(3, mech).First(); cc != nil {
-				mech.CommandPos(ability.Move_Move, cc.Towards(mech, 3))
+		if mech.IsFlying { // Move flying units away from CC or bunker
+			bs := B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress)
+			bs.Add(B.Units.My[terran.Bunker]...)
+			if b := bs.CloserThan(3, mech).ClosestTo(mech); b != nil {
+				mech.CommandPos(ability.Move_Move, b.Towards(mech, 3))
 			}
 		}
 		ars := mech.FindAssignedRepairers(reps)
@@ -154,6 +155,26 @@ func Repair() {
 			rep := bot.GetSCV(mech, bot.UnitHealers, 45)
 			if rep != nil {
 				rep.CommandTag(ability.Effect_Repair_SCV, mech.Tag)
+			}
+		}
+	}
+
+	if B.PlayDefensive {
+		// Heal units near the bases
+		allMechs := B.Units.MyAll.Filter(func(unit *scl.Unit) bool {
+			return unit.IsMechanical() && !unit.IsStructure() && unit.IsReady() && unit.Hits < unit.HitsMax
+		})
+		for _, cc := range B.Units.My.OfType(terran.CommandCenter, terran.OrbitalCommand, terran.PlanetaryFortress) {
+			closeMechs := allMechs.CloserThan(scl.ResourceSpreadDistance, cc)
+			for _, mech := range closeMechs {
+				ars := mech.FindAssignedRepairers(reps)
+				maxArs := int(mech.Radius * 4)
+				if ars.Len() < maxArs {
+					rep := bot.GetSCV(mech, bot.UnitHealers, 45)
+					if rep != nil {
+						rep.CommandTag(ability.Effect_Repair_SCV, mech.Tag)
+					}
+				}
 			}
 		}
 	}
@@ -335,7 +356,7 @@ func Mine() {
 			B.RedistributeWorkersToRefineryIfNeeded(ref, miners, 3)
 		}
 	}
-	B.HandleMiners(miners, ccs, enemies, 0.5, B.Locs.MyStart-B.Locs.MyStartMinVec*3) // reserve more vespene
+	B.HandleMiners(miners, ccs, enemies, 0.5, B.Locs.MyStart-B.Locs.MyStartMinVec*3, B.TurretsMiningPos)
 
 	mules := B.Groups.Get(bot.Mules).Units.Filter(scl.Idle)
 	for _, mule := range mules {
