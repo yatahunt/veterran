@@ -99,7 +99,8 @@ func FindBuildingsPositions() {
 	}
 
 	// Positions for main base buildings
-	pf2x2, pf3x3, pf5x3 := FindMainBuildingTypesPositions(B.Locs.MyStart)
+	start := B.Locs.MyStart.Floor()
+	pf2x2, pf3x3, pf5x3 := FindMainBuildingTypesPositions(start)
 
 	// Mark buildings positions as non-buildable
 	for size, poses := range map[scl.BuildingSize]point.Points{
@@ -117,7 +118,7 @@ func FindBuildingsPositions() {
 	}
 
 	// Find 3x3 positions behind mineral line
-	mfs := B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, B.Locs.MyStart)
+	mfs := B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, start)
 	if mfs.Exists() {
 		for y := -12.0; y <= 12; y++ {
 			for x := -12.0; x <= 12; x++ {
@@ -126,7 +127,7 @@ func FindBuildingsPositions() {
 				if dist <= 8 || dist >= 12 {
 					continue
 				}
-				pos := B.Locs.MyStart + vec
+				pos := start + vec
 				if mfs.ClosestTo(pos).Dist2(pos) >= 9 {
 					continue
 				}
@@ -149,7 +150,7 @@ func FindBuildingsPositions() {
 	pf2x2 = append(rp2x2, pf2x2...)
 
 	// Positions for buildings on expansions
-	pf2x2a, pf3x3a, pf5x3a := FindMainBuildingTypesPositions(B.Locs.MyExps[0])
+	pf2x2a, pf3x3a, pf5x3a := FindMainBuildingTypesPositions(B.Locs.MyExps[0].Floor())
 	pf2x2a.OrderByDistanceTo(B.Locs.MyExps[0], false)
 	pf3x3a.OrderByDistanceTo(B.Locs.MyExps[0], false)
 	pf5x3a.OrderByDistanceTo(B.Locs.MyExps[0], false)

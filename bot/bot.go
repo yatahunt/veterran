@@ -9,7 +9,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/enums/zerg"
 )
 
-const version = "VeTerran v2.6.2 (glhf)"
+const version = "VeTerran v2.6.3 (glhf)"
 
 type Strategy int
 
