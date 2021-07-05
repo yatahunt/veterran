@@ -166,7 +166,7 @@ func WorkerRushDefence() {
 
 	for _, unit := range army {
 		if unit.Hits < 11 {
-			if !unit.IsGathering() && enemies.CloserThan(4, unit).Exists() {
+			if enemies.CloserThan(4, unit).Exists() {
 				// Retreat using mineral walk
 				mfs := B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, B.Locs.MyStart)
 				if mfs.Exists() {
