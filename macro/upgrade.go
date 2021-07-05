@@ -102,12 +102,12 @@ func OrderUpgrades() {
 			lab.Command(ability.Research_CycloneLockOnDamage)
 			return
 		}
-		if B.PendingAliases(ability.Train_WidowMine) >= 4 && lab.HasIrrAbility(ability.Research_DrillingClaws) &&
+		if B.PendingAliases(ability.Train_WidowMine) >= 3 && lab.HasIrrAbility(ability.Research_DrillingClaws) &&
 			B.CanBuy(ability.Research_DrillingClaws) {
 			lab.Command(ability.Research_DrillingClaws)
 			return
 		}
-		if B.PendingAliases(ability.Train_Hellion) >= 4 && lab.HasIrrAbility(ability.Research_InfernalPreigniter) &&
+		if B.PendingAliases(ability.Train_Hellion) >= 3 && lab.HasIrrAbility(ability.Research_InfernalPreigniter) &&
 			B.CanBuy(ability.Research_InfernalPreigniter) {
 			lab.Command(ability.Research_InfernalPreigniter)
 			return
@@ -115,7 +115,7 @@ func OrderUpgrades() {
 	}
 
 	lab = B.Units.My[terran.StarportTechLab].First(scl.Ready, scl.Idle)
-	if lab != nil && B.Units.My[terran.Banshee].Exists() && B.PendingAliases(ability.Train_Banshee) >= 3 {
+	if lab != nil && B.Units.My[terran.Banshee].Exists() && B.PendingAliases(ability.Train_Banshee) >= 2 {
 		if lab.HasIrrAbility(ability.Research_BansheeHyperflightRotors) &&
 			B.CanBuy(ability.Research_BansheeHyperflightRotors) {
 			lab.Command(ability.Research_BansheeHyperflightRotors)
@@ -129,12 +129,20 @@ func OrderUpgrades() {
 	}
 
 	fc := B.Units.My[terran.FusionCore].First(scl.Ready, scl.Idle)
-	if fc != nil && B.Pending(ability.Train_Battlecruiser) > 1 &&
-		!B.Upgrades[ability.Research_BattlecruiserWeaponRefit] {
-		if fc.HasIrrAbility(ability.Research_BattlecruiserWeaponRefit) &&
-			B.CanBuy(ability.Research_BattlecruiserWeaponRefit) {
-			fc.Command(ability.Research_BattlecruiserWeaponRefit)
-			return
+	if fc != nil {
+		if B.Pending(ability.Train_Battlecruiser) > 1 && !B.Upgrades[ability.Research_BattlecruiserWeaponRefit] {
+			if fc.HasIrrAbility(ability.Research_BattlecruiserWeaponRefit) &&
+				B.CanBuy(ability.Research_BattlecruiserWeaponRefit) {
+				fc.Command(ability.Research_BattlecruiserWeaponRefit)
+				return
+			}
+		}
+		if B.Units.My[terran.Medivac].Len() >= 2 && !B.Upgrades[ability.Research_ResearchRapidReignitionSystem] {
+			if fc.HasIrrAbility(ability.Research_ResearchRapidReignitionSystem) &&
+				B.CanBuy(ability.Research_ResearchRapidReignitionSystem) {
+				fc.Command(ability.Research_ResearchRapidReignitionSystem)
+				return
+			}
 		}
 	}
 }

@@ -294,14 +294,21 @@ var RaxBuildOrder = BuildNodes{
 			if B.CcAfterRax && B.Units.My[terran.Barracks].First(scl.Unused) != nil {
 				return false
 			}
-			return !B.WorkerRush && B.Units.My[terran.BarracksFlying].Empty()
+			if B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Len() >= 2 && B.Minerals <= 450 {
+				return false // Don't build third if not plenty of resources
+			}
+			if B.Minerals > 800 {
+				return true
+			}
+			return !B.WorkerRush && B.Units.My[terran.BarracksFlying].Empty() &&
+				B.Units.My[terran.Barracks].First(scl.Ready, scl.Unused) == nil
 		},
 		Limit: func() int {
+			ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
 			if B.BruteForce {
-				ccs := B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...)
-				return scl.MinInt(2, ccs.Len())
+				return scl.MinInt(4, ccs.Len())
 			}
-			return 2
+			return scl.MinInt(4, ccs.Len()+1)
 		},
 		Active: func() int {
 			return 2
@@ -339,7 +346,9 @@ var RaxBuildOrder = BuildNodes{
 				((B.Vespene >= 100 && rax != nil && B.Enemies.Visible.CloserThan(SafeBuildRange, rax).Empty()) ||
 					B.Units.My[terran.BarracksFlying].First() != nil)
 		},
-		Limit:  BuildOne, // B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Len()
+		Limit: func() int {
+			return B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Len() - 1
+		},
 		Active: BuildOne,
 		Method: func() {
 			if rax := B.Units.My[terran.BarracksFlying].First(); rax != nil {
@@ -347,8 +356,9 @@ var RaxBuildOrder = BuildNodes{
 				return
 			}
 
-			rax := B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
-			if B.BruteForce {
+			raxes := B.Units.My[terran.Barracks]
+			rax := raxes.First(scl.Ready, scl.NoAddon, scl.Idle)
+			if B.BruteForce || raxes.Len() >= 3 {
 				rax.Command(ability.Build_TechLab_Barracks)
 				return
 			}
@@ -372,9 +382,7 @@ var RaxBuildOrder = BuildNodes{
 			rax := B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)
 			return ccs.Len() >= 2 && (rax != nil) && B.Enemies.Visible.CloserThan(SafeBuildRange, rax).Empty()
 		},
-		Limit: func() int {
-			return B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Len() - 1
-		},
+		Limit:  BuildOne,
 		Active: BuildOne,
 		Method: func() {
 			rax := B.Units.My[terran.Barracks].First(scl.Ready, scl.NoAddon, scl.Idle)

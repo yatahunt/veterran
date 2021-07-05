@@ -284,7 +284,8 @@ func OrderUnits() {
 		B.Units.AllEnemy.OfType(B.U.UnitAliases.For(terran.Starport)...).Exists()) && vikings == 0 {
 		score[ability.Train_VikingFighter] += 10000
 	}
-	if medivacs >= 4 || medivacs > (marines+marauders*2)/8 {
+	if medivacs >= B.Units.My.OfType(B.U.UnitAliases.For(terran.Barracks)...).Len()*2 ||
+		medivacs > (marines+marauders*2)/8 {
 		score[ability.Train_Medivac] = -1
 	}
 	if medivacs == 0 && (B.BruteForce && B.Loop < scl.TimeToLoop(3, 15) || thors > 0) {
