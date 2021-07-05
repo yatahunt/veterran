@@ -9,7 +9,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/enums/zerg"
 )
 
-const version = "VeTerran v2.6.3 (glhf)"
+const version = "VeTerran v2.6.4 (glhf)"
 
 type Strategy int
 
@@ -217,6 +217,7 @@ func Step() {
 			B.DebugAddUnits(terran.MissileTurret, B.Obs.PlayerCommon.PlayerId, pos, 1)
 		}
 	}*/
+	// B.DebugCircles(*point.PtCircle(B.Ramps.My.Top-B.Ramps.My.Vec*3, 5))
 	// B.DebugSend()
 
 	return

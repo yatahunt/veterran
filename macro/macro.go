@@ -181,7 +181,8 @@ func ReserveSCVs() {
 	}
 	// Fast expansion
 	if !B.BruteForce && B.Units.My.OfType(B.U.UnitAliases.For(terran.CommandCenter)...).Len() == 1 &&
-		B.Minerals >= 320 && B.Groups.Get(bot.ScvReserve).Tags.Empty() && !B.WorkerRush {
+		B.Minerals >= 320 && B.Groups.Get(bot.ScvReserve).Tags.Empty() && !B.WorkerRush &&
+		B.Enemies.All.CloserThan(scl.ResourceSpreadDistance, B.Locs.MyExps[0]).Empty() {
 		pos := B.Locs.MyExps[0]
 		if scv := bot.GetSCV(pos, bot.ScvReserve, 45); scv != nil {
 			scv.CommandPos(ability.Move, pos)

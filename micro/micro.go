@@ -136,6 +136,10 @@ func WorkerRushDefence() {
 	alert := enemies.CloserThan(enemiesRange-4, B.Locs.MyStart).Exists()
 	if enemies.Empty() || enemies.Sum(scl.CmpGroundScore) > workers.Sum(scl.CmpGroundScore)*2 || B.WorkerRush {
 		enemies = enemyWorkers.CloserThan(workersRange, B.Locs.MyStart)
+		if B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...).Len() >= 2 {
+			// Ignore workers on the ramp if wall is closed
+			enemies = enemies.FurtherThan(5, B.Ramps.My.Top-B.Ramps.My.Vec*3)
+		}
 		alert = enemies.CloserThan(workersRange-4, B.Locs.MyStart).Exists()
 		if alert && enemies.Len() >= 10 {
 			B.WorkerRush = true
