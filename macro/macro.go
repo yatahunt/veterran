@@ -19,7 +19,8 @@ var B *bot.Bot
 
 func Morph() {
 	cc := B.Units.My[terran.CommandCenter].First(scl.Ready, scl.Idle)
-	if cc != nil && B.Units.My[terran.Barracks].First(scl.Ready) != nil {
+	if !B.WorkerRush && cc != nil && B.Units.My[terran.Barracks].First(scl.Ready) != nil &&
+		B.Units.My[terran.SCV].Len() >= 8 {
 		if B.CanBuy(ability.Morph_OrbitalCommand) {
 			OrderTrain(cc, ability.Morph_OrbitalCommand, nil)
 		} else if !B.ProxyReapers && B.Units.My[terran.SCV].Len() >= 16 ||

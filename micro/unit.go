@@ -70,6 +70,14 @@ func GetDefensivePos(u *scl.Unit) point.Point {
 
 func DefaultExplore(u *scl.Unit) bool {
 	if B.PlayDefensive {
+		if exps := B.Locs.MyExps.CloserThan(70, B.Locs.MyStart).Filter(func(pt point.Point) bool {
+			return !B.Grid.IsExplored(pt)
+		}); exps.Exists() {
+			pos := exps.ClosestTo(u)
+			u.CommandPos(ability.Move, pos)
+			return true
+		}
+
 		pos := GetDefensivePos(u)
 		if u.IsFarFrom(pos) {
 			u.CommandPos(ability.Move, pos)

@@ -10,7 +10,8 @@ import (
 
 func LoadInBunker(u *scl.Unit) bool {
 	// Load into a bunker
-	if B.PlayDefensive && u.CanAttack(Targets.Armed, 0).Empty() {
+	if B.PlayDefensive && u.CanAttack(Targets.Armed, 0).Empty() &&
+		B.Enemies.Visible.CloserThan(B.DefensiveRange, B.Locs.MyStart).Empty() {
 		bunker := bot.GetEmptyBunker(u)
 		if bunker != nil {
 			if bunker.IsReady() {
