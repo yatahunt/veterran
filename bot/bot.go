@@ -9,7 +9,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/enums/zerg"
 )
 
-const version = "VeTerran v2.6.7 (glhf)"
+const version = "VeTerran v2.6.8 (glhf)"
 
 type Strategy int
 
@@ -61,6 +61,7 @@ type Bot struct {
 	DefensiveRange float64
 	BuildTurrets   bool
 	VersionPosted  bool
+	StrategyPosted bool
 	GGPosted       bool
 	PanicPosted    bool
 	Strategy       Strategy
@@ -157,8 +158,11 @@ func Step() {
 	B.Loop = int(B.Obs.GameLoop)
 	if B.Loop >= 9 && !B.VersionPosted {
 		B.Actions.ChatSend(version, api.ActionChat_Broadcast)
-		B.Actions.ChatSend("Tag: Strategy_"+B.Strategy.String(), api.ActionChat_Team)
 		B.VersionPosted = true
+	}
+	if B.Loop >= 12 && !B.StrategyPosted {
+		B.Actions.ChatSend("Tag: Strategy_"+B.Strategy.String(), api.ActionChat_Team)
+		B.StrategyPosted = true
 	}
 	if B.Loop < B.LastLoop+B.FramesPerOrder {
 		return // Skip frame repeat

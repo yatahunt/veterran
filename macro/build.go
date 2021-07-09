@@ -591,7 +591,7 @@ func BuildFirstBarrack() {
 
 func BuildProxyBarrack() {
 	pos := B.Locs.EnemyExps[B.Units.My[terran.Barracks].Len()+2]
-	scv := B.Units.My[terran.SCV].CloserThan(5, pos).ClosestTo(pos)
+	scv := B.Groups.Get(bot.ProxyBuilders).Units.ClosestTo(pos)
 	if scv == nil {
 		scv = bot.GetSCV(pos, 0, 45)
 	}

@@ -76,9 +76,6 @@ func ChooseStrategy(B *bot.Bot) {
 	} else {
 		bestRatio := 0.0
 		for s := bot.Default; s < bot.MaxStrategyId; s++ {
-			if s == bot.ProxyReapers || s == bot.ProxyMarines {
-				continue // Disable until the tournament
-			}
 			if B.Stats.LastStrategy == s && B.Stats.LastResult != "Victory" {
 				continue
 			}
