@@ -45,7 +45,7 @@ func BuildingsCheck() {
 			enemies.CanAttack(building, 0).Empty() &&
 			!addonsTypes.Contain(building.UnitType) {
 			scv := bot.GetSCV(building, bot.Builders, 45)
-			if scv != nil {
+			if scv != nil && B.Enemies.Visible.CanAttack(scv, 0.5).Empty() {
 				scv.CommandTag(ability.Smart, building.Tag)
 			}
 		}
@@ -72,6 +72,14 @@ func Build() {
 		if enemies.CanAttack(u, 2).Exists() || u.Hits < 21 {
 			u.Command(ability.Halt_TerranBuild)
 			u.CommandQueue(ability.Stop_Stop)
+		}
+		if B.Loop < scl.TimeToLoop(1, 30) && B.Enemies.Visible.CanAttack(u, 0.5).Exists() {
+			// Protect builder from worker rushers
+			u.Command(ability.Halt_TerranBuild)
+			mfs := B.Units.Minerals.All().CloserThan(scl.ResourceSpreadDistance, B.Locs.MyStart)
+			if mfs.Exists() {
+				u.CommandTagQueue(ability.Smart, mfs.ClosestTo(u).Tag)
+			}
 		}
 	}
 

@@ -13,7 +13,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/enums/zerg"
 )
 
-const SafeBuildRange = 7
+const SafeBuildRange = 9
 
 var B *bot.Bot
 

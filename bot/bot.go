@@ -9,7 +9,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/enums/zerg"
 )
 
-const version = "VeTerran v2.6.8 (glhf)"
+const version = "VeTerran v2.6.9 (glhf)"
 
 type Strategy int
 
@@ -24,12 +24,12 @@ const (
 )
 
 var StrategyPriority = map[Strategy]float64{ // More is better
-	BruteForce:   0.95,
-	CcBeforeRax:  0.9,
-	ProxyReapers: 0.85,
-	CcAfterRax:   0.8,
-	Default:      0.75,
-	ProxyMarines: 0.7,
+	BruteForce:   0.99,
+	CcBeforeRax:  0.98,
+	ProxyReapers: 0.97,
+	CcAfterRax:   0.96,
+	Default:      0.95,
+	ProxyMarines: 0.94,
 }
 
 func (s Strategy) String() string {
@@ -123,7 +123,7 @@ func ParseData() {
 		FindBuildingsPositions()
 		B.InitMining(B.TurretsMiningPos)
 	}
-	B.FindClusters() // Not used yet
+	// B.FindClusters() // Not used yet
 	B.ParseActionErrors()
 }
 
@@ -160,7 +160,7 @@ func Step() {
 		B.Actions.ChatSend(version, api.ActionChat_Broadcast)
 		B.VersionPosted = true
 	}
-	if B.Loop >= 12 && !B.StrategyPosted {
+	if B.Loop >= 36 && !B.StrategyPosted {
 		B.Actions.ChatSend("Tag: Strategy_"+B.Strategy.String(), api.ActionChat_Team)
 		B.StrategyPosted = true
 	}

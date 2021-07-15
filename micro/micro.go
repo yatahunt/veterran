@@ -146,6 +146,24 @@ func WorkerRushDefence() {
 			bot.DisableDefensivePlay()
 		}
 	}
+
+	raxes := B.Units.My[terran.Barracks]
+	supplies := B.Units.My.OfType(B.U.UnitAliases.For(terran.SupplyDepot)...)
+	if B.Loop < scl.TimeToLoop(1, 30) && enemyWorkers.CloserThan(10, B.Ramps.My.Top).Exists() &&
+		raxes.Len() == 1 && !raxes.First().IsReady() && supplies.Len() == 1 && B.CanBuy(ability.Build_SupplyDepot) {
+		// Build supply to prevent enemy worker from reaching the base
+		for _, builder := range B.Groups.Get(bot.Builders).Units {
+			if builder.TargetAbility() == ability.Build_Barracks {
+				builder.Command(ability.Halt_TerranBuild)
+				builder.CommandPosQueue(ability.Build_SupplyDepot, B.BuildPos[scl.S2x2][1])
+			}
+		}
+	}
+	if raxes.Len() >= 1 && supplies.Len() >= 2 {
+		// Base is closed
+		B.WorkerRush = false
+	}
+
 	if B.WorkerRush && enemyWorkers.CloserThan(70, B.Locs.MyStart).Empty() {
 		B.WorkerRush = false
 	}
