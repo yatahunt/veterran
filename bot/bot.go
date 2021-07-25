@@ -9,7 +9,7 @@ import (
 	"github.com/aiseeq/s2l/protocol/enums/zerg"
 )
 
-const version = "VeTerran v2.6.9 (glhf)"
+const version = "VeTerran v2.6.10-tournament (glhf)"
 
 type Strategy int
 
@@ -25,10 +25,10 @@ const (
 
 var StrategyPriority = map[Strategy]float64{ // More is better
 	BruteForce:   0.99,
-	CcBeforeRax:  0.98,
-	ProxyReapers: 0.97,
-	CcAfterRax:   0.96,
-	Default:      0.95,
+	CcAfterRax:   0.98,
+	Default:      0.97,
+	CcBeforeRax:  0.96,
+	ProxyReapers: 0.95,
 	ProxyMarines: 0.94,
 }
 
@@ -134,11 +134,21 @@ func GGCheck() bool {
 		B.Units.MyAll.Filter(scl.Structure, scl.Ground).Empty()
 }
 
+func ChatSend(msg string, channel api.ActionChat_Channel) {
+	_, _ = B.Client.Action(api.RequestAction{Actions: []*api.Action{{
+			ActionChat: &api.ActionChat{
+				Channel: channel,
+				Message: msg,
+			},
+		},
+	}})
+}
+
 func RecoverPanic() {
 	if p := recover(); p != nil {
 		helpers.ReportPanic(p)
 		if !B.PanicPosted {
-			B.Actions.ChatSend("Tag: Panic", api.ActionChat_Team)
+			ChatSend("Tag: Panic", api.ActionChat_Team)
 			B.PanicPosted = true
 		}
 		B.Cmds.Process(&B.Actions)
@@ -157,11 +167,11 @@ func Step() {
 	B.Cmds = &scl.CommandsStack{} // todo: move this block into the lib
 	B.Loop = int(B.Obs.GameLoop)
 	if B.Loop >= 9 && !B.VersionPosted {
-		B.Actions.ChatSend(version, api.ActionChat_Broadcast)
+		ChatSend(version, api.ActionChat_Team)
 		B.VersionPosted = true
 	}
-	if B.Loop >= 36 && !B.StrategyPosted {
-		B.Actions.ChatSend("Tag: Strategy_"+B.Strategy.String(), api.ActionChat_Team)
+	if B.Loop >= 12 && !B.StrategyPosted {
+		ChatSend("Tag: Strategy_"+B.Strategy.String(), api.ActionChat_Team)
 		B.StrategyPosted = true
 	}
 	if B.Loop < B.LastLoop+B.FramesPerOrder {
