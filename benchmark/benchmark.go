@@ -89,7 +89,7 @@ func testWholeGame() {
 	cpu := client.NewComputer(api.Race_Random, api.Difficulty_CheatInsane, api.AIBuild_RandomBuild)
 	for round := 1; ; round++ {
 		/*for _, mapName := range client.MapsProBotsSeason2*/ {
-			mapName := client.MapsProBotsSeason2[3]
+			mapName := client.Maps2021season2[3]
 			for _, race := range []api.Race{api.Race_Terran, api.Race_Zerg, api.Race_Protoss} {
 				cpu.Race = race
 
@@ -367,7 +367,7 @@ func testBattle() {
 	var cfg *client.GameConfig
 	myBot := client.NewParticipant(api.Race_Terran, "VeTerran")
 	cpu := client.NewComputer(api.Race_Terran, api.Difficulty_CheatInsane, api.AIBuild_RandomBuild)
-	mapName := client.MapsProBotsSeason2[3]
+	mapName := client.Maps2021season2[3]
 	round := 1
 	for {
 		for _, race := range []api.Race{api.Race_Terran, api.Race_Zerg, api.Race_Protoss} {
